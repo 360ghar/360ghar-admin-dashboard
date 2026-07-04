@@ -10,7 +10,11 @@ import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { GoogleIcon } from '@/components/ui/google-icon'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useEffect, useMemo, useState } from 'react'
-import { mapSupabaseAuthError } from '@/lib/authErrors'
+import {
+  IDENTIFIER_STATUS_UNAVAILABLE_MESSAGE,
+  mapSupabaseAuthError,
+  UNVERIFIED_ACCOUNT_MESSAGE,
+} from '@/lib/authErrors'
 import {
   fetchUserProfileWithToken,
   signInWithGoogle as startGoogleSignIn,
@@ -173,16 +177,8 @@ const LoginPage = () => {
       setNormalized(canonical)
       setDisplayIdentifier(raw)
 
-      // If the identifier-status endpoint is unavailable, fall back to
-      // password-first for emails and OTP-first for phones.
       if (!status) {
-        setHasPassword(false)
-        if (resolvedChannel === 'email') {
-          setStep('password')
-          passwordForm.reset()
-        } else {
-          await sendOtp(canonical, resolvedChannel)
-        }
+        setErrorMessage(IDENTIFIER_STATUS_UNAVAILABLE_MESSAGE)
         return
       }
 
@@ -194,6 +190,10 @@ const LoginPage = () => {
         setStep('password')
         passwordForm.reset()
         return
+      }
+
+      if (status.exists && !status.verified) {
+        setInfoMessage(UNVERIFIED_ACCOUNT_MESSAGE)
       }
 
       // Unverified / unknown -> OTP-first.

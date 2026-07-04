@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+> **Canonical guide: [CLAUDE.md](./CLAUDE.md).** Read it first for stack, structure, commands, and conventions.
+
 ## Project Structure & Module Organization
 - React + TypeScript SPA under `src/`.
 - `src/features/<domain>/` holds feature code with `api/`, `components/`, `pages/`, `slices/`, `validations.ts`, and `constants.ts` subdirectories.

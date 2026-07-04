@@ -17,9 +17,10 @@ export const supabase: SupabaseClient | null =
   supabaseUrl && supabasePublishableKey
     ? createClient(supabaseUrl, supabasePublishableKey, {
         auth: {
+          flowType: 'pkce',
+          detectSessionInUrl: false,
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
         },
       })
     : null

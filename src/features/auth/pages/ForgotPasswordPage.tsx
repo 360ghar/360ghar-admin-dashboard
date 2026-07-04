@@ -5,7 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
-import { mapSupabaseAuthError } from '@/lib/authErrors'
+import {
+  IDENTIFIER_STATUS_UNAVAILABLE_MESSAGE,
+  mapSupabaseAuthError,
+  NO_ACCOUNT_FOUND_MESSAGE,
+} from '@/lib/authErrors'
 import {
   checkIdentifierStatus,
   isEmail,
@@ -105,6 +109,15 @@ export default function ForgotPasswordPage() {
 
       setChannel(resolvedChannel)
       setNormalized(canonical)
+
+      if (!status) {
+        setErrorMessage(IDENTIFIER_STATUS_UNAVAILABLE_MESSAGE)
+        return
+      }
+      if (!status.exists) {
+        setErrorMessage(NO_ACCOUNT_FOUND_MESSAGE)
+        return
+      }
 
       await sendOtp(canonical, resolvedChannel)
       otpForm.reset()
