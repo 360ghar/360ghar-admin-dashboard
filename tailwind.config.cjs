@@ -24,12 +24,6 @@ module.exports = {
         'safe-left': 'var(--safe-area-inset-left)',
         'safe-right': 'var(--safe-area-inset-right)',
       },
-      spacing: {
-        'safe-top': 'var(--safe-area-inset-top)',
-        'safe-bottom': 'var(--safe-area-inset-bottom)',
-        'safe-left': 'var(--safe-area-inset-left)',
-        'safe-right': 'var(--safe-area-inset-right)',
-      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

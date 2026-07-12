@@ -56,8 +56,21 @@ const PropertyBasicInfoFields: React.FC<{ form: UseFormReturn<PropertyFormPageVa
           <Select value={form.watch('property_type')} onValueChange={(value) => { if (isPropertyType(value)) form.setValue('property_type', value as PropertyFormPageValues['property_type']) }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="house">House</SelectItem><SelectItem value="apartment">Apartment</SelectItem>
-              <SelectItem value="builder_floor">Builder Floor</SelectItem><SelectItem value="room">Room</SelectItem>
+              <SelectItem value="house">House</SelectItem>
+              <SelectItem value="apartment">Apartment</SelectItem>
+              <SelectItem value="builder_floor">Builder Floor</SelectItem>
+              <SelectItem value="room">Room</SelectItem>
+              <SelectItem value="villa">Villa</SelectItem>
+              <SelectItem value="plot">Plot</SelectItem>
+              <SelectItem value="condo">Condo</SelectItem>
+              <SelectItem value="penthouse">Penthouse</SelectItem>
+              <SelectItem value="studio">Studio</SelectItem>
+              <SelectItem value="loft">Loft</SelectItem>
+              <SelectItem value="pg">PG</SelectItem>
+              <SelectItem value="flatmate">Flatmate</SelectItem>
+              <SelectItem value="office">Office</SelectItem>
+              <SelectItem value="shop">Shop</SelectItem>
+              <SelectItem value="warehouse">Warehouse</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -73,6 +86,7 @@ const PropertyBasicInfoFields: React.FC<{ form: UseFormReturn<PropertyFormPageVa
         <div className="space-y-2">
           <Label htmlFor="base_price">Base Price (₹)</Label>
           <Input id="base_price" type="number" {...form.register('base_price', { valueAsNumber: true })} placeholder="25000" />
+          {form.formState.errors.base_price && <p className="text-sm text-red-500">{String(form.formState.errors.base_price.message)}</p>}
         </div>
       </div>
       <div className="space-y-2">
@@ -89,9 +103,21 @@ const PropertyLocationFields: React.FC<{ form: UseFormReturn<PropertyFormPageVal
     <CardHeader><CardTitle>Location</CardTitle><CardDescription>Property location details</CardDescription></CardHeader>
     <CardContent className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="space-y-2"><Label htmlFor="city">City</Label><Input id="city" {...form.register('city')} placeholder="Mumbai" /></div>
-        <div className="space-y-2"><Label htmlFor="locality">Locality</Label><Input id="locality" {...form.register('locality')} placeholder="Andheri" /></div>
-        <div className="space-y-2"><Label htmlFor="pincode">Pincode</Label><Input id="pincode" {...form.register('pincode')} placeholder="400053" /></div>
+        <div className="space-y-2">
+          <Label htmlFor="city">City</Label>
+          <Input id="city" {...form.register('city')} placeholder="Mumbai" />
+          {form.formState.errors.city && <p className="text-sm text-red-500">{String(form.formState.errors.city.message)}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="locality">Locality</Label>
+          <Input id="locality" {...form.register('locality')} placeholder="Andheri" />
+          {form.formState.errors.locality && <p className="text-sm text-red-500">{String(form.formState.errors.locality.message)}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="pincode">Pincode</Label>
+          <Input id="pincode" {...form.register('pincode')} placeholder="400053" />
+          {form.formState.errors.pincode && <p className="text-sm text-red-500">{String(form.formState.errors.pincode.message)}</p>}
+        </div>
       </div>
       <div>
         <Label className="text-base">Select Location on Map</Label>
@@ -152,7 +178,7 @@ const PropertyAmenitiesFeaturesFields: React.FC<{ form: UseFormReturn<PropertyFo
         <div className="flex flex-wrap gap-2 mt-2">
           {availableFeatures.map((feature) => (
             <Badge key={feature} variant={selectedFeatures.includes(feature) ? "default" : "outline"} className="cursor-pointer capitalize" onClick={() => toggleFeature(feature)}>
-              {feature.replace('_', ' ')}
+              {feature.replaceAll('_', ' ')}
             </Badge>
           ))}
         </div>

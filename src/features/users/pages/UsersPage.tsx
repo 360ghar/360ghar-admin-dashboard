@@ -1,10 +1,8 @@
 import { useParams } from 'react-router-dom'
 import UserList from '../components/UserList'
 import UserDetail from '../components/UserDetail'
-import { Users, UserPlus, TrendingUp, Shield, Phone } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Link } from 'react-router-dom'
+import { Users, TrendingUp, Shield, Phone } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
 import { useUserRole } from '@/hooks/useUserRole'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
 import { useGetUsersQuery } from '@/features/users/api/usersApi'
@@ -27,7 +25,7 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
     { skip: role !== 'admin' }
   )
 
-  const totalUsers = usersSample?.items.length ?? 0
+  const totalUsers = usersSample?.items?.length ?? 0
   const activeUsers = useMemo(() => {
     if (role === 'admin' && typeof systemStats?.active_users === 'number') {
       return systemStats.active_users
@@ -39,7 +37,7 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
     return usersSample?.items?.filter((u) => u.phone_verified).length ?? 0
   }, [usersSample])
 
-  const totalAgents = agentsData?.items.length ?? 0
+  const totalAgents = agentsData?.items?.length ?? 0
 
   if (mode === 'detail') {
     const id = Number(params.id)
@@ -49,78 +47,62 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
   return (
     <ErrorBoundary>
       <div className="space-y-8">
-        {/* Header Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-                Users
-              </h1>
-              <p className="text-muted-foreground">
-                {role === 'agent'
-                  ? 'Manage users assigned to you and track their interactions'
-                  : 'Manage all users in the system and oversee user accounts'
-                }
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="px-3 py-1">
-                {role === 'admin' ? 'Admin View' : 'Agent View'}
-              </Badge>
-              {role === 'admin' && (
-                <Button asChild className="gap-2">
-                  <Link to="/users/new">
-                    <UserPlus className="h-4 w-4" />
-                    Add User
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </div>
+          <PageHeader
+            title="Users"
+            description={
+              role === 'agent'
+                ? 'Manage users assigned to you and track their interactions'
+                : 'Manage all users in the system and oversee user accounts'
+            }
+            icon={Users}
+            badge={role === 'admin' ? 'Admin View' : 'Agent View'}
+          />
 
-          {/* Quick Stats */}
+          {/* Sample-bounded stats (cursor API has no total) — labels reflect that. */}
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-            <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
+            <div className="flex items-center gap-3 p-4 rounded-cohere-sm border border-cohere-card-border bg-muted/30">
               <div className="p-2 bg-primary/10 rounded-full">
                 <Users className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{usersFetching ? '...' : totalUsers}</p>
+                <p className="text-sm text-muted-foreground">Users (up to 100)</p>
+                <p className="text-2xl font-semibold tracking-tight">{usersFetching ? '…' : totalUsers}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
-              <div className="p-2 bg-green-500/10 rounded-full">
-                <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <div className="flex items-center gap-3 p-4 rounded-cohere-sm border border-cohere-card-border bg-muted/30">
+              <div className="p-2 bg-cohere-pale-green rounded-full">
+                <TrendingUp className="h-4 w-4 text-cohere-deep-green" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Users</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{usersFetching ? '...' : activeUsers}</p>
+                <p className="text-sm text-muted-foreground">
+                  {role === 'admin' && typeof systemStats?.active_users === 'number'
+                    ? 'Active Users'
+                    : 'Active Users (sample)'}
+                </p>
+                <p className="text-2xl font-semibold tracking-tight">{usersFetching ? '…' : activeUsers}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
-              <div className="p-2 bg-blue-500/10 rounded-full">
-                <Phone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center gap-3 p-4 rounded-cohere-sm border border-cohere-card-border bg-muted/30">
+              <div className="p-2 bg-cohere-pale-blue rounded-full">
+                <Phone className="h-4 w-4 text-cohere-action-blue" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Phone Verified</p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{usersFetching ? '...' : phoneVerified}</p>
+                <p className="text-sm text-muted-foreground">Phone Verified (sample)</p>
+                <p className="text-2xl font-semibold tracking-tight">{usersFetching ? '…' : phoneVerified}</p>
               </div>
             </div>
 
             {role === 'admin' && (
-              <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
-                <div className="p-2 bg-orange-500/10 rounded-full">
-                  <Shield className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <div className="flex items-center gap-3 p-4 rounded-cohere-sm border border-cohere-card-border bg-muted/30">
+                <div className="p-2 bg-secondary rounded-full">
+                  <Shield className="h-4 w-4 text-foreground/70" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Agents</p>
-                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{totalAgents}</p>
+                  <p className="text-sm text-muted-foreground">Agents (up to 100)</p>
+                  <p className="text-2xl font-semibold tracking-tight">{totalAgents}</p>
                 </div>
               </div>
             )}

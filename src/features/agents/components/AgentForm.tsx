@@ -14,14 +14,18 @@ import { FormRootError } from '@/components/ui/form-root-error'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { agentFormSchema, type AgentFormValues } from '@/features/agents/validations'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { LoadingState } from '@/components/ui/loading-state'
 
 const AgentForm = ({ id }: { id?: number }) => {
-  const { data } = useGetAgentQuery(id!, { skip: !id })
+  const isEdit = id != null && !Number.isNaN(id)
+  const invalidEditId = id != null && Number.isNaN(id)
+  const { data, isLoading, error, refetch } = useGetAgentQuery(id!, { skip: !isEdit })
   const [create, createState] = useCreateAgentMutation()
   const [update, updateState] = useUpdateAgentMutation()
   const { toast } = useToast()
   const navigate = useNavigate()
-  const isEdit = !!id
   const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentFormSchema),
     defaultValues: {
@@ -40,14 +44,14 @@ const AgentForm = ({ id }: { id?: number }) => {
     if (data) {
       const agent = data
       form.reset({
-        name: agent.name,
+        name: agent.name || '',
         contact_number: agent.contact_number || '',
         description: agent.description || '',
         languages: (agent.languages || []).join(', '),
-        agent_type: agent.agent_type,
-        experience_level: agent.experience_level,
-        is_active: agent.is_active,
-        is_available: agent.is_available,
+        agent_type: agent.agent_type || 'general',
+        experience_level: agent.experience_level || 'intermediate',
+        is_active: agent.is_active ?? true,
+        is_available: agent.is_available ?? true,
       })
     }
   }, [data, form])
@@ -88,9 +92,54 @@ const AgentForm = ({ id }: { id?: number }) => {
       }
       navigate('/agents')
     } catch (e: unknown) {
-      applyServerValidation(e, form.setError)
+      applyServerValidation(e, form.setError, {
+        knownFields: [
+          'name',
+          'contact_number',
+          'description',
+          'languages',
+          'agent_type',
+          'experience_level',
+          'is_active',
+          'is_available',
+        ],
+      })
       toast({ title: 'Failed', description: getErrorMessage(e, 'Try again'), variant: 'destructive' })
     }
+  }
+
+  if (invalidEditId) {
+    return (
+      <EmptyState
+        title="Invalid agent id"
+        description="The URL does not contain a valid agent identifier."
+        action={{ label: 'Back to agents', onClick: () => navigate('/agents'), variant: 'outline' }}
+      />
+    )
+  }
+
+  if (isEdit && error) {
+    return (
+      <ErrorState
+        title="Failed to load agent"
+        error={error}
+        onRetry={() => { void refetch() }}
+      />
+    )
+  }
+
+  if (isEdit && isLoading) {
+    return <LoadingState type="card" rows={6} />
+  }
+
+  if (isEdit && !isLoading && !data) {
+    return (
+      <EmptyState
+        title="Agent not found"
+        description="This agent may have been removed."
+        action={{ label: 'Back to agents', onClick: () => navigate('/agents'), variant: 'outline' }}
+      />
+    )
   }
 
   return (
@@ -200,48 +249,52 @@ const AgentForm = ({ id }: { id?: number }) => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="is_active"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Active</FormLabel>
-                    <Select onValueChange={(v) => field.onChange(v === 'true')} value={field.value ? 'true' : 'false'}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="is_available"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Available</FormLabel>
-                    <Select onValueChange={(v) => field.onChange(v === 'true')} value={field.value ? 'true' : 'false'}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isEdit && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="is_active"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Active</FormLabel>
+                        <Select onValueChange={(v) => field.onChange(v === 'true')} value={field.value ? 'true' : 'false'}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="true">Yes</SelectItem>
+                            <SelectItem value="false">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="is_available"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Available</FormLabel>
+                        <Select onValueChange={(v) => field.onChange(v === 'true')} value={field.value ? 'true' : 'false'}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="true">Yes</SelectItem>
+                            <SelectItem value="false">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
               <div className="md:col-span-2 flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => navigate('/agents')}>
                   Cancel

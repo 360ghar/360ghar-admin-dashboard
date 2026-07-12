@@ -3,6 +3,7 @@ import { IndianRupee, TrendingUp, Target, Percent } from 'lucide-react'
 import { useGetAllVisitsQuery } from '@/features/visits/api/visitsApi'
 import { useGetAllBookingsQuery } from '@/features/bookings/api/bookingsApi'
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/format'
+import { ErrorState } from '@/components/ui/error-state'
 import { StatCard } from './StatCard'
 
 /**
@@ -15,6 +16,9 @@ export function BusinessMetrics() {
   const bookings = useGetAllBookingsQuery({ limit: 100 })
 
   const isLoading = visits.isLoading || bookings.isLoading
+  // Both sources feed conversion metrics — any failure would silently zero out
+  // rates if we only showed empty samples.
+  const isError = visits.isError || bookings.isError
 
   const metrics = useMemo(() => {
     const bookingList = bookings.data?.items ?? []
@@ -33,6 +37,18 @@ export function BusinessMetrics() {
 
     return { revenue, visitToBooking, avgBookingValue, bookingTotal, visitTotal }
   }, [visits.data, bookings.data])
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Couldn't load business metrics"
+        onRetry={() => {
+          void visits.refetch()
+          void bookings.refetch()
+        }}
+      />
+    )
+  }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

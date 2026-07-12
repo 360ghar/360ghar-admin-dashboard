@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Building2, IndianRupee, Wrench } from 'lucide-react'
+import { ArrowRight, Building2, IndianRupee, LayoutDashboard, Wrench } from 'lucide-react'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
 import { selectSelectedOwner } from '@/features/pm/slices/pmSlice'
 import { useGetPmDashboardActivityQuery, useGetPmDashboardOverviewQuery } from '@/features/pm/api/pmApi'
 import { formatINR } from '@/features/pm/utils'
-import { formatDateTime } from '@/lib/format'
+import { formatRelativeTime } from '@/lib/format'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
-import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -27,15 +27,16 @@ export default function PmDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">PM Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Operational overview for <span className="font-medium">{scopeLabel}</span>.
-          </p>
-        </div>
-        <Badge variant="secondary">{role === 'admin' ? 'Admin' : 'Agent'}</Badge>
-      </div>
+      <PageHeader
+        title="PM Dashboard"
+        description={
+          <>
+            Operational overview for <span className="font-medium text-foreground">{scopeLabel}</span>.
+          </>
+        }
+        icon={LayoutDashboard}
+        badge={role === 'admin' ? 'Admin' : 'Agent'}
+      />
 
       {overview.isError ? (
         <ErrorState
@@ -161,7 +162,7 @@ export default function PmDashboardPage() {
                     {a.amount ? <span className="text-muted-foreground"> • {formatINR(a.amount)}</span> : null}
                   </div>
                   <div className="shrink-0 text-xs text-muted-foreground">
-                    {formatDateTime(a.at)}
+                    {formatRelativeTime(a.at)}
                   </div>
                 </div>
               ))}

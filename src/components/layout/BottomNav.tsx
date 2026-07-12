@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Building, Calendar, BookOpen, MoreHorizontal } from 'lucide-react'
+import { Home, Building, Calendar, ClipboardList, MoreHorizontal, User } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { SidebarContent } from './SidebarContent'
 import { cn } from '@/lib/utils'
+import { useUserRole } from '@/hooks/useUserRole'
 
 interface NavItem {
   name: string
@@ -10,21 +11,38 @@ interface NavItem {
   icon: typeof Home
 }
 
-const navItems: NavItem[] = [
+const staffNavItems: NavItem[] = [
   { name: 'Home', href: '/dashboard', icon: Home },
   { name: 'Properties', href: '/properties', icon: Building },
   { name: 'Visits', href: '/visits', icon: Calendar },
-  { name: 'Bookings', href: '/bookings', icon: BookOpen },
+  { name: 'PM', href: '/pm/dashboard', icon: ClipboardList },
 ]
 
 const BottomNav = () => {
   const location = useLocation()
+  const { role } = useUserRole()
+  const isStaff = role === 'admin' || role === 'agent'
+  const profileHref = role === 'agent' ? '/agents/me' : '/profile'
+  const navItems = isStaff
+    ? staffNavItems
+    : [{ name: 'Profile', href: profileHref, icon: User }]
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname === '/'
     }
-    return location.pathname.startsWith(href)
+    if (href === '/profile' || href === '/agents/me') {
+      return location.pathname === href
+    }
+    if (href === '/pm/dashboard') {
+      return location.pathname.startsWith('/pm')
+    }
+    if (location.pathname === href) return true
+    if (!location.pathname.startsWith(href + '/')) return false
+    // Keep list tabs inactive on dedicated /manage siblings (legacy redirects)
+    const first = location.pathname.slice(href.length + 1).split('/')[0]
+    if ((href === '/visits' || href === '/bookings') && first === 'manage') return false
+    return true
   }
 
   return (
@@ -51,10 +69,10 @@ const BottomNav = () => {
           )
         })}
 
-        {/* More menu - opens full navigation */}
         <Sheet>
           <SheetTrigger asChild>
             <button
+              type="button"
               className="flex flex-1 flex-col items-center justify-center gap-1 py-2 min-h-[56px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <MoreHorizontal className="h-5 w-5" />

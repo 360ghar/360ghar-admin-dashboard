@@ -34,35 +34,37 @@ export const swipesApi = api.injectEndpoints({
     endpoints: (builder) => ({
         swipeProperty: builder.mutation<SwipeResponse, SwipeRequest>({
             query: (data) => ({
-                url: '/swipes/',
+                url: '/swipes',
                 method: 'POST',
                 body: data,
             }),
-            invalidatesTags: [{type: 'Property', id: 'LIST'}, {type: 'Swipe', id: 'LIST'}],
+            // Only swipe history — do not invalidate RECOMMENDATIONS mid-deck
+            // (would re-order/shorten the feed and desync currentIndex).
+            invalidatesTags: [{ type: 'Swipe', id: 'LIST' }],
         }),
         listSwipes: builder.query<SwipeListResponse, SwipeListParams | void>({
             query: (params) => ({
-                url: '/swipes/',
+                url: '/swipes',
                 params: { limit: 20, ...(params || {}) },
             }),
             providesTags: [{type: 'Swipe' as const, id: 'LIST'}],
         }),
         undoLastSwipe: builder.mutation<void, void>({
             query: () => ({
-                url: '/swipes/undo/',
+                url: '/swipes/undo',
                 method: 'DELETE',
             }),
             invalidatesTags: [{type: 'Swipe', id: 'LIST'}],
         }),
         toggleSwipeLike: builder.mutation<void, { swipeId: number | string }>({
             query: ({ swipeId }) => ({
-                url: `/swipes/${swipeId}/toggle/`,
+                url: `/swipes/${swipeId}/toggle`,
                 method: 'PUT',
             }),
             invalidatesTags: [{type: 'Swipe', id: 'LIST'}],
         }),
         getSwipeStats: builder.query<SwipeStatsResponse, void>({
-            query: () => '/swipes/stats/',
+            query: () => '/swipes/stats',
             providesTags: [{type: 'Swipe' as const, id: 'LIST'}],
         }),
     }),

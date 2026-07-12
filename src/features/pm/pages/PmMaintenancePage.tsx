@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, Trash2, Wrench } from "lucide-react";
+import { Trash2, Wrench } from "lucide-react";
 import {
   MAINTENANCE_REQUEST_STATUSES,
   PAGE_SIZES,
-  WORK_ORDER_STATUSES,
-} from "@/features/pm/constants";
+  WORK_ORDER_STATUSES} from "@/features/pm/constants";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import CreateRequestDialog from "@/features/pm/components/CreateRequestDialog";
 import MaintenanceUpdateForm from "@/features/pm/components/MaintenanceUpdateForm";
@@ -15,19 +14,18 @@ import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
 import type {
   MaintenanceRequest,
   MaintenanceRequestStatus,
-  WorkOrderStatus,
-} from "@/types/pm";
+  WorkOrderStatus} from "@/types/pm";
 import {
   useListMaintenanceRequestsQuery,
   useUpdateMaintenanceRequestMutation,
-  useDeleteMaintenanceRequestMutation,
-} from "@/features/pm/api/pmApi";
+  useDeleteMaintenanceRequestMutation} from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
@@ -37,10 +35,10 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmMaintenancePage() {
   const { role, user } = useUserRole();
@@ -53,9 +51,8 @@ export default function PmMaintenancePage() {
   const [workOrderStatus, setWorkOrderStatus] = useState<WorkOrderStatus | "">("");
   const [limit, setLimit] = useState(50);
 
-  const pager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, requestStatus, workOrderStatus, limit]);
+  const pager = useCursorPagination(`${requestStatus}|${workOrderStatus}|${limit}`);
+
 
   const requests = useListMaintenanceRequestsQuery(
     {
@@ -63,8 +60,7 @@ export default function PmMaintenancePage() {
       request_status: requestStatus || undefined,
       work_order_status: workOrderStatus || undefined,
       limit,
-      cursor: pager.cursor,
-    },
+      cursor: pager.cursor},
     { skip: role === "agent" && !ownerId },
   );
 
@@ -83,35 +79,31 @@ export default function PmMaintenancePage() {
               #{row.original.id} &bull; Property #{row.original.property_id} &bull; {row.original.category}
             </div>
           </div>
-        ),
-      },
+        )},
       {
         accessorKey: "urgency",
         header: "Urgency",
         cell: ({ row }) => {
+          // Backend urgency: emergency | high | medium | low
           const urgencyMap: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
             emergency: "destructive",
-            urgent: "default",
-            normal: "secondary",
-            low: "outline",
-          };
+            high: "default",
+            medium: "secondary",
+            low: "outline"};
           return (
             <Badge variant={urgencyMap[row.original.urgency] ?? "secondary"}>
               {row.original.urgency}
             </Badge>
           );
-        },
-      },
+        }},
       {
         accessorKey: "request_status",
         header: "Request status",
-        cell: ({ row }) => <Badge variant="outline">{row.original.request_status}</Badge>,
-      },
+        cell: ({ row }) => <Badge variant="outline">{row.original.request_status}</Badge>},
       {
         accessorKey: "work_order_status",
         header: "Work order",
-        cell: ({ row }) => <Badge variant="secondary">{row.original.work_order_status || "—"}</Badge>,
-      },
+        cell: ({ row }) => <Badge variant="secondary">{row.original.work_order_status || "—"}</Badge>},
       {
         id: "actions",
         header: "",
@@ -161,8 +153,7 @@ export default function PmMaintenancePage() {
               )}
             </ConfirmAlertDialog>
           </div>
-        ),
-      },
+        )},
     ];
   }, [toast, updateRequest, updateState.isLoading, deleteRequest, deleteState.isLoading, user?.agent_id]);
 
@@ -171,13 +162,12 @@ export default function PmMaintenancePage() {
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Maintenance</h1>
-            <p className="text-sm text-muted-foreground">Triage requests and manage work orders (no vendors).</p>
-          </div>
-          <CreateRequestDialog ownerId={ownerId} />
-        </div>
+        <PageHeader
+          title="Maintenance"
+          description="Triage requests and manage work orders (no vendors)."
+          icon={Wrench}
+          actions={<CreateRequestDialog ownerId={ownerId} />}
+        />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -233,13 +223,11 @@ export default function PmMaintenancePage() {
             </div>
 
             {requests.isError ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <AlertCircle className="h-8 w-8 text-destructive" />
-                <p className="text-sm text-muted-foreground">{getErrorMessage(requests.error, 'Failed to load maintenance requests')}</p>
-                <Button variant="outline" size="sm" onClick={() => { void requests.refetch(); }}>
-                  Retry
-                </Button>
-              </div>
+              <ErrorState
+                title="Failed to load maintenance requests"
+                error={requests.error}
+                onRetry={() => { void requests.refetch(); }}
+              />
             ) : requests.isLoading ? (
               <LoadingState type="spinner" />
             ) : requestItems.length ? (

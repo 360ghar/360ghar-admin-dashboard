@@ -18,7 +18,6 @@ import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
 import { useGetPropertyQuery, useSearchPropertiesQuery } from '@/features/properties/api/propertiesApi'
 import { Plus } from 'lucide-react'
-import type { BookingPricing, AvailabilityInfo } from '@/types/api'
 import { createBookingSchema, type CreateBookingFormValues } from '@/features/bookings/validations'
 import BookingDateSelection from './parts/BookingDateSelection'
 
@@ -28,72 +27,279 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | undefined>(externalPropertyId)
   const [propertySearch, setPropertySearch] = useState('')
   const [selectedDates, setSelectedDates] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined })
-  const [pricingInfo, setPricingInfo] = useState<BookingPricing | null>(null)
-  const [availabilityInfo, setAvailabilityInfo] = useState<AvailabilityInfo | null>(null)
 
-  const propertyId = selectedPropertyId
-  const { data: searchResults } = useSearchPropertiesQuery({ q: propertySearch, limit: 10 }, { skip: !isOpen || !!externalPropertyId || propertySearch.length < 2 })
+  const propertyId = selectedPropertyId ?? externalPropertyId
+  const { data: searchResults } = useSearchPropertiesQuery(
+    { q: propertySearch, limit: 10 },
+    { skip: !isOpen || !!externalPropertyId || propertySearch.length < 2 },
+  )
   const { data: property } = useGetPropertyQuery(propertyId || 0, { skip: !propertyId || !isOpen })
 
-  const form = useForm<CreateBookingFormValues>({ resolver: zodResolver(createBookingSchema), defaultValues: { guests: 1 } })
+  const form = useForm<CreateBookingFormValues>({
+    resolver: zodResolver(createBookingSchema),
+    defaultValues: {
+      property_id: externalPropertyId ?? 0,
+      check_in_date: '',
+      check_out_date: '',
+      guests: 1,
+      primary_guest_name: '',
+      primary_guest_phone: '',
+      primary_guest_email: '',
+      special_requests: '',
+    },
+  })
   const guestsCount = useDebounce(Math.max(form.watch('guests') || 1, 1))
 
-  const checkAvailability = useCheckAvailabilityQuery(
-    propertyId && selectedDates.from && selectedDates.to ? { property_id: propertyId, check_in_date: selectedDates.from.toISOString(), check_out_date: selectedDates.to.toISOString(), guests: guestsCount } : skipToken
-  )
-  const calculatePricing = useCalculatePricingQuery(
-    propertyId && selectedDates.from && selectedDates.to ? { property_id: propertyId, check_in_date: selectedDates.from.toISOString(), check_out_date: selectedDates.to.toISOString(), guests: guestsCount } : skipToken
-  )
-  const [createBooking] = useCreateBookingMutation()
+  // Keep RHF in sync with property / date pickers so Zod validation can pass.
+  useEffect(() => {
+    if (propertyId) {
+      form.setValue('property_id', propertyId, { shouldValidate: true })
+    }
+  }, [propertyId, form])
 
-  useEffect(() => { if (checkAvailability.data) setAvailabilityInfo(checkAvailability.data) }, [checkAvailability.data])
-  useEffect(() => { if (calculatePricing.data) setPricingInfo(calculatePricing.data) }, [calculatePricing.data])
+  useEffect(() => {
+    if (selectedDates.from) {
+      form.setValue('check_in_date', selectedDates.from.toISOString(), { shouldValidate: true })
+    } else {
+      form.setValue('check_in_date', '')
+    }
+    if (selectedDates.to) {
+      form.setValue('check_out_date', selectedDates.to.toISOString(), { shouldValidate: true })
+    } else {
+      form.setValue('check_out_date', '')
+    }
+  }, [selectedDates, form])
+
+  const availabilityArgs =
+    propertyId && selectedDates.from && selectedDates.to
+      ? {
+          property_id: propertyId,
+          check_in_date: selectedDates.from.toISOString(),
+          check_out_date: selectedDates.to.toISOString(),
+          guests: guestsCount,
+        }
+      : skipToken
+
+  const checkAvailability = useCheckAvailabilityQuery(availabilityArgs)
+  const calculatePricing = useCalculatePricingQuery(availabilityArgs)
+  const [createBooking, { isLoading: isCreating }] = useCreateBookingMutation()
+
+  const availabilityInfo = checkAvailability.data ?? null
+  const pricingInfo = calculatePricing.data ?? null
+  const isCheckingAvailability = Boolean(propertyId && selectedDates.from && selectedDates.to) &&
+    (checkAvailability.isLoading || checkAvailability.isFetching)
+
+  const resetDialog = () => {
+    form.reset({
+      property_id: externalPropertyId ?? 0,
+      check_in_date: '',
+      check_out_date: '',
+      guests: 1,
+      primary_guest_name: '',
+      primary_guest_phone: '',
+      primary_guest_email: '',
+      special_requests: '',
+    })
+    setSelectedDates({ from: undefined, to: undefined })
+    setPropertySearch('')
+    if (!externalPropertyId) setSelectedPropertyId(undefined)
+  }
 
   const onSubmit = async (data: CreateBookingFormValues) => {
+    if (!propertyId || !selectedDates.from || !selectedDates.to) {
+      toast({
+        title: 'Missing details',
+        description: 'Select a property and both check-in and check-out dates.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!availabilityInfo?.available) {
+      toast({
+        title: 'Unavailable',
+        description: availabilityInfo?.reason || 'Property is not available for the selected dates.',
+        variant: 'destructive',
+      })
+      return
+    }
     try {
-      await createBooking({ ...data, property_id: propertyId!, check_in_date: selectedDates.from!.toISOString(), check_out_date: selectedDates.to!.toISOString() }).unwrap()
+      await createBooking({
+        ...data,
+        property_id: propertyId,
+        check_in_date: selectedDates.from.toISOString(),
+        check_out_date: selectedDates.to.toISOString(),
+      }).unwrap()
       toast({ title: 'Booking Created', description: 'Your booking has been created successfully.' })
-      setIsOpen(false); form.reset(); setSelectedDates({ from: undefined, to: undefined }); onSuccess?.()
-    } catch (error) { applyServerValidation(error, form.setError); toast({ title: 'Booking Failed', description: getErrorMessage(error, 'Failed to create booking. Please try again.'), variant: 'destructive' }) }
+      setIsOpen(false)
+      resetDialog()
+      onSuccess?.()
+    } catch (error) {
+      applyServerValidation(error, form.setError)
+      toast({
+        title: 'Booking Failed',
+        description: getErrorMessage(error, 'Failed to create booking. Please try again.'),
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />New Booking</Button></DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Create New Booking</DialogTitle><DialogDescription>Select dates and enter guest details for your booking</DialogDescription></DialogHeader>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open)
+        if (!open) resetDialog()
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          New Booking
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Booking</DialogTitle>
+          <DialogDescription>Select dates and enter guest details for your booking</DialogDescription>
+        </DialogHeader>
         {!externalPropertyId && (
           <div className="space-y-2 mb-4">
             <Label>Search Property</Label>
-            <Input placeholder="Search by title or location..." value={propertySearch} onChange={(e) => setPropertySearch(e.target.value)} />
+            <Input
+              placeholder="Search by title or location..."
+              value={propertySearch}
+              onChange={(e) => {
+                setPropertySearch(e.target.value)
+                if (selectedPropertyId) setSelectedPropertyId(undefined)
+              }}
+            />
+            {form.formState.errors.property_id && (
+              <p className="text-sm text-destructive">{form.formState.errors.property_id.message}</p>
+            )}
             {searchResults?.items && searchResults.items.length > 0 && !propertyId && (
-              <div className="border rounded-md max-h-40 overflow-y-auto">{searchResults.items.map((p) => (
-                <button key={p.id} type="button" className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0" onClick={() => { setSelectedPropertyId(p.id); setPropertySearch(p.title) }}>
-                  <span className="font-medium">{p.title}</span><span className="text-muted-foreground ml-2">{p.city}</span>
-                </button>
-              ))}</div>
+              <div className="border rounded-md max-h-40 overflow-y-auto">
+                {searchResults.items.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0"
+                    onClick={() => {
+                      setSelectedPropertyId(p.id)
+                      setPropertySearch(p.title)
+                    }}
+                  >
+                    <span className="font-medium">{p.title}</span>
+                    <span className="text-muted-foreground ml-2">{p.city}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}
         {property && (
-          <Card className="mb-4"><CardContent className="pt-4"><div className="flex gap-4">
-            <img src={property.main_image_url || '/placeholder-property.jpg'} alt={property.title} className="w-20 h-20 object-cover rounded" />
-            <div><h3 className="font-semibold">{property.title}</h3><p className="text-sm text-muted-foreground">{property.city}, {property.locality}</p><p className="text-sm font-medium">{formatCurrency(property.base_price)}/night</p></div>
-          </div></CardContent></Card>
+          <Card className="mb-4">
+            <CardContent className="pt-4">
+              <div className="flex gap-4">
+                <img
+                  src={property.main_image_url || '/placeholder-property.jpg'}
+                  alt={property.title}
+                  className="w-20 h-20 object-cover rounded"
+                />
+                <div>
+                  <h3 className="font-semibold">{property.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {property.city}, {property.locality}
+                  </p>
+                  <p className="text-sm font-medium">{formatCurrency(property.base_price)}/night</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-6">
           <FormRootError form={form} />
-          <BookingDateSelection selectedDates={selectedDates} setSelectedDates={setSelectedDates} pricingInfo={pricingInfo} availabilityInfo={availabilityInfo} />
+          <BookingDateSelection
+            selectedDates={selectedDates}
+            setSelectedDates={setSelectedDates}
+            pricingInfo={pricingInfo}
+            availabilityInfo={availabilityInfo}
+          />
+          {(form.formState.errors.check_in_date || form.formState.errors.check_out_date) && (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.check_in_date?.message || form.formState.errors.check_out_date?.message}
+            </p>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="guests">Number of Guests</Label><Input id="guests" type="number" min={1} max={property?.max_occupancy || 10} {...form.register('guests', { valueAsNumber: true })} />{form.formState.errors.guests && <FormMessage>{form.formState.errors.guests.message}</FormMessage>}</div>
-            <div className="space-y-2"><Label htmlFor="primary_guest_name">Primary Guest Name</Label><Input id="primary_guest_name" {...form.register('primary_guest_name')} placeholder="John Doe" />{form.formState.errors.primary_guest_name && <FormMessage>{form.formState.errors.primary_guest_name.message}</FormMessage>}</div>
-            <div className="space-y-2"><Label htmlFor="primary_guest_phone">Phone Number</Label><Input id="primary_guest_phone" {...form.register('primary_guest_phone')} placeholder="+1234567890" />{form.formState.errors.primary_guest_phone && <FormMessage>{form.formState.errors.primary_guest_phone.message}</FormMessage>}</div>
-            <div className="space-y-2"><Label htmlFor="primary_guest_email">Email Address</Label><Input id="primary_guest_email" type="email" {...form.register('primary_guest_email')} placeholder="john@example.com" />{form.formState.errors.primary_guest_email && <FormMessage>{form.formState.errors.primary_guest_email.message}</FormMessage>}</div>
+            <div className="space-y-2">
+              <Label htmlFor="guests">Number of Guests</Label>
+              <Input
+                id="guests"
+                type="number"
+                min={1}
+                max={property?.max_occupancy || 10}
+                {...form.register('guests', { valueAsNumber: true })}
+              />
+              {form.formState.errors.guests && (
+                <FormMessage>{form.formState.errors.guests.message}</FormMessage>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="primary_guest_name">Primary Guest Name</Label>
+              <Input id="primary_guest_name" {...form.register('primary_guest_name')} placeholder="John Doe" />
+              {form.formState.errors.primary_guest_name && (
+                <FormMessage>{form.formState.errors.primary_guest_name.message}</FormMessage>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="primary_guest_phone">Phone Number</Label>
+              <Input id="primary_guest_phone" {...form.register('primary_guest_phone')} placeholder="+1234567890" />
+              {form.formState.errors.primary_guest_phone && (
+                <FormMessage>{form.formState.errors.primary_guest_phone.message}</FormMessage>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="primary_guest_email">Email Address</Label>
+              <Input
+                id="primary_guest_email"
+                type="email"
+                {...form.register('primary_guest_email')}
+                placeholder="john@example.com"
+              />
+              {form.formState.errors.primary_guest_email && (
+                <FormMessage>{form.formState.errors.primary_guest_email.message}</FormMessage>
+              )}
+            </div>
           </div>
-          <div className="space-y-2"><Label htmlFor="special_requests">Special Requests (Optional)</Label><Textarea id="special_requests" {...form.register('special_requests')} placeholder="Any special requirements or requests..." rows={3} />{form.formState.errors.special_requests && <FormMessage>{form.formState.errors.special_requests.message}</FormMessage>}</div>
+          <div className="space-y-2">
+            <Label htmlFor="special_requests">Special Requests (Optional)</Label>
+            <Textarea
+              id="special_requests"
+              {...form.register('special_requests')}
+              placeholder="Any special requirements or requests..."
+              rows={3}
+            />
+            {form.formState.errors.special_requests && (
+              <FormMessage>{form.formState.errors.special_requests.message}</FormMessage>
+            )}
+          </div>
           <div className="flex gap-2">
-            <Button type="submit" disabled={!propertyId || !selectedDates.from || !selectedDates.to || !availabilityInfo?.available} className="flex-1">Create Booking</Button>
-            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+            <Button
+              type="submit"
+              disabled={
+                isCreating ||
+                isCheckingAvailability ||
+                !propertyId ||
+                !selectedDates.from ||
+                !selectedDates.to ||
+                !availabilityInfo?.available
+              }
+              className="flex-1"
+            >
+              {isCreating ? 'Creating…' : isCheckingAvailability ? 'Checking availability…' : 'Create Booking'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              Cancel
+            </Button>
           </div>
         </form>
       </DialogContent>

@@ -82,7 +82,7 @@ class ErrorBoundary extends Component<Props, State> {
                 ) : (
                   <div className="space-y-2">
                     <p>We encountered an unexpected error. Our team has been notified.</p>
-                    {process.env.NODE_ENV === 'development' && this.state.error && (
+                    {import.meta.env.DEV && this.state.error && (
                       <details className="text-sm">
                         <summary className="cursor-pointer hover:underline">Error details</summary>
                         <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">

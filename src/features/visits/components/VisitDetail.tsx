@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { formatDateTime } from '@/lib/format'
 import { localInputToServerTimestamp, serverTimestampToLocalInput } from '@/lib/dateTime'
+import { getVisitStatusLabel } from '@/lib/statusColors'
 
 const VisitDetail = ({ id }: { id: number }) => {
   const navigate = useNavigate()
@@ -68,10 +69,15 @@ const VisitDetail = ({ id }: { id: number }) => {
   }
 
   const doComplete = async () => {
+    if (!text.trim()) {
+      toast({ title: 'Notes required', description: 'Add visit notes before completing.', variant: 'destructive' })
+      return
+    }
     try {
-      await complete({ visitId: id, notes: text || undefined }).unwrap()
+      await complete({ visitId: id, notes: text.trim() }).unwrap()
       toast({ title: 'Completed', description: 'Visit marked as completed' })
       setOpen(null)
+      setText('')
     } catch (err: unknown) {
       toast({ title: 'Failed', description: getErrorMessage(err, 'Try again'), variant: 'destructive' })
     }
@@ -84,7 +90,7 @@ const VisitDetail = ({ id }: { id: number }) => {
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
         <h1 className="text-xl font-semibold">Visit Details</h1>
-        {data?.status ? <Badge>{data.status}</Badge> : null}
+        {data?.status ? <Badge>{getVisitStatusLabel(data.status)}</Badge> : null}
       </div>
       <Card>
         <CardHeader>
@@ -92,13 +98,15 @@ const VisitDetail = ({ id }: { id: number }) => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 text-sm">
-            <div><span className="text-muted-foreground">Property:</span> #{data?.property_id}</div>
-            <div><span className="text-muted-foreground">User:</span> #{data?.user_id}</div>
+            <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
+            <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
             <div><span className="text-muted-foreground">Scheduled:</span> {data?.scheduled_date ? formatDateTime(data.scheduled_date) : '-'}</div>
-            <div><span className="text-muted-foreground">Status:</span> {data?.status ?? '-'}</div>
+            <div><span className="text-muted-foreground">Status:</span> {data?.status ? getVisitStatusLabel(data.status) : '-'}</div>
+            {data?.visit_notes ? <div><span className="text-muted-foreground">Notes:</span> {data.visit_notes}</div> : null}
+            {data?.visitor_feedback ? <div><span className="text-muted-foreground">Feedback:</span> {data.visitor_feedback}</div> : null}
           </div>
           <div className="mt-4 flex gap-2">
-            {(data?.status === 'scheduled' || data?.status === 'rescheduled') && (
+            {(data?.status === 'requested' || data?.status === 'confirmed' || data?.status === 'reschedule_suggested') && (
               <>
                 <Button onClick={() => { setDate(serverTimestampToLocalInput(data?.scheduled_date) ?? ''); setText(''); setOpen('reschedule') }}>Reschedule</Button>
                 <Button variant="outline" onClick={() => { setOpen('cancel') }}>Cancel</Button>
@@ -124,7 +132,7 @@ const VisitDetail = ({ id }: { id: number }) => {
               <Button onClick={() => { void doReschedule() }} disabled={!date || resState.isLoading}>{resState.isLoading ? 'Saving…' : 'Reschedule'}</Button>
             )}
             {open === 'cancel' && <Button onClick={() => { void doCancel() }} disabled={cancelState.isLoading}>{cancelState.isLoading ? 'Cancelling…' : 'Cancel Visit'}</Button>}
-            {open === 'complete' && <Button onClick={() => { void doComplete() }} disabled={compState.isLoading}>{compState.isLoading ? 'Saving…' : 'Complete'}</Button>}
+            {open === 'complete' && <Button onClick={() => { void doComplete() }} disabled={compState.isLoading || !text.trim()}>{compState.isLoading ? 'Saving…' : 'Complete'}</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -10,6 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { FormRootError } from '@/components/ui/form-root-error'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { localInputToServerTimestamp } from '@/lib/dateTime'
@@ -68,13 +69,18 @@ const VisitForm = () => {
           )}
           <Form {...form}>
             <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
+              <FormRootError form={form} />
               <FormField
                 control={control}
                 name="user_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>User</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ? String(field.value) : ''} disabled={users.isFetching}>
+                    <Select
+                      onValueChange={(v) => field.onChange(Number(v))}
+                      value={field.value ? String(field.value) : undefined}
+                      disabled={users.isFetching}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={users.isFetching ? "Loading users..." : "Select user"} />
@@ -98,7 +104,11 @@ const VisitForm = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Property</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ? String(field.value) : ''} disabled={properties.isFetching}>
+                    <Select
+                      onValueChange={(v) => field.onChange(Number(v))}
+                      value={field.value ? String(field.value) : undefined}
+                      disabled={properties.isFetching}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder={properties.isFetching ? "Loading properties..." : "Select property"} />

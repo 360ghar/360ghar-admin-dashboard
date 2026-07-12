@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import {useState} from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
@@ -9,8 +9,9 @@ import {
   useCancelVisitMutation,
   useGetAllVisitsQuery
 } from '@/features/visits/api/visitsApi'
-import { Calendar as CalendarIcon, Clock, Check, Plus, AlertCircle, AlertTriangle } from 'lucide-react'
+import { Calendar as CalendarIcon, Clock, Check, Plus, AlertCircle } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
@@ -25,7 +26,7 @@ import { CompleteVisitDialog } from '@/features/visits/components/CompleteVisitD
 
 const VISITS_PAGE_SIZE = 20
 
-const VisitManagementPage: React.FC = () => {
+const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { user } = useAuth()
   const { toast } = useToast()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -37,17 +38,13 @@ const VisitManagementPage: React.FC = () => {
 
   // API calls (cursor-paginated). `userVisits` is loaded only for the
   // "user" role; admin/agent roles page through `allVisits` instead.
-  const userPager = useCursorPagination()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { userPager.reset() }, [userPager.reset, searchQuery])
+  const userPager = useCursorPagination(searchQuery)
   const { data: userVisits, isLoading: userVisitsLoading, isError: userVisitsError, refetch: refetchUserVisits } = useGetUserVisitsQuery(
     { cursor: userPager.cursor, limit: VISITS_PAGE_SIZE },
     { skip: user?.role !== 'user' }
   )
 
-  const allPager = useCursorPagination()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { allPager.reset() }, [allPager.reset, statusFilter, searchQuery])
+  const allPager = useCursorPagination(`${statusFilter}|${searchQuery}`)
   const { data: allVisits, isLoading: allVisitsLoading, isError: allVisitsError, refetch: refetchAllVisits } = useGetAllVisitsQuery(
     { status: statusFilter === 'all' ? undefined : statusFilter, cursor: allPager.cursor, limit: VISITS_PAGE_SIZE },
     { skip: !user || user.role === 'user' }
@@ -73,9 +70,9 @@ const VisitManagementPage: React.FC = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
-        visit.property?.title.toLowerCase().includes(query) ||
-        visit.user?.full_name.toLowerCase().includes(query) ||
-        visit.agent?.user?.full_name.toLowerCase().includes(query)
+        (visit.property?.title?.toLowerCase().includes(query) ?? false) ||
+        (visit.user?.full_name?.toLowerCase().includes(query) ?? false) ||
+        (visit.agent?.user?.full_name?.toLowerCase().includes(query) ?? false)
       )
     }
     return true
@@ -124,23 +121,35 @@ const VisitManagementPage: React.FC = () => {
     }
   }
 
+  if (!user) {
+    return <LoadingState type="cards" />
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Visit Management</h1>
-          <p className="text-muted-foreground">Schedule and manage property visits</p>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Visit Management</h1>
+            <p className="text-muted-foreground">Schedule and manage property visits</p>
+          </div>
+          {user.role !== 'admin' && (
+            <Button onClick={() => setShowScheduleDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />Schedule Visit
+            </Button>
+          )}
         </div>
-        {user?.role !== 'admin' && (
-          <Button onClick={() => setShowScheduleDialog(true)}>
+      )}
+      {embedded && user.role !== 'admin' && (
+        <div className="flex justify-end">
+          <Button onClick={() => setShowScheduleDialog(true)} className="rounded-cohere-pill">
             <Plus className="h-4 w-4 mr-2" />Schedule Visit
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Stats */}
-      {user?.role === 'user' && userVisitsStats && (
+      {user.role === 'user' && userVisitsStats && (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -154,7 +163,7 @@ const VisitManagementPage: React.FC = () => {
               <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{userVisitsStats.items.filter((v) => ['scheduled', 'confirmed'].includes(v.status)).length}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{userVisitsStats.items.filter((v) => ['requested', 'confirmed', 'reschedule_suggested'].includes(v.status)).length}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -177,18 +186,16 @@ const VisitManagementPage: React.FC = () => {
             onSearchChange={setSearchQuery}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
-            showStatusFilter={user?.role !== 'user'}
+            showStatusFilter={user.role !== 'user'}
           />
 
           <div className="space-y-4">
             {isVisitsFetching && visits.length === 0 ? (
               <LoadingState type="cards" />
             ) : isVisitsError ? (
-              <EmptyState
-                icon={<AlertTriangle className="h-12 w-12" />}
+              <ErrorState
                 title="Failed to load visits"
-                description="There was an error loading visits. Please try again."
-                action={{ label: 'Retry', onClick: () => refetchAll(), variant: 'outline' }}
+                onRetry={() => refetchAll()}
               />
             ) : filteredVisits.length === 0 ? (
               <EmptyState
@@ -202,8 +209,8 @@ const VisitManagementPage: React.FC = () => {
                   <VisitCard
                     key={visit.id}
                     visit={visit}
-                    isAdmin={user?.role === 'admin'}
-                    isUser={user?.role === 'user'}
+                    isAdmin={user.role === 'admin'}
+                    isUser={user.role === 'user'}
                     onComplete={(v) => { setSelectedVisit(v); setShowCompleteDialog(true) }}
                     onReschedule={(id, date) => { void handleRescheduleVisit(id, date) }}
                     onCancel={(id) => { void handleCancelVisit(id) }}
@@ -223,7 +230,7 @@ const VisitManagementPage: React.FC = () => {
       </div>
 
       {/* Schedule Visit Dialog */}
-      {user?.role !== 'admin' && (
+      {user.role !== 'admin' && (
         <ScheduleVisitDialog
           open={showScheduleDialog}
           onOpenChange={setShowScheduleDialog}

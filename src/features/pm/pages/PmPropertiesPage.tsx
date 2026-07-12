@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, Building2, Trash2 } from "lucide-react";
+import { Building2, Trash2 } from "lucide-react";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import PropertyCreateDialog from "@/features/pm/components/PropertyCreateDialog";
 import PropertyFilters from "@/features/pm/components/PropertyFilters";
@@ -18,10 +18,12 @@ import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
 import CursorPager from "@/components/ui/cursor-pager";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
+import { PageHeader } from "@/components/ui/page-header";
 
 const statusBadgeVariant = (status?: ManagedPropertyStatus | null) => {
   if (status === "active") return "default";
@@ -42,9 +44,8 @@ export default function PmPropertiesPage() {
 
   const ownerId = selectedOwnerId;
 
-  const pager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, debouncedQ, occupancy, limit]);
+  const pager = useCursorPagination(`${debouncedQ}|${occupancy}|${limit}|${ownerId}`);
+
 
   const properties = useListPmPropertiesQuery(
     {
@@ -52,8 +53,7 @@ export default function PmPropertiesPage() {
       occupancy: occupancy || undefined,
       q: debouncedQ || undefined,
       limit,
-      cursor: pager.cursor,
-    },
+      cursor: pager.cursor},
     { skip: role === "agent" && !ownerId },
   );
 
@@ -76,8 +76,7 @@ export default function PmPropertiesPage() {
                 "—"}
             </div>
           </div>
-        ),
-      },
+        )},
       {
         id: "occupancy",
         header: "Occupancy",
@@ -87,8 +86,7 @@ export default function PmPropertiesPage() {
           >
             {row.original.current_lease_id ? "occupied" : "vacant"}
           </Badge>
-        ),
-      },
+        )},
       {
         accessorKey: "management_status",
         header: "Management",
@@ -96,15 +94,13 @@ export default function PmPropertiesPage() {
           <Badge variant={statusBadgeVariant(row.original.management_status)}>
             {row.original.management_status || "—"}
           </Badge>
-        ),
-      },
+        )},
       {
         accessorKey: "payment_due_day",
         header: "Due Day",
         cell: ({ row }) => (
           <span className="text-sm">{row.original.payment_due_day ?? "—"}</span>
-        ),
-      },
+        )},
       {
         id: "actions",
         header: "",
@@ -134,36 +130,33 @@ export default function PmPropertiesPage() {
               )}
             </ConfirmAlertDialog>
           </div>
-        ),
-      },
+        )},
     ];
   }, [deleteProperty, deletePropertyState.isLoading, toast]);
 
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              Managed Properties
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {role === "admin"
-                ? "All managed properties."
-                : "Managed properties for the selected owner."}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <PropertyCreateDialog
-              ownerId={ownerId}
-              disabled={role === "admin" && !ownerId}
-            />
-            <Badge variant="secondary" className="h-fit">
-              <Building2 className="mr-1 h-3 w-3" />
-              {displayData?.length ?? 0} shown
-            </Badge>
-          </div>
-        </div>
+        <PageHeader
+          title="Managed Properties"
+          description={
+            role === "admin"
+              ? "All managed properties."
+              : "Managed properties for the selected owner."
+          }
+          icon={Building2}
+          actions={
+            <div className="flex items-center gap-2">
+              <PropertyCreateDialog
+                ownerId={ownerId}
+                disabled={role === "admin" && !ownerId}
+              />
+              <Badge variant="secondary" className="h-fit">
+                {displayData?.length ?? 0} shown
+              </Badge>
+            </div>
+          }
+        />
 
         <Card>
           <CardHeader>
@@ -179,24 +172,14 @@ export default function PmPropertiesPage() {
               onLimitChange={setLimit}
             />
 
-            {properties.isLoading ? (
+            {properties.isError ? (
+              <ErrorState
+                title="Failed to load properties"
+                error={properties.error}
+                onRetry={() => { void properties.refetch(); }}
+              />
+            ) : properties.isLoading ? (
               <LoadingState type="spinner" />
-            ) : properties.isError ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <AlertCircle className="h-8 w-8 text-destructive" />
-                <p className="text-sm text-muted-foreground">
-                  {getErrorMessage(properties.error, 'Failed to load properties')}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void properties.refetch();
-                  }}
-                >
-                  Retry
-                </Button>
-              </div>
             ) : displayData?.length ? (
               <>
                 <ResponsiveDataTable columns={columns} data={displayData} />

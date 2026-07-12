@@ -1,8 +1,14 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useAppDispatch } from '@/hooks/redux'
-import { setCredentials, setError } from '@/features/auth/slices/authSlice'
-import { useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '@/hooks/redux'
+import {
+  clearCredentials,
+  selectAuthInitialized,
+  selectIsAuthenticated,
+  setCredentials,
+  setError,
+} from '@/features/auth/slices/authSlice'
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -54,10 +60,21 @@ const METHOD_LABELS: Record<AuthMethod, string> = {
   email_otp: 'email OTP',
 }
 
+/** Map well-known `?error=` codes from PrivateRoute / deep links to human text. */
+function mapLoginQueryError(raw: string): string {
+  if (raw === 'session-timeout') {
+    return 'We could not restore your session in time. Please sign in again.'
+  }
+  return raw
+}
+
 const LoginPage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useAppDispatch()
   const [searchParams] = useSearchParams()
+  const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const authInitialized = useAppSelector(selectAuthInitialized)
 
   const [step, setStep] = useState<Step>('identifier')
   const [channel, setChannel] = useState<IdentifierChannel>('phone')
@@ -100,11 +117,37 @@ const LoginPage = () => {
   // 30s cooldown for the "Resend code" control on the OTP step.
   const resendTimer = useResendTimer()
 
+  // If the page unmounts mid-flow (e.g. user navigates away during set-password),
+  // never leave the global race flag stuck true for the rest of the SPA session.
+  useEffect(() => {
+    return () => {
+      isLoginInProgress.current = false
+    }
+  }, [])
+
+  // Already signed-in users should not sit on the login form.
+  // Skip while mid set-password (isLoginInProgress) — credentials are not set yet.
+  useEffect(() => {
+    if (authInitialized && isAuthenticated && step !== 'set-password') {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [authInitialized, isAuthenticated, navigate, step])
+
   // Surface auth-callback errors (e.g. unauthorized Google account) on the login screen.
   useEffect(() => {
     const queryError = searchParams.get('error')
-    if (queryError) setErrorMessage(queryError)
+    if (queryError) setErrorMessage(mapLoginQueryError(queryError))
   }, [searchParams])
+
+  // Optional success/info flash from signup / forgot-password (via navigate state).
+  useEffect(() => {
+    const state = location.state as { info?: string } | null
+    if (state?.info) {
+      setInfoMessage(state.info)
+      // Clear so a refresh doesn't re-show it.
+      navigate(location.pathname + location.search, { replace: true, state: {} })
+    }
+  }, [location.state, location.pathname, location.search, navigate])
 
   // Android Chrome SMS OTP autofill — only while the OTP step is shown for a phone.
   // `otpVersion` re-arms the hook on each resend so a stale pending request is
@@ -118,16 +161,31 @@ const LoginPage = () => {
   )
 
   const resetToIdentifier = () => {
+    isLoginInProgress.current = false
     setStep('identifier')
     setNormalized('')
     setDisplayIdentifier('')
     setErrorMessage(null)
     setInfoMessage(null)
     setOtpAccessToken(null)
+    setHasPassword(false)
     passwordForm.reset()
     otpForm.reset()
     setPasswordForm.reset()
     resendTimer.reset()
+  }
+
+  const abandonSetPassword = () => {
+    // User rejected the session (wrong account) during mandatory set-password.
+    isLoginInProgress.current = false
+    dispatch(clearCredentials())
+    void import('@/lib/supabase').then(({ supabase: sb }) => {
+      if (sb) {
+        void sb.auth.signOut().finally(() => resetToIdentifier())
+      } else {
+        resetToIdentifier()
+      }
+    })
   }
 
   const finishLogin = async (accessToken: string, method: AuthMethod) => {
@@ -254,6 +312,9 @@ const LoginPage = () => {
     setErrorMessage(null)
     setIsSubmitting(true)
     isLoginInProgress.current = true
+    // When branching to mandatory set-password, keep the flag true so
+    // App.tsx's SIGNED_IN handler does not complete login without a password.
+    let holdLoginFlag = false
     try {
       const result =
         channel === 'email'
@@ -272,20 +333,24 @@ const LoginPage = () => {
         setInfoMessage(null)
         setPasswordForm.reset()
         setStep('set-password')
+        holdLoginFlag = true
         return
       }
 
       const method: AuthMethod = channel === 'email' ? 'email_otp' : 'phone_otp'
       await finishLogin(accessToken, method)
     } catch (err) {
-      const error = mapSupabaseAuthError(err)
+      const error = mapSupabaseAuthError(err, 'otp')
       dispatch(setError(error))
       setErrorMessage(error)
     } finally {
       setIsSubmitting(false)
       // See onPasswordSubmit: reset here too so a failed verifyOtp (wrong
       // code) doesn't leak the flag and stall App.tsx's SIGNED_IN handler.
-      isLoginInProgress.current = false
+      // Hold through set-password so App cannot race-complete login.
+      if (!holdLoginFlag) {
+        isLoginInProgress.current = false
+      }
     }
   }
 
@@ -307,6 +372,8 @@ const LoginPage = () => {
     const sb = requireSupabase()
     setErrorMessage(null)
     setIsSubmitting(true)
+    // Keep App.tsx from racing while we update the password + finish login.
+    isLoginInProgress.current = true
     try {
       const { error } = await sb.auth.updateUser({ password: values.password })
       if (error) throw error
@@ -322,6 +389,7 @@ const LoginPage = () => {
       const error = mapSupabaseAuthError(err)
       dispatch(setError(error))
       setErrorMessage(error)
+      // Stay on set-password; keep flag held so SIGNED_IN still cannot race.
     } finally {
       setIsSubmitting(false)
     }
@@ -486,13 +554,18 @@ const LoginPage = () => {
                         'Sign In'
                       )}
                     </Button>
-                    <button
-                      type="button"
-                      onClick={resetToIdentifier}
-                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      <ArrowLeft className="h-4 w-4" /> Use a different account
-                    </button>
+                    <div className="flex items-center justify-between text-sm">
+                      <button
+                        type="button"
+                        onClick={resetToIdentifier}
+                        className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                      >
+                        <ArrowLeft className="h-4 w-4" /> Use a different account
+                      </button>
+                      <Link to="/forgot-password" className="text-primary hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
                   </div>
                 </form>
               </Form>
@@ -639,15 +712,10 @@ const LoginPage = () => {
                     <div className="pt-2 text-center">
                       <button
                         type="button"
-                        onClick={() => {
-                          void import('@/lib/supabase').then(({ supabase: sb }) => {
-                            if (sb) sb.auth.signOut().then(() => resetToIdentifier(), () => resetToIdentifier())
-                            else resetToIdentifier()
-                          })
-                        }}
+                        onClick={abandonSetPassword}
                         className="text-sm text-muted-foreground hover:underline"
                       >
-                        This isn't my account
+                        This isn&apos;t my account
                       </button>
                     </div>
                   </div>

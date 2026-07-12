@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatINR } from "@/features/pm/utils";
@@ -87,21 +89,42 @@ export default function PmOwnerDetailPage() {
     return <EmptyState title="Invalid owner id" />;
   }
 
+  if (owner.isError) {
+    return (
+      <ErrorState
+        title="Failed to load owner"
+        error={owner.error}
+        onRetry={() => { void owner.refetch(); }}
+      />
+    );
+  }
+
   return (
     <OwnerScopeGate allowAllOwners>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              {owner.data?.full_name || owner.data?.phone || `Owner #${ownerUserId}`}
-            </h1>
-            <p className="text-sm text-muted-foreground">Owner portfolio overview and operations.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">ID: {ownerUserId}</Badge>
-            <Badge variant="secondary">{role === "admin" ? "Admin view" : "Agent view"}</Badge>
-          </div>
-        </div>
+        <PageHeader
+          title={
+            owner.isLoading
+              ? "Loading…"
+              : owner.data?.full_name || owner.data?.phone || `Owner #${ownerUserId}`
+          }
+          description="Owner portfolio overview and operations."
+          icon={Users}
+          breadcrumbs={[
+            { label: "Owners", to: "/pm/owners" },
+            { label: owner.data?.full_name || owner.data?.phone || `#${ownerUserId}` },
+          ]}
+          badge={role === "admin" ? "Admin view" : "Agent view"}
+          actions={<Badge variant="outline">ID: {ownerUserId}</Badge>}
+        />
+
+        {overview.isError ? (
+          <ErrorState
+            title="Failed to load portfolio overview"
+            error={overview.error}
+            onRetry={() => { void overview.refetch(); }}
+          />
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -186,7 +209,13 @@ export default function PmOwnerDetailPage() {
               <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              {activity.isLoading ? (
+              {activity.isError ? (
+                <ErrorState
+                  title="Failed to load activity"
+                  error={activity.error}
+                  onRetry={() => { void activity.refetch(); }}
+                />
+              ) : activity.isLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-5/6" />

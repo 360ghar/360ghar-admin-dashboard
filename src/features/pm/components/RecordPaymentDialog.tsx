@@ -76,6 +76,14 @@ export default function RecordPaymentDialog({
   const amountPaid = form.watch("amount_paid");
   const exceedsOutstanding = Number(amountPaid) > outstanding;
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      form.reset();
+      setReceipt(null);
+    }
+    onOpenChange(next);
+  };
+
   const onSubmit = async (values: PmRentPaymentForm) => {
     if (!chargeId) return;
     if (Number(values.amount_paid) > outstanding) {
@@ -115,9 +123,7 @@ export default function RecordPaymentDialog({
       };
       await recordPayment(payload).unwrap();
       toast({ title: "Recorded", description: "Payment recorded." });
-      form.reset();
-      setReceipt(null);
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (e: unknown) {
       applyServerValidation(e, form.setError);
       toast({
@@ -129,7 +135,7 @@ export default function RecordPaymentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Record payment</DialogTitle>
@@ -225,7 +231,7 @@ export default function RecordPaymentDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancel
               </Button>

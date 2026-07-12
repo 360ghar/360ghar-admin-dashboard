@@ -7,7 +7,7 @@ import type { BadgeProps } from '@/components/ui/badge'
 
 type BookingStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'refunded'
 type BookingPaymentStatus = 'paid' | 'partial' | 'unpaid' | 'refunded'
-type VisitStatus = 'scheduled' | 'confirmed' | 'rescheduled' | 'completed' | 'cancelled' | 'no_show'
+type VisitStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled' | 'reschedule_suggested'
 
 const BOOKING_STATUS_COLORS: Record<BookingStatus, BadgeProps['variant']> = {
   confirmed: 'default',
@@ -25,12 +25,11 @@ const BOOKING_PAYMENT_STATUS_COLORS: Record<BookingPaymentStatus, BadgeProps['va
 }
 
 const VISIT_STATUS_COLORS: Record<VisitStatus, BadgeProps['variant']> = {
-  scheduled: 'default',
+  requested: 'default',
   confirmed: 'default',
-  rescheduled: 'secondary',
+  reschedule_suggested: 'secondary',
   completed: 'default',
   cancelled: 'destructive',
-  no_show: 'secondary',
 }
 
 export function getBookingStatusColor(status: string): BadgeProps['variant'] {
@@ -43,4 +42,75 @@ export function getBookingPaymentStatusColor(status: string): BadgeProps['varian
 
 export function getVisitStatusColor(status: string): BadgeProps['variant'] {
   return VISIT_STATUS_COLORS[status as VisitStatus] ?? 'outline'
+}
+
+const VISIT_STATUS_LABELS: Record<VisitStatus, string> = {
+  requested: 'Requested',
+  confirmed: 'Confirmed',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  reschedule_suggested: 'Reschedule suggested',
+}
+
+export function getVisitStatusLabel(status: string): string {
+  return VISIT_STATUS_LABELS[status as VisitStatus] ?? status
+}
+
+type PropertyStatus = 'available' | 'sold' | 'rented' | 'under_offer' | 'maintenance'
+type ManagedPropertyStatus = 'active' | 'draft' | 'archived'
+type Occupancy = 'occupied' | 'vacant'
+type BugSeverity = 'low' | 'medium' | 'high' | 'critical'
+type ModerationStatus = 'pending' | 'approved' | 'rejected' | 'flagged'
+
+const PROPERTY_STATUS_COLORS: Record<PropertyStatus, BadgeProps['variant']> = {
+  available: 'default',
+  sold: 'secondary',
+  rented: 'secondary',
+  under_offer: 'outline',
+  maintenance: 'destructive',
+}
+
+const MANAGED_STATUS_COLORS: Record<ManagedPropertyStatus, BadgeProps['variant']> = {
+  active: 'default',
+  draft: 'secondary',
+  archived: 'outline',
+}
+
+const OCCUPANCY_COLORS: Record<Occupancy, BadgeProps['variant']> = {
+  occupied: 'default',
+  vacant: 'outline',
+}
+
+const BUG_SEVERITY_COLORS: Record<BugSeverity, BadgeProps['variant']> = {
+  low: 'outline',
+  medium: 'secondary',
+  high: 'default',
+  critical: 'destructive',
+}
+
+const MODERATION_STATUS_COLORS: Record<ModerationStatus, BadgeProps['variant']> = {
+  pending: 'secondary',
+  approved: 'default',
+  rejected: 'destructive',
+  flagged: 'destructive',
+}
+
+export function getPropertyStatusColor(status: string): BadgeProps['variant'] {
+  return PROPERTY_STATUS_COLORS[status as PropertyStatus] ?? 'outline'
+}
+
+export function getManagedPropertyStatusColor(status: string): BadgeProps['variant'] {
+  return MANAGED_STATUS_COLORS[status as ManagedPropertyStatus] ?? 'outline'
+}
+
+export function getOccupancyColor(occupied: boolean): BadgeProps['variant'] {
+  return OCCUPANCY_COLORS[occupied ? 'occupied' : 'vacant']
+}
+
+export function getBugSeverityColor(severity: string): BadgeProps['variant'] {
+  return BUG_SEVERITY_COLORS[severity as BugSeverity] ?? 'outline'
+}
+
+export function getModerationStatusColor(status: string): BadgeProps['variant'] {
+  return MODERATION_STATUS_COLORS[status as ModerationStatus] ?? 'outline'
 }

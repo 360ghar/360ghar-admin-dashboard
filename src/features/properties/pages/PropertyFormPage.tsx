@@ -9,7 +9,9 @@ import { LoadingState } from '@/components/ui/loading-state'
 import { PropertyFormFields } from '@/features/properties/components/PropertyFormFields'
 import { propertyFormPageSchema, type PropertyFormPageValues } from '@/features/properties/validations'
 import { applyServerValidation } from '@/lib/formErrors'
+import { getErrorMessage } from '@/lib/errors'
 import { FormRootError } from '@/components/ui/form-root-error'
+import { ErrorState } from '@/components/ui/error-state'
 
 const propertySchema = propertyFormPageSchema
 
@@ -20,7 +22,10 @@ interface Location {
   longitude: number
 }
 
-const propertyTypes = ['house', 'apartment', 'builder_floor', 'room'] as const
+const propertyTypes = [
+  'house', 'apartment', 'builder_floor', 'room', 'villa', 'plot', 'condo',
+  'penthouse', 'studio', 'loft', 'pg', 'flatmate', 'office', 'shop', 'warehouse',
+] as const
 const purposes = ['buy', 'rent', 'short_stay'] as const
 const isPropertyType = (value: string): value is (typeof propertyTypes)[number] =>
   propertyTypes.includes(value as (typeof propertyTypes)[number])
@@ -37,7 +42,7 @@ const PropertyFormPage: React.FC = () => {
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([])
   // Fetch property data if editing
-  const { data: property, isLoading: propertyLoading } = useGetPropertyQuery(Number(id), {
+  const { data: property, isLoading: propertyLoading, isError: propertyError, error: propertyLoadError, refetch: refetchProperty } = useGetPropertyQuery(Number(id), {
     skip: !isEditing,
   })
 
@@ -179,9 +184,12 @@ const PropertyFormPage: React.FC = () => {
       applyServerValidation(error, form.setError)
       toast({
         title: 'Operation Failed',
-        description: isEditing
-          ? 'Failed to update property. Please try again.'
-          : 'Failed to create property. Please try again.',
+        description: getErrorMessage(
+          error,
+          isEditing
+            ? 'Failed to update property. Please try again.'
+            : 'Failed to create property. Please try again.',
+        ),
         variant: 'destructive',
       })
     }
@@ -198,6 +206,16 @@ const PropertyFormPage: React.FC = () => {
       <div className="flex items-center justify-center h-full">
         <LoadingState type="spinner" />
       </div>
+    )
+  }
+
+  if (isEditing && propertyError) {
+    return (
+      <ErrorState
+        title="Failed to load property"
+        error={propertyLoadError}
+        onRetry={() => void refetchProperty()}
+      />
     )
   }
 

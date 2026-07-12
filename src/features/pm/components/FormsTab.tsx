@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, Copy, FileSearch } from "lucide-react";
+import { Copy, FileSearch } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PAGE_SIZES } from "@/features/pm/constants";
 import { Input } from "@/components/ui/input";
@@ -150,16 +151,10 @@ export default function FormsTab({
           </Select>
         </div>
 
-        {formsIsLoading ? (
+        {formsIsError ? (
+          <ErrorState title="Failed to load forms" onRetry={() => { void formsRefetch(); }} />
+        ) : formsIsLoading ? (
           <LoadingState type="spinner" />
-        ) : formsIsError ? (
-          <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <span>Failed to load forms.</span>
-            <Button variant="outline" size="sm" onClick={() => { void formsRefetch(); }}>
-              Retry
-            </Button>
-          </div>
         ) : formsData?.length ? (
           <>
             <ResponsiveDataTable columns={formColumns} data={formsData} />

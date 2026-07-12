@@ -43,6 +43,7 @@ const AppUpdateFormDialog: React.FC<AppUpdateFormDialogProps> = ({ open, onOpenC
   }, [open, form, formData])
 
   const handleSubmit = async (values: AppUpdateFormValues) => {
+    form.clearErrors()
     try {
       if (editingUpdate) {
         await updateUpdate({ id: editingUpdate.id, data: { version: values.version, build_number: Number(values.build_number), release_notes: values.release_notes, download_url: values.download_url, is_mandatory: values.is_mandatory, is_active: values.is_active, min_supported_version: values.min_supported_version } }).unwrap()

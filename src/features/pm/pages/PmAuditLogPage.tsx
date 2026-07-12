@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
@@ -136,7 +137,13 @@ export default function PmAuditLogPage() {
           <CardTitle className="text-base">Recent activity</CardTitle>
         </CardHeader>
         <CardContent>
-          {activity.isLoading ? (
+          {activity.isError ? (
+            <ErrorState
+              title="Failed to load audit log"
+              error={activity.error}
+              onRetry={() => { void activity.refetch() }}
+            />
+          ) : activity.isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />

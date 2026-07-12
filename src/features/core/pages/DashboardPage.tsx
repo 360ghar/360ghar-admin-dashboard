@@ -1,6 +1,6 @@
-import { Activity } from 'lucide-react'
+import { LayoutDashboard } from 'lucide-react'
 import { useUserRole } from '@/hooks/useUserRole'
-import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 import { AdminKpis, AgentKpis } from '@/features/core/components/dashboard/DashboardKpis'
 import { BusinessMetrics } from '@/features/core/components/dashboard/BusinessMetrics'
 import { ActivityTrendCard, PropertyStatusCard } from '@/features/core/components/dashboard/DashboardCharts'
@@ -16,21 +16,16 @@ const DashboardPage = () => {
   return (
     <ErrorBoundary>
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            {role === 'agent' ? 'Agent' : 'Admin'} Dashboard
-          </h1>
-          <p className="text-muted-foreground">
-            Welcome back{user?.full_name ? `, ${user.full_name}` : '!'} Here's what's happening with your{' '}
+      <PageHeader
+        title={role === 'agent' ? 'Agent Dashboard' : 'Admin Dashboard'}
+        description={
+          <>
+            Welcome back{user?.full_name ? `, ${user.full_name}` : ''}. Here&apos;s what&apos;s happening with your{' '}
             {role === 'agent' ? 'assigned portfolio' : 'platform'}.
-          </p>
-        </div>
-        <Badge variant="secondary" className="shrink-0">
-          <Activity className="mr-1 h-3 w-3" />
-          Live
-        </Badge>
-      </div>
+          </>
+        }
+        icon={LayoutDashboard}
+      />
 
       {role === 'agent' ? <AgentKpis agentId={user?.agent_id} /> : <AdminKpis />}
 

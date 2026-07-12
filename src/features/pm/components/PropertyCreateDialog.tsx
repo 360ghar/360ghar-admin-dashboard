@@ -179,10 +179,21 @@ export default function PropertyCreateDialog({
                       <SelectTrigger><SelectValue /></SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="apartment">apartment</SelectItem>
                       <SelectItem value="house">house</SelectItem>
+                      <SelectItem value="apartment">apartment</SelectItem>
                       <SelectItem value="builder_floor">builder_floor</SelectItem>
                       <SelectItem value="room">room</SelectItem>
+                      <SelectItem value="villa">villa</SelectItem>
+                      <SelectItem value="plot">plot</SelectItem>
+                      <SelectItem value="condo">condo</SelectItem>
+                      <SelectItem value="penthouse">penthouse</SelectItem>
+                      <SelectItem value="studio">studio</SelectItem>
+                      <SelectItem value="loft">loft</SelectItem>
+                      <SelectItem value="pg">pg</SelectItem>
+                      <SelectItem value="flatmate">flatmate</SelectItem>
+                      <SelectItem value="office">office</SelectItem>
+                      <SelectItem value="shop">shop</SelectItem>
+                      <SelectItem value="warehouse">warehouse</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

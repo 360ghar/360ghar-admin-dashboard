@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download } from "lucide-react";
 import { formatINR, downloadCsv } from "@/features/pm/utils";
@@ -14,8 +14,7 @@ import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
 import type { RentChargeWithTotals, RentPayment, RentChargeStatus } from "@/types/pm";
 import {
   useListRentChargesQuery,
-  useListRentPaymentsQuery,
-} from "@/features/pm/api/pmApi";
+  useListRentPaymentsQuery} from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,12 +37,8 @@ export default function PmRentLedgerPage() {
     setPaymentOpen(true);
   };
 
-  const chargesPager = useCursorPagination();
-  const paymentsPager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { chargesPager.reset() }, [chargesPager.reset, chargeStatus, limit]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { paymentsPager.reset() }, [paymentsPager.reset, limit]);
+  const chargesPager = useCursorPagination(`${chargeStatus}|${limit}|${ownerId}`);
+  const paymentsPager = useCursorPagination(`${limit}|${ownerId}`);
 
   const charges = useListRentChargesQuery(
     { owner_id: ownerId, status: chargeStatus || undefined, limit, cursor: chargesPager.cursor },
@@ -73,29 +68,25 @@ export default function PmRentLedgerPage() {
               Due {formatDate(row.original.charge.due_date)}
             </div>
           </div>
-        ),
-      },
+        )},
       {
         id: "status",
         header: "Status",
         cell: ({ row }) => (
           <Badge variant="secondary">{row.original.charge.status}</Badge>
-        ),
-      },
+        )},
       {
         id: "due",
         header: "Due",
         cell: ({ row }) => (
           <span className="text-sm">{formatINR(row.original.amount_due_total)}</span>
-        ),
-      },
+        )},
       {
         id: "paid",
         header: "Paid",
         cell: ({ row }) => (
           <span className="text-sm">{formatINR(row.original.amount_paid_total)}</span>
-        ),
-      },
+        )},
       {
         id: "outstanding",
         header: "Outstanding",
@@ -103,8 +94,7 @@ export default function PmRentLedgerPage() {
           <span className={row.original.outstanding > 0 ? "text-sm font-medium" : "text-sm text-muted-foreground"}>
             {formatINR(row.original.outstanding)}
           </span>
-        ),
-      },
+        )},
     ];
   }, []);
 
@@ -113,23 +103,19 @@ export default function PmRentLedgerPage() {
       {
         accessorKey: "paid_at",
         header: "Paid at",
-        cell: ({ row }) => formatDateTime(row.original.paid_at),
-      },
+        cell: ({ row }) => formatDateTime(row.original.paid_at)},
       {
         accessorKey: "amount_paid",
         header: "Amount",
-        cell: ({ row }) => formatINR(row.original.amount_paid),
-      },
+        cell: ({ row }) => formatINR(row.original.amount_paid)},
       {
         accessorKey: "payment_method",
         header: "Method",
-        cell: ({ row }) => row.original.payment_method || "—",
-      },
+        cell: ({ row }) => row.original.payment_method || "—"},
       {
         accessorKey: "reference",
         header: "Reference",
-        cell: ({ row }) => row.original.reference || "—",
-      },
+        cell: ({ row }) => row.original.reference || "—"},
       {
         id: "receipt",
         header: "Receipt",
@@ -138,8 +124,7 @@ export default function PmRentLedgerPage() {
             <Badge variant="outline">Doc #{row.original.receipt_document_id}</Badge>
           ) : (
             "—"
-          ),
-      },
+          )},
     ];
   }, []);
 
@@ -187,8 +172,7 @@ export default function PmRentLedgerPage() {
                     amount_paid_total: c.amount_paid_total,
                     outstanding: c.outstanding,
                     property_id: c.charge.property_id,
-                    lease_id: c.charge.lease_id,
-                  }));
+                    lease_id: c.charge.lease_id}));
                   downloadCsv(`rent_charges_${new Date().toISOString().slice(0, 10)}.csv`, rows);
                 } else {
                   const rows = (paymentsDisplayData || []).map((p) => ({
@@ -201,8 +185,7 @@ export default function PmRentLedgerPage() {
                     charge_id: p.charge_id,
                     lease_id: p.lease_id,
                     property_id: p.property_id,
-                    receipt_document_id: p.receipt_document_id,
-                  }));
+                    receipt_document_id: p.receipt_document_id}));
                   downloadCsv(`rent_payments_${new Date().toISOString().slice(0, 10)}.csv`, rows);
                 }
               }}

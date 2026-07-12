@@ -100,9 +100,10 @@ export const SidebarContent = () => {
             : []),
     ]
 
+    // Parent href is the first child — collapsible parents are not links themselves.
     const adminToolsNav: NavItemConfig = {
         name: 'Admin Tools',
-        href: '/admin',
+        href: '/bug-reports',
         icon: Settings,
         children: [
             { name: 'Bug Reports', href: '/bug-reports', icon: AlertCircle },
@@ -148,8 +149,7 @@ export const SidebarContent = () => {
                 { items: [{ name: 'Users', href: '/users', icon: Users }, profileItem] },
             ]
             : [
-                { items: [{ name: 'Dashboard', href: '/dashboard', icon: Home }] },
-                { label: 'Engagement', items: engagementNav },
+                // Non-staff authenticated users only have account routes (App.tsx).
                 { items: [profileItem] },
             ]
 

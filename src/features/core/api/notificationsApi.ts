@@ -76,7 +76,7 @@ export const notificationsApi = api.injectEndpoints({
             ? undefined
             : { limit: params.limit, cursor: params.cursor ?? undefined }
         return {
-          url: `/notifications/users/${userId}/`,
+          url: `/notifications/users/${userId}`,
           params: queryParams,
         }
       },

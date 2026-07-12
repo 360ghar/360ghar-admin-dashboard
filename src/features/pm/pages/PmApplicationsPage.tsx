@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import {useCallback,  useState} from "react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
@@ -8,8 +8,7 @@ import {
   useDecideApplicationMutation,
   useDeleteApplicationMutation,
   useListApplicationFormsQuery,
-  useListApplicationsQuery,
-} from "@/features/pm/api/pmApi";
+  useListApplicationsQuery} from "@/features/pm/api/pmApi";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +17,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  AlertDialogTitle} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
@@ -41,16 +39,13 @@ export default function PmApplicationsPage() {
   const [formsQ, setFormsQ] = useState("");
   const debouncedFormsQ = useDebounce(formsQ, 300);
   const [formsLimit, setFormsLimit] = useState(50);
-  const formsPager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { formsPager.reset() }, [formsPager.reset, debouncedFormsQ, formsLimit]);
+  const formsPager = useCursorPagination(`${debouncedFormsQ}|${formsLimit}|${ownerId}`);
   const forms = useListApplicationFormsQuery(
     {
       owner_id: ownerId,
       q: debouncedFormsQ || undefined,
       limit: formsLimit,
-      cursor: formsPager.cursor,
-    },
+      cursor: formsPager.cursor},
     { skip: tab !== "forms" || (role === "agent" && !ownerId) },
   );
 
@@ -59,16 +54,13 @@ export default function PmApplicationsPage() {
   // Inbox list
   const [status, setStatus] = useState<TenantStatus | "">("");
   const [appsLimit, setAppsLimit] = useState(50);
-  const appsPager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { appsPager.reset() }, [appsPager.reset, status, appsLimit]);
+  const appsPager = useCursorPagination(`${status}|${appsLimit}|${ownerId}`);
   const applications = useListApplicationsQuery(
     {
       owner_id: ownerId,
       status: status || undefined,
       limit: appsLimit,
-      cursor: appsPager.cursor,
-    },
+      cursor: appsPager.cursor},
     { skip: tab !== "inbox" || (role === "agent" && !ownerId) },
   );
 
@@ -91,12 +83,10 @@ export default function PmApplicationsPage() {
     try {
       await decideApplication({
         application_id: confirmDialog.applicationId,
-        payload: { decision },
-      }).unwrap();
+        payload: { decision }}).unwrap();
       toast({
         title: confirmDialog.type === "approve" ? "Approved" : "Rejected",
-        description: `Application ${decision}.`,
-      });
+        description: `Application ${decision}.`});
     } catch (e: unknown) {
       toast({
         title: "Failed",
@@ -104,15 +94,13 @@ export default function PmApplicationsPage() {
           e,
           `Could not ${confirmDialog.type} application.`,
         ),
-        variant: "destructive",
-      });
+        variant: "destructive"});
     } finally {
       setConfirmDialog({
         open: false,
         type: "approve",
         applicationId: null,
-        applicantName: "",
-      });
+        applicantName: ""});
     }
   }, [
     confirmDialog.applicationId,
@@ -128,8 +116,7 @@ export default function PmApplicationsPage() {
         type,
         applicationId: application.id,
         applicantName:
-          application.applicant_full_name || `Application #${application.id}`,
-      });
+          application.applicant_full_name || `Application #${application.id}`});
     },
     [],
   );
@@ -219,8 +206,7 @@ export default function PmApplicationsPage() {
               open: false,
               type: "approve",
               applicationId: null,
-              applicantName: "",
-            });
+              applicantName: ""});
           }
         }}
       >

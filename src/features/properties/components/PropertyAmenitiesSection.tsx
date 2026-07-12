@@ -14,13 +14,16 @@ const PropertyAmenitiesSection: React.FC<PropertyAmenitiesSectionProps> = ({ for
   <>
     <FormField control={form.control} name="is_available" render={({ field }) => (
       <FormItem><FormLabel>Available</FormLabel>
-        <Select onValueChange={(v) => field.onChange(v === 'true')} defaultValue={field.value ? 'true' : 'false'}>
+        <Select
+          onValueChange={(v) => field.onChange(v === 'true')}
+          value={field.value === undefined || field.value === null ? undefined : field.value ? 'true' : 'false'}
+        >
           <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
           <SelectContent><SelectItem value="true">Yes</SelectItem><SelectItem value="false">No</SelectItem></SelectContent>
         </Select><FormMessage /></FormItem>
     )} />
     <FormField control={form.control} name="available_from" render={({ field }) => (
-      <FormItem><FormLabel>Available From</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+      <FormItem><FormLabel>Available From</FormLabel><FormControl><Input type="date" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
     )} />
     <div className="md:col-span-2">
       <FormField control={form.control} name="amenity_ids" render={({ field }) => (
@@ -38,7 +41,10 @@ const PropertyAmenitiesSection: React.FC<PropertyAmenitiesSectionProps> = ({ for
                   <span>{a.title || a.name}</span>
                 </label>
               ))}
-              {!amenities.data && <div className="text-sm text-muted-foreground">No amenities</div>}
+              {amenities.isLoading && <div className="text-sm text-muted-foreground">Loading amenities…</div>}
+              {!amenities.isLoading && (!amenities.data || amenities.data.length === 0) && (
+                <div className="text-sm text-muted-foreground">No amenities</div>
+              )}
             </div>
           </FormControl><FormMessage /></FormItem>
       )} />

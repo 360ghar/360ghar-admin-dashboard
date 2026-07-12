@@ -5,6 +5,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import type { Visit } from '@/types/api'
 import { parseServerTimestamp } from '@/lib/dateTime'
+import { getVisitStatusLabel } from '@/lib/statusColors'
 
 interface VisitCalendarProps {
   visits: Visit[]
@@ -58,7 +59,7 @@ const VisitCalendar: React.FC<VisitCalendarProps> = ({ visits = [], onDateSelect
                 {getVisitsForDate(selectedDate).map((visit) => (
                   <div key={visit.id} className="flex items-center justify-between p-2 border rounded">
                     <div>
-                      <p className="text-sm font-medium">{visit.property?.title}</p>
+                      <p className="text-sm font-medium">{visit.property?.title || `Property #${visit.property_id}`}</p>
                       <p className="text-xs text-muted-foreground">
                         {(() => {
                           const visitDate = parseServerTimestamp(visit.scheduled_date)
@@ -66,8 +67,8 @@ const VisitCalendar: React.FC<VisitCalendarProps> = ({ visits = [], onDateSelect
                         })()}
                       </p>
                     </div>
-                    <Badge variant={visit.status === 'scheduled' ? 'default' : 'secondary'}>
-                      {visit.status}
+                    <Badge variant={visit.status === 'requested' || visit.status === 'confirmed' ? 'default' : 'secondary'}>
+                      {getVisitStatusLabel(visit.status)}
                     </Badge>
                   </div>
                 ))}

@@ -59,7 +59,7 @@ export const coreApi = api.injectEndpoints({
     // Bug Reports
     createBugReport: builder.mutation<BugReport, BugReportCreate>({
       query: (data) => ({
-        url: '/bugs/',
+        url: '/bugs',
         method: 'POST',
         body: data
       }),
@@ -68,7 +68,7 @@ export const coreApi = api.injectEndpoints({
 
     createBugReportWithMedia: builder.mutation<BugReport, FormData>({
       query: (formData) => ({
-        url: '/bugs/with-media/',
+        url: '/bugs/with-media',
         method: 'POST',
         body: formData,
         formData: true
@@ -78,7 +78,7 @@ export const coreApi = api.injectEndpoints({
 
     getBugReports: builder.query<PaginatedResponse<BugReport>, BugReportsQuery | void>({
       query: (params) => ({
-        url: '/bugs/',
+        url: '/bugs',
         params: { limit: 20, ...(params || {}) }
       }),
       providesTags: (res) =>
@@ -107,7 +107,7 @@ export const coreApi = api.injectEndpoints({
     // Pages Management
     createPage: builder.mutation<Page, PageCreate>({
       query: (data) => ({
-        url: '/pages/',
+        url: '/pages',
         method: 'POST',
         body: data
       }),
@@ -116,7 +116,7 @@ export const coreApi = api.injectEndpoints({
 
     getPages: builder.query<PaginatedResponse<Page>, PagesQuery | void>({
       query: (params) => ({
-        url: '/pages/',
+        url: '/pages',
         params: { limit: 20, ...(params || {}) }
       }),
       providesTags: (res) =>
@@ -158,7 +158,7 @@ export const coreApi = api.injectEndpoints({
     // App Versions
     createAppUpdate: builder.mutation<AppUpdate, AppUpdateCreate>({
       query: (data) => ({
-        url: '/versions/',
+        url: '/versions',
         method: 'POST',
         body: data
       }),
@@ -176,7 +176,7 @@ export const coreApi = api.injectEndpoints({
 
     getAppUpdates: builder.query<PaginatedResponse<AppUpdate>, AppUpdatesQuery | void>({
       query: (params) => ({
-        url: '/versions/',
+        url: '/versions',
         params: { limit: 10, ...(params || {}) }
       }),
       providesTags: (res) =>

@@ -27,7 +27,7 @@ export const agentsApi = api.injectEndpoints({
     // List agents (admin only) — uniform cursor-paginated response
     listAgents: builder.query<PaginatedResponse<AgentSummary>, { include_inactive?: boolean; cursor?: string | null; limit?: number } | void>({
       query: (params) => ({
-        url: '/agents/',
+        url: '/agents',
         params: { limit: 20, ...(params || {}) } as Record<string, unknown>
       }),
       providesTags: (res) =>
@@ -47,58 +47,79 @@ export const agentsApi = api.injectEndpoints({
 
     // Create agent (admin only)
     createAgent: builder.mutation<Agent, AgentCreate>({
-      query: (data) => ({ url: '/agents/', method: 'POST', body: data }),
+      query: (data) => ({ url: '/agents', method: 'POST', body: data }),
       invalidatesTags: [{ type: 'Agent', id: 'LIST' }],
     }),
 
     // Update agent (admin only)
     updateAgent: builder.mutation<Agent, { id: number; data: Partial<Agent> }>({
-      query: ({ id, data }) => ({ url: `/agents/${id}/`, method: 'PUT', body: data }),
+      query: ({ id, data }) => ({ url: `/agents/${id}`, method: 'PUT', body: data }),
       invalidatesTags: (_res, _e, { id }) => [{ type: 'Agent', id }, { type: 'Agent', id: 'LIST' }],
     }),
 
     // Delete agent (soft delete, admin only)
     deleteAgent: builder.mutation<void, number>({
-      query: (id) => ({ url: `/agents/${id}/`, method: 'DELETE' }),
+      query: (id) => ({ url: `/agents/${id}`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Agent', id: 'LIST' }],
     }),
 
     // Toggle agent availability (admin only)
     toggleAgentAvailability: builder.mutation<void, { agentId: number; isAvailable: boolean }>({
       query: ({ agentId, isAvailable }) => ({
-        url: `/agents/${agentId}/availability/`,
+        url: `/agents/${agentId}/availability`,
         method: 'PATCH',
         body: { is_available: isAvailable }
       }),
-      invalidatesTags: (_res, _e, { agentId }) => [{ type: 'Agent', id: agentId }],
+      invalidatesTags: (_res, _e, { agentId }) => [
+        { type: 'Agent', id: agentId },
+        { type: 'Agent', id: 'LIST' },
+      ],
     }),
 
     // Get agent profile (current user)
     getAgentProfile: builder.query<Agent, void>({
-      query: () => '/agents/me/',
-      providesTags: [{type: 'Agent' as const, id: 'LIST'}]
+      query: () => '/agents/me',
+      providesTags: (res) =>
+        res
+          ? [
+              { type: 'Agent' as const, id: res.id },
+              { type: 'Agent' as const, id: 'PROFILE' },
+            ]
+          : [{ type: 'Agent' as const, id: 'PROFILE' }],
     }),
 
     // Get assigned agent (current user)
     getAssignedAgent: builder.query<Agent | null, void>({
-      query: () => '/agents/assigned/',
-      providesTags: [{type: 'Agent' as const, id: 'LIST'}]
+      query: () => '/agents/assigned',
+      providesTags: (res) =>
+        res
+          ? [
+              { type: 'Agent' as const, id: res.id },
+              { type: 'Agent' as const, id: 'ASSIGNED' },
+            ]
+          : [{ type: 'Agent' as const, id: 'ASSIGNED' }],
     }),
 
     // Assign agent to current user
     assignAgentToUser: builder.mutation<void, { agentId?: number }>({
       query: (params) => ({
-        url: '/agents/assign/',
+        url: '/agents/assign',
         method: 'POST',
         params: params?.agentId ? { agent_id: params.agentId } : undefined
       }),
-      invalidatesTags: [{type: 'Agent', id: 'LIST'}]
+      invalidatesTags: [
+        { type: 'Agent', id: 'LIST' },
+        { type: 'Agent', id: 'ASSIGNED' },
+        { type: 'Agent', id: 'PROFILE' },
+        { type: 'User', id: 'PROFILE' },
+        { type: 'User', id: 'LIST' },
+      ],
     }),
 
     // Get available agents
     getAvailableAgents: builder.query<PaginatedResponse<Agent>, { specialization?: string; agentType?: string; cursor?: string | null; limit?: number }>({
       query: (params) => ({
-        url: '/agents/available/',
+        url: '/agents/available',
         params: { limit: 20, ...(params || {}) }
       }),
       providesTags: (result) => result?.items
@@ -108,14 +129,14 @@ export const agentsApi = api.injectEndpoints({
 
     // Get agent with stats
     getAgentStats: builder.query<AgentWithStats, number>({
-      query: (id) => `/agents/${id}/stats/`,
+      query: (id) => `/agents/${id}/stats`,
       providesTags: (_result, _error, arg) => [{type: 'Agent' as const, id: arg}]
     }),
 
     // Get visits handled by agent
     getAgentVisits: builder.query<PaginatedResponse<Visit>, { agentId: number; cursor?: string | null; limit?: number }>({
       query: ({ agentId, ...params }) => ({
-        url: `/agents/${agentId}/visits/`,
+        url: `/agents/${agentId}/visits`,
         params: { limit: 20, ...params }
       }),
       providesTags: [{type: 'Agent' as const, id: 'LIST'}, {type: 'Visit' as const, id: 'LIST'}]

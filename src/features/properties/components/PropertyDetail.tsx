@@ -1,11 +1,14 @@
 import { useDeletePropertyMutation, useGetPropertyQuery } from '@/features/properties/api/propertiesApi'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
+import { PropertyStatusBadge } from './PropertyStatusBadge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Link, useNavigate } from 'react-router-dom'
+import { Building2 } from 'lucide-react'
 import MapPreview from './parts/MapPreview'
 import {
   AlertDialog,
@@ -52,28 +55,32 @@ const PropertyDetail = ({ id }: { id: number }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Property Details</h1>
-          <p className="text-sm text-muted-foreground">View complete information</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/properties/${id}`}>Edit</Link>
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setOpenDelete(true)} disabled={delState.isLoading}>
-            {delState.isLoading ? 'Deleting…' : 'Delete'}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={data?.title || 'Property Details'}
+        description="View complete information"
+        icon={Building2}
+        breadcrumbs={[
+          { label: 'Properties', to: '/properties' },
+          { label: data?.title || `#${id}` },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            {data?.status && <PropertyStatusBadge status={data.status} />}
+            <Button asChild variant="outline" size="sm" className="rounded-cohere-pill">
+              <Link to={`/properties/${id}`}>Edit</Link>
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setOpenDelete(true)} disabled={delState.isLoading}>
+              {delState.isLoading ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        }
+      />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             <span>{data?.title || 'Property'}</span>
-            {data?.status && (
-              <Badge variant={data.status === 'available' ? 'default' : 'secondary'} className="capitalize">{data.status}</Badge>
-            )}
+            {data?.status && <PropertyStatusBadge status={data.status} />}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -95,9 +102,9 @@ const PropertyDetail = ({ id }: { id: number }) => {
               <Item label="Locality" value={data?.locality} />
               <Item label="Pincode" value={data?.pincode} />
             </div>
-            {data?.latitude !== undefined && data?.longitude !== undefined && (
+            {data?.latitude != null && data?.longitude != null && !Number.isNaN(Number(data.latitude)) && !Number.isNaN(Number(data.longitude)) && (
               <div className="mt-3">
-                <MapPreview lat={data.latitude} lng={data.longitude} height={220} />
+                <MapPreview lat={Number(data.latitude)} lng={Number(data.longitude)} height={220} />
                 <div className="mt-2 text-xs text-muted-foreground">
                   Lat: {data.latitude}, Lng: {data.longitude}
                 </div>
@@ -139,7 +146,9 @@ const PropertyDetail = ({ id }: { id: number }) => {
               {data?.amenities?.length ? (
                 <div className="flex flex-wrap gap-2">
                   {data.amenities.map((a) => (
-                    <Badge key={a.id} variant="secondary" className="capitalize">{a.title.replaceAll('_', ' ')}</Badge>
+                    <Badge key={a.id} variant="secondary" className="capitalize">
+                      {(a.title || 'Amenity').replaceAll('_', ' ')}
+                    </Badge>
                   ))}
                 </div>
               ) : (

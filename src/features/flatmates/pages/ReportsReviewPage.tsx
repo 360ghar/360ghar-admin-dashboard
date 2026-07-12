@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RotateCcw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -20,6 +19,7 @@ import { getErrorMessage } from '@/lib/errors'
 import { LoadingState } from '@/components/ui/loading-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { useGetPendingReportsQuery, useModerateReportMutation } from '../api/flatmatesApi'
@@ -58,6 +58,8 @@ export function ReportsReviewPage() {
 
   const handleModerate = (report: FlatmatesReport) => {
     setSelectedReport(report)
+    setAction('dismiss')
+    setNotes('')
     setIsDialogOpen(true)
   }
 
@@ -70,11 +72,13 @@ export function ReportsReviewPage() {
       }).unwrap()
       toast({ title: 'Report moderated successfully' })
       setIsDialogOpen(false)
+      setSelectedReport(null)
+      setAction('dismiss')
       setNotes('')
     } catch (err) {
       toast({
         title: 'Failed to moderate report',
-        description: getErrorMessage(err),
+        description: getErrorMessage(err, 'Failed to moderate report'),
         variant: 'destructive',
       })
     }
@@ -105,21 +109,15 @@ export function ReportsReviewPage() {
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <h2 className="text-2xl font-bold">Error Loading Reports</h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-destructive">
-            {getErrorMessage(error, 'Failed to load reports')}
-          </p>
-          <Button variant="outline" onClick={() => void refetch()}><RotateCcw className="mr-2 h-4 w-4" />Retry</Button>
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Failed to load reports"
+        error={error}
+        onRetry={() => { void refetch() }}
+      />
     )
   }
 
-  const reports = data?.items || []
+  const reports = data?.items ?? []
 
   return (
     <div className="space-y-6">
@@ -144,7 +142,7 @@ export function ReportsReviewPage() {
       ) : (
         <div className="grid gap-4">
           {reports.map((report) => (
-            <Card key={report.id} className="hover:shadow-md transition-shadow">
+            <Card key={report.id} className="transition-colors hover:border-cohere-hairline">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">

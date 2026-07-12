@@ -2,16 +2,29 @@ import type { Document } from "@/types/pm";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface KycDocumentsCardProps {
-  kycDocs: { isLoading: boolean; data?: { items: Document[] } };
+  kycDocs: {
+    isLoading: boolean;
+    isError?: boolean;
+    error?: unknown;
+    refetch?: () => void;
+    data?: { items: Document[] };
+  };
 }
 
 export default function KycDocumentsCard({ kycDocs }: KycDocumentsCardProps) {
   const docs = kycDocs.data?.items ?? [];
   return (
     <>
-      {kycDocs.isLoading ? (
+      {kycDocs.isError ? (
+        <ErrorState
+          title="Failed to load KYC documents"
+          error={kycDocs.error}
+          onRetry={kycDocs.refetch ? () => { void kycDocs.refetch?.(); } : undefined}
+        />
+      ) : kycDocs.isLoading ? (
         <div className="space-y-2">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />

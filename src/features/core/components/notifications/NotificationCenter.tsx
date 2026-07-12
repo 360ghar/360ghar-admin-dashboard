@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Bell, X, CheckCheck, Settings, Trash2 } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Button } from '@/components/ui/button'
@@ -13,8 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useNotifications, type NotificationItem, type NotificationType } from '@/hooks/useNotifications'
+import { useUserRole } from '@/hooks/useUserRole'
 import { EmptyState } from '@/components/ui/empty-state'
-import { formatDistanceToNow } from 'date-fns'
+import { formatRelativeTime } from '@/lib/format'
 
 interface NotificationCenterProps {
   align?: 'start' | 'center' | 'end'
@@ -53,6 +55,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
     markAllAsRead,
     removeNotification,
   } = useNotifications()
+  const { role } = useUserRole()
+  // Composer at /notifications is admin-only; agents manage prefs on preferences.
+  const settingsHref = role === 'admin' ? '/notifications' : '/users/preferences'
+  const settingsLabel = role === 'admin' ? 'Notification composer' : 'Notification preferences'
 
   return (
     <DropdownMenu>
@@ -69,7 +75,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} side={side} className="w-96">
+      <DropdownMenuContent align={align} side={side} className="w-[min(24rem,calc(100vw-2rem))]">
         <div className="flex items-center justify-between p-4">
           <DropdownMenuLabel className="text-lg font-semibold">
             Notifications
@@ -84,25 +90,23 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 size="sm"
                 onClick={markAllAsRead}
                 className="h-8 w-8 p-0"
+                aria-label="Mark all as read"
               >
                 <CheckCheck className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => window.location.href = '/notifications'}
-            >
-              <Settings className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+              <Link to={settingsHref} aria-label={settingsLabel}>
+                <Settings className="h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
         <DropdownMenuSeparator />
         <ScrollArea className="h-96">
           {notifications.length === 0 && !isFetching ? (
-            <div className="p-8">
-              <EmptyState icon={<Bell className="h-12 w-12" />} title="No notifications" />
+            <div className="p-4">
+              <EmptyState size="sm" icon={<Bell className="h-8 w-8" />} title="No notifications" />
             </div>
           ) : (
             notifications.map((notification: NotificationItem) => (
@@ -139,9 +143,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       </p>
                       <div className="flex items-center justify-between w-full">
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(notification.createdAt), {
-                            addSuffix: true,
-                          })}
+                          {formatRelativeTime(notification.createdAt)}
                         </span>
                         {!notification.isRead && (
                           <Button

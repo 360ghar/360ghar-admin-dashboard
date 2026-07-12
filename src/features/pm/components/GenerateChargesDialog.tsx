@@ -134,11 +134,19 @@ export default function GenerateChargesDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {(leases.data?.items ?? []).map((l) => (
-                          <SelectItem key={l.id} value={String(l.id)}>
-                            #{l.id} • Property #{l.property_id}
-                          </SelectItem>
-                        ))}
+                        {leases.isLoading ? (
+                          <SelectItem value="loading" disabled>Loading leases…</SelectItem>
+                        ) : leases.isError ? (
+                          <SelectItem value="error" disabled>Failed to load leases</SelectItem>
+                        ) : !(leases.data?.items?.length) ? (
+                          <SelectItem value="none" disabled>No active leases</SelectItem>
+                        ) : (
+                          (leases.data?.items ?? []).map((l) => (
+                            <SelectItem key={l.id} value={String(l.id)}>
+                              #{l.id} • Property #{l.property_id}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

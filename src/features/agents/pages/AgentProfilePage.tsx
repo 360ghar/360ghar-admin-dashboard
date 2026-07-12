@@ -1,51 +1,43 @@
 import { useGetAgentProfileQuery, useGetAgentStatsQuery } from '@/features/agents/api/agentsApi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Phone, Users, TrendingUp, Star } from 'lucide-react'
 import { formatDate } from '@/lib/format'
+import { LoadingState } from '@/components/ui/loading-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 
 const AgentProfilePage = () => {
-  const { data: agentProfile, isLoading } = useGetAgentProfileQuery()
-  const { data: agentWithStats } = useGetAgentStatsQuery(agentProfile?.id || 0, { skip: !agentProfile?.id })
+  const {
+    data: agentProfile,
+    isLoading,
+    error,
+    refetch,
+  } = useGetAgentProfileQuery()
+  const { data: agentWithStats } = useGetAgentStatsQuery(agentProfile?.id || 0, {
+    skip: !agentProfile?.id,
+  })
 
   if (isLoading) {
+    return <LoadingState type="card" rows={6} />
+  }
+
+  if (error) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-64 mb-2" />
-          <Skeleton className="h-4 w-96" />
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-32 w-full" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-32 w-full" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <ErrorState
+        title="Failed to load agent profile"
+        error={error}
+        onRetry={() => { void refetch() }}
+      />
     )
   }
 
   if (!agentProfile) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Profile Not Found</h2>
-          <p className="text-muted-foreground">Unable to load agent profile information.</p>
-        </div>
-      </div>
+      <EmptyState
+        title="Profile Not Found"
+        description="Unable to load agent profile information. You may not have an agent profile linked to this account."
+      />
     )
   }
 
@@ -73,8 +65,8 @@ const AgentProfilePage = () => {
                 </span>
               </div>
               <div>
-                <h3 className="text-lg font-semibold">{agentProfile.name}</h3>
-                <p className="text-muted-foreground capitalize">{agentProfile.agent_type}</p>
+                <h3 className="text-lg font-semibold">{agentProfile.name || '—'}</h3>
+                <p className="text-muted-foreground capitalize">{agentProfile.agent_type || '—'}</p>
                 <Badge variant={agentProfile.is_available ? 'default' : 'secondary'}>
                   {agentProfile.is_available ? 'Available' : 'Unavailable'}
                 </Badge>
@@ -89,22 +81,28 @@ const AgentProfilePage = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Star className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Experience: {agentProfile.experience_level}</span>
+                  <span className="text-sm">Experience: {agentProfile.experience_level || '—'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Total Users Assigned: {agentProfile.total_users_assigned}</span>
+                  <span className="text-sm">
+                    Total Users Assigned: {agentProfile.total_users_assigned ?? 0}
+                  </span>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Satisfaction: {agentProfile.user_satisfaction_rating}</span>
+                  <span className="text-sm">
+                    Satisfaction: {agentProfile.user_satisfaction_rating ?? '—'}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-muted-foreground">Created:</span>
-                  <span className="text-sm">{formatDate(agentProfile.created_at)}</span>
+                  <span className="text-sm">
+                    {agentProfile.created_at ? formatDate(agentProfile.created_at) : '—'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -136,7 +134,7 @@ const AgentProfilePage = () => {
           <CardContent className="space-y-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
-                {stats?.efficiency_score || 0}
+                {stats?.efficiency_score ?? 0}
               </div>
               <p className="text-sm text-muted-foreground">Efficiency Score</p>
             </div>
@@ -144,40 +142,51 @@ const AgentProfilePage = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm">Active Conversations</span>
-                <span className="font-medium">{stats?.active_conversations || 0}</span>
+                <span className="font-medium">{stats?.active_conversations ?? 0}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Daily Interactions</span>
-                <span className="font-medium">{stats?.daily_interactions || 0}</span>
+                <span className="font-medium">{stats?.daily_interactions ?? 0}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Weekly Interactions</span>
-                <span className="font-medium">{stats?.weekly_interactions || 0}</span>
+                <span className="font-medium">{stats?.weekly_interactions ?? 0}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Assigned Users</span>
-                <span className="font-medium">{stats?.total_users_assigned || agentProfile.total_users_assigned}</span>
+                <span className="font-medium">
+                  {stats?.total_users_assigned ?? agentProfile.total_users_assigned ?? 0}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {agentProfile.working_hours && (
+      {agentProfile.working_hours && typeof agentProfile.working_hours === 'object' && (
         <Card>
           <CardHeader>
             <CardTitle>Working Hours</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              {Object.entries(agentProfile.working_hours as Record<string, { start: string; end: string } | null>).map(([day, hours]) => (
-                <div key={day} className="flex items-center gap-4 text-sm">
-                  <span className="w-28 font-medium capitalize">{day}</span>
-                  <span className="text-muted-foreground">
-                    {hours ? `${hours.start} – ${hours.end}` : 'Closed'}
-                  </span>
-                </div>
-              ))}
+              {Object.entries(agentProfile.working_hours).map(
+                ([day, hours]) => {
+                  let label = 'Closed'
+                  if (hours && typeof hours === 'object') {
+                    const h = hours as { start?: string; end?: string }
+                    if (h.start && h.end) label = `${h.start} – ${h.end}`
+                  } else if (typeof hours === 'string' && hours.trim()) {
+                    label = hours
+                  }
+                  return (
+                    <div key={day} className="flex items-center gap-4 text-sm">
+                      <span className="w-28 font-medium capitalize">{day}</span>
+                      <span className="text-muted-foreground">{label}</span>
+                    </div>
+                  )
+                },
+              )}
             </div>
           </CardContent>
         </Card>

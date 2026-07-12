@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { LEASE_STATUSES, PAGE_SIZES } from "@/features/pm/constants";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import CreateLeaseDialog from "@/features/pm/components/CreateLeaseDialog";
@@ -18,15 +18,15 @@ import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { getErrorMessage } from "@/lib/errors";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue} from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 
 const leaseBadgeVariant = (status: LeaseStatus) => {
   if (status === "active") return "default";
@@ -43,9 +43,8 @@ export default function PmLeasesPage() {
 
   const ownerId = selectedOwnerId;
 
-  const pager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, status, limit]);
+  const pager = useCursorPagination(`${status}|${limit}`);
+
 
   const leases = useListPmLeasesQuery(
     { owner_id: ownerId, status: status || undefined, limit, cursor: pager.cursor },
@@ -66,8 +65,7 @@ export default function PmLeasesPage() {
               Property #{row.original.property_id}
             </div>
           </div>
-        ),
-      },
+        )},
       {
         accessorKey: "status",
         header: "Status",
@@ -75,8 +73,7 @@ export default function PmLeasesPage() {
           <Badge variant={leaseBadgeVariant(row.original.status)}>
             {row.original.status}
           </Badge>
-        ),
-      },
+        )},
       {
         id: "tenant",
         header: "Tenant",
@@ -89,8 +86,7 @@ export default function PmLeasesPage() {
               {row.original.tenant_email || "—"}
             </div>
           </div>
-        ),
-      },
+        )},
       {
         id: "term",
         header: "Term",
@@ -99,8 +95,7 @@ export default function PmLeasesPage() {
             {formatDate(row.original.start_date)} →{" "}
             {formatDate(row.original.end_date)}
           </span>
-        ),
-      },
+        )},
       {
         id: "actions",
         header: "",
@@ -110,23 +105,19 @@ export default function PmLeasesPage() {
               <Link to={`/pm/leases/${row.original.id}`}>View</Link>
             </Button>
           </div>
-        ),
-      },
+        )},
     ];
   }, []);
 
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Leases</h1>
-            <p className="text-sm text-muted-foreground">
-              Create, renew, terminate, and upload signed lease documents.
-            </p>
-          </div>
-          <CreateLeaseDialog ownerId={ownerId} />
-        </div>
+        <PageHeader
+          title="Leases"
+          description="Create, renew, terminate, and upload signed lease documents."
+          icon={FileText}
+          actions={<CreateLeaseDialog ownerId={ownerId} />}
+        />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -168,13 +159,11 @@ export default function PmLeasesPage() {
             </div>
 
             {leases.isError ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <AlertCircle className="h-8 w-8 text-destructive" />
-                <p className="text-sm text-muted-foreground">{getErrorMessage(leases.error, 'Failed to load leases')}</p>
-                <Button variant="outline" size="sm" onClick={() => { void leases.refetch(); }}>
-                  Retry
-                </Button>
-              </div>
+              <ErrorState
+                title="Failed to load leases"
+                error={leases.error}
+                onRetry={() => { void leases.refetch(); }}
+              />
             ) : leases.isLoading ? (
               <LoadingState type="spinner" />
             ) : displayData?.length ? (

@@ -35,7 +35,7 @@ export const visitsApi = api.injectEndpoints({
     // Schedule a visit
     scheduleVisit: builder.mutation<Visit, VisitCreate>({
       query: (data) => ({
-        url: '/visits/',
+        url: '/visits',
         method: 'POST',
         body: data
       }),
@@ -45,7 +45,7 @@ export const visitsApi = api.injectEndpoints({
     // Get current user's visits
     getUserVisits: builder.query<PaginatedResponse<Visit>, VisitsCursorQuery>({
       query: ({ cursor, limit, include_total }) => ({
-        url: '/visits/',
+        url: '/visits',
         params: { limit: limit ?? DEFAULT_VISITS_LIMIT, cursor: cursor ?? undefined, ...(include_total ? { include_total: true } : {}) }
       }),
       providesTags: [{type: 'Visit' as const, id: 'LIST'}]
@@ -54,7 +54,7 @@ export const visitsApi = api.injectEndpoints({
     // Get upcoming visits for current user
     getUpcomingVisits: builder.query<PaginatedResponse<Visit>, VisitsCursorQuery>({
       query: ({ cursor, limit }) => ({
-        url: '/visits/upcoming/',
+        url: '/visits/upcoming',
         params: { limit: limit ?? DEFAULT_VISITS_LIMIT, cursor: cursor ?? undefined }
       }),
       providesTags: [{type: 'Visit' as const, id: 'LIST'}]
@@ -63,7 +63,7 @@ export const visitsApi = api.injectEndpoints({
     // Get past visits for current user
     getPastVisits: builder.query<PaginatedResponse<Visit>, VisitsCursorQuery>({
       query: ({ cursor, limit }) => ({
-        url: '/visits/past/',
+        url: '/visits/past',
         params: { limit: limit ?? DEFAULT_VISITS_LIMIT, cursor: cursor ?? undefined }
       }),
       providesTags: [{type: 'Visit' as const, id: 'LIST'}]
@@ -111,7 +111,7 @@ export const visitsApi = api.injectEndpoints({
     // Get all visits (admin/agent view)
     getAllVisits: builder.query<PaginatedResponse<Visit>, VisitsQuery>({
       query: (params) => ({
-        url: '/visits/all/',
+        url: '/visits/all',
         params: { limit: 20, ...params }
       }),
       providesTags: (res) =>
@@ -127,7 +127,7 @@ export const visitsApi = api.injectEndpoints({
     // Complete visit (admin/agent)
     completeVisit: builder.mutation<Visit, { visitId: number; notes?: string; feedback?: string }>({
       query: ({ visitId, ...data }) => ({
-        url: `/visits/${visitId}/complete/`,
+        url: `/visits/${visitId}/complete`,
         method: 'POST',
         body: data
       }),

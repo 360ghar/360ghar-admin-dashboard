@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import {useState} from 'react'
 import { Plus, Edit, Eye, X, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { useToast } from '@/hooks/use-toast'
@@ -29,19 +31,19 @@ const PagesManagementPage: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false)
   const [formData, setFormData] = useState<PageFormData>({ ...defaultFormData })
 
-  const pager = useCursorPagination()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, filterType])
+  const pager = useCursorPagination(`${filterType}`)
 
-  const { data: pagesData, isLoading, refetch } = useGetPagesQuery({
+  const { data: pagesData, isLoading, isError, refetch } = useGetPagesQuery({
     cursor: pager.cursor,
-    limit: 20,
-  })
+    limit: 20})
   const [deletePage, { isLoading: isDeleting }] = useDeletePageMutation()
 
   const pages = pagesData?.items ?? []
   const filteredPages = pages.filter((page) => {
-    const matchesSearch = page.title.toLowerCase().includes(searchTerm.toLowerCase()) || page.unique_name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch =
+      page.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      page.unique_name.toLowerCase().includes(searchTerm.toLowerCase())
+    // Page.format is 'html' | 'markdown' (not CMS page "type").
     const matchesType = filterType === 'all' || page.format === filterType
     return matchesSearch && matchesType
   })
@@ -66,26 +68,34 @@ const PagesManagementPage: React.FC = () => {
   const resetForm = () => { setEditingPage(null); setFormData({ ...defaultFormData }); setPreviewMode(false) }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div><h1 className="text-3xl font-bold">Pages Management</h1><p className="text-muted-foreground mt-2">Manage dynamic content pages</p></div>
-        <Button onClick={() => { resetForm(); setIsDialogOpen(true) }}><Plus className="h-4 w-4 mr-2" />New Page</Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Pages"
+        description="Manage dynamic content pages"
+        icon={FileText}
+        actions={
+          <Button className="rounded-cohere-pill" onClick={() => { resetForm(); setIsDialogOpen(true) }}>
+            <Plus className="h-4 w-4" />
+            New Page
+          </Button>
+        }
+      />
       <Card><CardContent className="pt-6">
         <div className="flex gap-4">
           <Input placeholder="Search pages..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm" />
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Filter by type" /></SelectTrigger>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Filter by format" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem><SelectItem value="information">Information</SelectItem>
-              <SelectItem value="faq">FAQ</SelectItem><SelectItem value="terms">Terms</SelectItem>
-              <SelectItem value="privacy">Privacy</SelectItem><SelectItem value="about">About</SelectItem>
-              <SelectItem value="contact">Contact</SelectItem><SelectItem value="custom">Custom</SelectItem>
+              <SelectItem value="all">All Formats</SelectItem>
+              <SelectItem value="html">HTML</SelectItem>
+              <SelectItem value="markdown">Markdown</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </CardContent></Card>
-      {isLoading ? <LoadingState type="card" rows={3} /> : !filteredPages.length ? (
+      {isLoading ? <LoadingState type="card" rows={3} /> : isError ? (
+        <ErrorState title="Failed to load pages" onRetry={() => void refetch()} />
+      ) : !filteredPages.length ? (
         <EmptyState icon={<FileText className="h-10 w-10" />} title="No pages found" description="Create your first page to get started."
           action={{ label: 'New Page', onClick: () => { resetForm(); setIsDialogOpen(true) } }} />
       ) : (
@@ -95,7 +105,7 @@ const PagesManagementPage: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2"><h3 className="font-semibold">{page.title}</h3><Badge variant="outline">{page.format}</Badge>{page.is_draft && <Badge variant="secondary">Draft</Badge>}</div>
                 <p className="text-sm text-muted-foreground">/{page.unique_name}</p>
-                <p className="text-sm line-clamp-2">{page.content.replace(/<[^>]*>/g, '').substring(0, 150)}...</p>
+                <p className="text-sm line-clamp-2">{(page.content ?? '').replace(/<[^>]*>/g, '').substring(0, 150)}{(page.content?.length ?? 0) > 150 ? '...' : ''}</p>
                 <div className="flex items-center gap-4 text-xs text-muted-foreground"><span>Status: {page.is_active ? 'Active' : 'Inactive'}</span><span>Updated: {formatDate(page.updated_at)}</span></div>
               </div>
               <div className="flex gap-2">

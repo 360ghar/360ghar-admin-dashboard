@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { format } from 'date-fns'
 import { MapPin, Clock, User, Check, Edit } from 'lucide-react'
 import type { Visit } from '@/types/api'
-import { parseServerTimestamp, serverTimestampToLocalInput } from '@/lib/dateTime'
-import { getVisitStatusColor } from '@/lib/statusColors'
+import { serverTimestampToLocalInput } from '@/lib/dateTime'
+import { formatDateTime } from '@/lib/format'
+import { getVisitStatusColor, getVisitStatusLabel } from '@/lib/statusColors'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 
 interface VisitCardProps {
@@ -38,27 +38,24 @@ const VisitCard = ({
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-semibold text-lg">{visit.property?.title}</h3>
+                <h3 className="font-semibold text-lg">{visit.property?.title || `Property #${visit.property_id}`}</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   <MapPin className="h-4 w-4 inline mr-1" />
-                  {visit.property?.city}, {visit.property?.locality}
+                  {[visit.property?.city, visit.property?.locality].filter(Boolean).join(', ') || 'Location unavailable'}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   <Clock className="h-4 w-4 inline mr-1" />
-                  {(() => {
-                    const visitDate = parseServerTimestamp(visit.scheduled_date)
-                    return visitDate ? format(visitDate, 'MMM dd, yyyy - HH:mm') : 'Invalid date'
-                  })()}
+                  {formatDateTime(visit.scheduled_date, 'Invalid date')}
                 </p>
-                {!isUser && visit.user && (
+                {!isUser && (
                   <p className="text-sm text-muted-foreground">
                     <User className="h-4 w-4 inline mr-1" />
-                    {visit.user.full_name}
+                    {visit.user?.full_name || `User #${visit.user_id}`}
                   </p>
                 )}
                 {visit.agent && (
                   <p className="text-sm text-muted-foreground">
-                    Agent: {visit.agent.user?.full_name}
+                    Agent: {visit.agent.user?.full_name || visit.agent.name || `Agent #${visit.agent_id ?? visit.agent.id}`}
                   </p>
                 )}
                 {visit.special_requirements && (
@@ -67,13 +64,13 @@ const VisitCard = ({
                   </p>
                 )}
               </div>
-              <Badge variant={getVisitStatusColor(visit.status)} className="capitalize">
-                {visit.status}
+              <Badge variant={getVisitStatusColor(visit.status)}>
+                {getVisitStatusLabel(visit.status)}
               </Badge>
             </div>
           </div>
           <div className="flex gap-2">
-            {(visit.status === 'scheduled' || visit.status === 'confirmed') && (
+            {(visit.status === 'requested' || visit.status === 'confirmed' || visit.status === 'reschedule_suggested') && (
               <>
                 {!isUser && (
                   <Button

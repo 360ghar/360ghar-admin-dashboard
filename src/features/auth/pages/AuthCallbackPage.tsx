@@ -8,6 +8,7 @@ import {
   isAllowedGoogleEmail,
   recordLastAuthMethod,
 } from '@/lib/auth'
+import { isLoginInProgress } from '@/lib/loginState'
 import { setLastAuthMethod } from '@/lib/lastAuthMethod'
 import { mapSupabaseAuthError } from '@/lib/authErrors'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -29,19 +30,23 @@ export default function AuthCallbackPage() {
   const ranRef = useRef(false)
 
   useEffect(() => {
-    // React 18 StrictMode double-invokes effects in dev; the code is single-use.
+    // React 18 StrictMode double-invokes effects in dev; the OAuth `code` is
+    // single-use, so guard with a ref that survives the remount. Do NOT cancel
+    // the in-flight run on cleanup — that would drop the only exchange attempt.
     if (ranRef.current) return
     ranRef.current = true
 
-    let isMounted = true
-
     const failTo = (message: string) => {
-      if (!isMounted) return
+      isLoginInProgress.current = false
       dispatch(setError(message))
       navigate(`/login?error=${encodeURIComponent(message)}`, { replace: true })
     }
 
     const run = async () => {
+      // Block App.tsx SIGNED_IN from racing a parallel profile fetch while we
+      // enforce the Google domain + staff profile gates ourselves.
+      isLoginInProgress.current = true
+
       if (!supabase) {
         failTo('Supabase is not configured. Please set environment variables.')
         return
@@ -101,7 +106,7 @@ export default function AuthCallbackPage() {
         void recordLastAuthMethod(accessToken, 'google')
 
         // Staff gate (step 2): RoleBasedRoute bounces non-staff to /access-denied.
-        if (!isMounted) return
+        isLoginInProgress.current = false
         navigate('/dashboard', { replace: true })
       } catch (err) {
         // If the timeout fired, the exchange may still complete in the
@@ -114,10 +119,6 @@ export default function AuthCallbackPage() {
     }
 
     void run()
-
-    return () => {
-      isMounted = false
-    }
   }, [dispatch, navigate, searchParams])
 
   return (

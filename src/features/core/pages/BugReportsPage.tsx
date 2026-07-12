@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import {useState} from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -8,8 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getErrorMessage } from '@/lib/errors'
 import {
   useGetBugReportsQuery,
-  useUpdateBugReportMutation,
-} from '@/features/core/api/coreApi'
+  useUpdateBugReportMutation} from '@/features/core/api/coreApi'
 import { Bug, AlertTriangle, CheckCircle, Clock, Download } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -28,17 +27,14 @@ const BugReportsPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const pager = useCursorPagination()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, statusFilter, typeFilter])
+  const pager = useCursorPagination(`${statusFilter}|${typeFilter}`)
 
   const { data: bugReports, isLoading, isError, refetch } = useGetBugReportsQuery({
     status: statusFilter === 'all' ? undefined : statusFilter,
     bug_type: typeFilter === 'all' ? undefined : typeFilter,
     cursor: pager.cursor,
     limit: 20,
-    include_total: true,
-  })
+    include_total: true})
 
   const [updateBugReport] = useUpdateBugReportMutation()
 
@@ -61,15 +57,13 @@ const BugReportsPage: React.FC = () => {
       await updateBugReport({ id, data }).unwrap()
       toast({
         title: 'Report Updated',
-        description: 'Bug report has been updated successfully.',
-      })
+        description: 'Bug report has been updated successfully.'})
       void refetch()
     } catch (error: unknown) {
       toast({
         title: 'Update Failed',
         description: getErrorMessage(error, 'Failed to update bug report. Please try again.'),
-        variant: 'destructive',
-      })
+        variant: 'destructive'})
     }
   }
 
@@ -79,8 +73,7 @@ const BugReportsPage: React.FC = () => {
     open: reports.filter(r => r.status === 'open').length,
     inProgress: reports.filter(r => r.status === 'in_progress').length,
     resolved: reports.filter(r => r.status === 'resolved').length,
-    critical: reports.filter(r => r.severity === 'critical').length,
-  }
+    critical: reports.filter(r => r.severity === 'critical').length}
 
   const handleExport = () => {
     const rows = reports.map((r) => ({
@@ -92,8 +85,7 @@ const BugReportsPage: React.FC = () => {
       source: r.source,
       user_id: r.user_id,
       app_version: r.app_version,
-      created_at: r.created_at,
-    }))
+      created_at: r.created_at}))
     downloadCsv(csvFilename('bug-reports'), rows)
   }
 
@@ -161,6 +153,10 @@ const BugReportsPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Status counts (Open / In Progress / Resolved / Critical) are from the current page sample (up to 20). Total uses the server total when available.
+      </p>
 
       {/* Filters */}
       <Card>

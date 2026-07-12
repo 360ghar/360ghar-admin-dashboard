@@ -51,7 +51,7 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
 
   return (
     <Card
-      className={`hover:shadow-md transition-shadow ${
+      className={`transition-colors hover:border-cohere-hairline ${
         prescreenFlags.some((flag) => flag.severity === 'high') ? 'border-destructive/50' : ''
       }`}
     >

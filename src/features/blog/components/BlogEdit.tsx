@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -100,7 +101,7 @@ interface BlogEditProps { identifier: string; onSuccess?: (slug: string) => void
 const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
   const { toast } = useToast()
   const navigate = useNavigate()
-  const { data: post, isFetching: isFetchingPost } = useGetBlogPostQuery(identifier)
+  const { data: post, isFetching: isFetchingPost, error: postError, refetch } = useGetBlogPostQuery(identifier)
   const [updateBlogPost, { isLoading: isUpdating }] = useUpdateBlogPostMutation()
   const { data: categoriesData } = useGetBlogCategoriesQuery({ limit: 100 })
   const { data: tagsData } = useGetBlogTagsQuery({ limit: 100 })
@@ -147,10 +148,26 @@ const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
     } catch (e: unknown) { applyServerValidation(e, form.setError); toast({ title: 'Update failed', description: getErrorMessage(e, 'Please check inputs'), variant: 'destructive' }) }
   }
 
-  const categoryOptions = categoriesData?.items.map((cat: BlogCategory) => ({ value: cat.slug, label: cat.name })) || []
-  const tagOptions = tagsData?.items.map((tag: BlogTag) => ({ value: tag.slug, label: tag.name })) || []
+  const categoryOptions = categoriesData?.items?.map((cat: BlogCategory) => ({ value: cat.slug, label: cat.name })) || []
+  const tagOptions = tagsData?.items?.map((tag: BlogTag) => ({ value: tag.slug, label: tag.name })) || []
 
   if (isFetchingPost) return <div className="space-y-4"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button></div><Card><CardContent className="p-6"><LoadingState type="card" rows={6} /></CardContent></Card></div>
+  if (postError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => navigate('/blogs')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts
+          </Button>
+        </div>
+        <ErrorState
+          title="Failed to load post"
+          error={postError}
+          onRetry={() => { void refetch() }}
+        />
+      </div>
+    )
+  }
   if (!post) return <div className="space-y-4"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button></div><Card><CardContent className="p-6"><EmptyState title="Post not found" /></CardContent></Card></div>
 
   return (

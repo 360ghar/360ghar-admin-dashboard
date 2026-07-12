@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import {useMemo, useState} from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
 import { UserRound, Users } from 'lucide-react'
@@ -14,12 +14,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ResponsiveDataTable } from '@/components/ui/responsive-data-table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { Input } from '@/components/ui/input'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import type { User } from '@/types'
 import { getOwnerLabel, getKycStatus } from '@/features/pm/utils'
+import { PageHeader } from '@/components/ui/page-header'
 
 export default function PmOwnersPage() {
   const { role } = useUserRole()
@@ -28,10 +30,7 @@ export default function PmOwnersPage() {
 
   const [q, setQ] = useState('')
   const debouncedQ = useDebounce(q, 300)
-  const pager = useCursorPagination()
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, debouncedQ])
+  const pager = useCursorPagination(`${debouncedQ}`)
 
   const users = useGetUsersQuery({ cursor: pager.cursor, limit: 20, q: debouncedQ || undefined })
 
@@ -52,13 +51,11 @@ export default function PmOwnersPage() {
               <div className="truncate text-xs text-muted-foreground">ID: {row.original.id}</div>
             </div>
           </div>
-        ),
-      },
+        )},
       {
         accessorKey: 'phone',
         header: 'Phone',
-        cell: ({ row }) => <span className="text-sm">{row.original.phone || '—'}</span>,
-      },
+        cell: ({ row }) => <span className="text-sm">{row.original.phone || '—'}</span>},
       {
         accessorKey: 'agent_id',
         header: 'Assigned RM',
@@ -66,8 +63,7 @@ export default function PmOwnersPage() {
           <span className="text-sm">
             {row.original.agent_id ? `Agent #${row.original.agent_id}` : 'Unassigned'}
           </span>
-        ),
-      },
+        )},
       {
         id: 'kyc',
         header: 'KYC',
@@ -75,8 +71,7 @@ export default function PmOwnersPage() {
           const status = getKycStatus(row.original)
           const variant = status === 'verified' ? 'default' : status === 'pending' ? 'secondary' : 'outline'
           return <Badge variant={variant}>{status}</Badge>
-        },
-      },
+        }},
       {
         id: 'actions',
         header: '',
@@ -109,25 +104,22 @@ export default function PmOwnersPage() {
               </Dialog>
             ) : null}
           </div>
-        ),
-      },
+        )},
     ]
   }, [dispatch, navigate, role])
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Owners</h1>
-          <p className="text-sm text-muted-foreground">
-            {role === 'admin' ? 'All owner portfolios.' : 'Owners assigned to you.'}
-          </p>
-        </div>
-        <Badge variant="secondary" className="h-fit">
-          <Users className="mr-1 h-3 w-3" />
-          {owners.length} shown
-        </Badge>
-      </div>
+      <PageHeader
+        title="Owners"
+        description={role === 'admin' ? 'All owner portfolios.' : 'Owners assigned to you.'}
+        icon={Users}
+        actions={
+          <Badge variant="secondary" className="h-fit">
+            {owners.length} shown
+          </Badge>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -144,7 +136,13 @@ export default function PmOwnersPage() {
             </div>
           </div>
 
-          {users.isLoading ? (
+          {users.isError ? (
+            <ErrorState
+              title="Failed to load owners"
+              error={users.error}
+              onRetry={() => { void users.refetch() }}
+            />
+          ) : users.isLoading ? (
             <LoadingState type="spinner" />
           ) : owners.length ? (
             <>

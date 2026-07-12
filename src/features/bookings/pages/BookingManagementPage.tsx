@@ -11,26 +11,33 @@ import {
   useAddReviewMutation,
   useGetAllBookingsQuery
 } from '@/features/bookings/api/bookingsApi'
-import { CalendarIcon, Clock, Check, AlertCircle, AlertTriangle } from 'lucide-react'
+import { CalendarIcon, Clock, Check, AlertCircle } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import type { Booking, BookingReview } from '@/types/api'
+import { getErrorMessage } from '@/lib/errors'
 import { BookingCard } from '@/features/bookings/components/BookingCard'
 import { CreateBookingDialog } from '@/features/bookings/components/CreateBookingDialog'
 
-const BookingManagementPage: React.FC = () => {
+const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { user } = useAuth()
   const { toast } = useToast()
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
+  const isUser = user?.role === 'user'
+
   // API calls
-  const { data: userBookings, isLoading: userBookingsLoading, isError: userBookingsError, refetch: refetchUserBookings } = useGetUserBookingsQuery({ limit: 100 })
+  const { data: userBookings, isLoading: userBookingsLoading, isError: userBookingsError, refetch: refetchUserBookings } = useGetUserBookingsQuery(
+    { limit: 100 },
+    { skip: !isUser },
+  )
 
   // Admin/Agent view
   const { data: allBookings, isLoading: allBookingsLoading, isError: allBookingsError, refetch: refetchAllBookings } = useGetAllBookingsQuery(
     { status: statusFilter === 'all' ? undefined : statusFilter },
-    { skip: user?.role === 'user' }
+    { skip: !user || isUser },
   )
 
   // Mutations
@@ -38,16 +45,15 @@ const BookingManagementPage: React.FC = () => {
   const [processPayment] = useProcessPaymentMutation()
   const [addReview] = useAddReviewMutation()
 
-  const isUser = user?.role === 'user'
   const bookings = isUser ? userBookings?.items || [] : allBookings?.items || []
 
   const filteredBookings = bookings.filter(booking => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
-        booking.property?.title.toLowerCase().includes(query) ||
-        booking.primary_guest_name.toLowerCase().includes(query) ||
-        booking.primary_guest_email.toLowerCase().includes(query)
+        (booking.property?.title?.toLowerCase().includes(query) ?? false) ||
+        (booking.primary_guest_name?.toLowerCase().includes(query) ?? false) ||
+        (booking.primary_guest_email?.toLowerCase().includes(query) ?? false)
       )
     }
     return true
@@ -60,7 +66,7 @@ const BookingManagementPage: React.FC = () => {
       void refetchUserBookings()
       void refetchAllBookings()
     } catch (error) {
-      toast({ title: 'Cancellation Failed', description: 'Failed to cancel booking. Please try again.', variant: 'destructive' })
+      toast({ title: 'Cancellation Failed', description: getErrorMessage(error, 'Failed to cancel booking. Please try again.'), variant: 'destructive' })
     }
   }
 
@@ -83,7 +89,7 @@ const BookingManagementPage: React.FC = () => {
     } catch (error) {
       toast({
         title: 'Payment Failed',
-        description: 'Failed to process payment. Please try again.',
+        description: getErrorMessage(error, 'Failed to process payment. Please try again.'),
         variant: 'destructive',
       })
     }
@@ -104,32 +110,45 @@ const BookingManagementPage: React.FC = () => {
     } catch (error) {
       toast({
         title: 'Review Failed',
-        description: 'Failed to add review. Please try again.',
+        description: getErrorMessage(error, 'Failed to add review. Please try again.'),
         variant: 'destructive',
       })
     }
   }
 
+  if (!user) {
+    return <LoadingState type="cards" />
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Booking Management</h1>
-          <p className="text-muted-foreground">
-            Manage your property bookings and reservations
-          </p>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Booking Management</h1>
+            <p className="text-muted-foreground">
+              Manage your property bookings and reservations
+            </p>
+          </div>
+          {user.role !== 'admin' && (
+            <CreateBookingDialog onSuccess={() => {
+              void refetchUserBookings()
+              void refetchAllBookings()
+            }} />
+          )}
         </div>
-        {user?.role !== 'admin' && (
+      )}
+      {embedded && user.role !== 'admin' && (
+        <div className="flex justify-end">
           <CreateBookingDialog onSuccess={() => {
             void refetchUserBookings()
             void refetchAllBookings()
           }} />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Stats */}
-      {user?.role === 'user' && userBookings && (
+      {isUser && userBookings && (
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -172,7 +191,7 @@ const BookingManagementPage: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            {user?.role !== 'user' && (
+            {!isUser && (
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="Filter by status" />
@@ -197,11 +216,9 @@ const BookingManagementPage: React.FC = () => {
           userBookingsLoading ? (
             <LoadingState type="cards" />
           ) : userBookingsError ? (
-            <EmptyState
-              icon={<AlertTriangle className="h-12 w-12" />}
+            <ErrorState
               title="Failed to load bookings"
-              description="There was an error loading bookings. Please try again."
-              action={{ label: 'Retry', onClick: () => { void refetchUserBookings() }, variant: 'outline' }}
+              onRetry={() => { void refetchUserBookings() }}
             />
           ) : filteredBookings.length === 0 ? (
             <EmptyState
@@ -217,7 +234,7 @@ const BookingManagementPage: React.FC = () => {
                 onUpdate={(selectedBooking) => { void handleProcessPayment(selectedBooking) }}
                 onCancel={(bookingId) => { void handleCancelBooking(bookingId) }}
                 onReview={(bookingId, review) => { void handleAddReview(bookingId, review) }}
-                showActions={user?.role !== 'admin'}
+                showActions={user.role !== 'admin'}
               />
             ))
           )
@@ -225,11 +242,9 @@ const BookingManagementPage: React.FC = () => {
           allBookingsLoading ? (
             <LoadingState type="cards" />
           ) : allBookingsError ? (
-            <EmptyState
-              icon={<AlertTriangle className="h-12 w-12" />}
+            <ErrorState
               title="Failed to load bookings"
-              description="There was an error loading bookings. Please try again."
-              action={{ label: 'Retry', onClick: () => { void refetchAllBookings() }, variant: 'outline' }}
+              onRetry={() => { void refetchAllBookings() }}
             />
           ) : filteredBookings.length === 0 ? (
             <EmptyState
@@ -245,7 +260,7 @@ const BookingManagementPage: React.FC = () => {
                 onUpdate={(selectedBooking) => { void handleProcessPayment(selectedBooking) }}
                 onCancel={(bookingId) => { void handleCancelBooking(bookingId) }}
                 onReview={(bookingId, review) => { void handleAddReview(bookingId, review) }}
-                showActions={user?.role !== 'admin'}
+                showActions={user.role !== 'admin'}
               />
             ))
           )

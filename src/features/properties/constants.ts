@@ -3,6 +3,17 @@ export const PROPERTY_TYPES = [
   { value: 'apartment', label: 'Apartment' },
   { value: 'builder_floor', label: 'Builder Floor' },
   { value: 'room', label: 'Room' },
+  { value: 'villa', label: 'Villa' },
+  { value: 'plot', label: 'Plot' },
+  { value: 'condo', label: 'Condo' },
+  { value: 'penthouse', label: 'Penthouse' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'loft', label: 'Loft' },
+  { value: 'pg', label: 'PG' },
+  { value: 'flatmate', label: 'Flatmate' },
+  { value: 'office', label: 'Office' },
+  { value: 'shop', label: 'Shop' },
+  { value: 'warehouse', label: 'Warehouse' },
 ] as const
 
 export const PROPERTY_PURPOSES = [

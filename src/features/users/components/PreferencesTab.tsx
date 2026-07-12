@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { UseFormReturn } from 'react-hook-form'
 import type { UserPreferencesFormValues } from '@/features/users/validations'
+import { FormRootError } from '@/components/ui/form-root-error'
 interface PreferencesTabProps {
   preferencesForm: UseFormReturn<UserPreferencesFormValues>
   selectedPropertyTypes: string[]
@@ -39,6 +40,7 @@ const PreferencesTab: React.FC<PreferencesTabProps> = ({
     </CardHeader>
     <CardContent>
       <form onSubmit={onSubmit} className="space-y-6">
+        <FormRootError form={preferencesForm} />
         <div className="space-y-4">
           <div>
             <Label className="text-base font-medium">Property Types</Label>
@@ -58,6 +60,11 @@ const PreferencesTab: React.FC<PreferencesTabProps> = ({
                 </Badge>
               ))}
             </div>
+            {preferencesForm.formState.errors.property_type && (
+              <p className="text-sm text-destructive mt-1">
+                {preferencesForm.formState.errors.property_type.message}
+              </p>
+            )}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -87,6 +94,12 @@ const PreferencesTab: React.FC<PreferencesTabProps> = ({
                 <span>-</span>
                 <Input type="number" {...preferencesForm.register('budget_max', { valueAsNumber: true })} placeholder="Max" />
               </div>
+              {(preferencesForm.formState.errors.budget_min || preferencesForm.formState.errors.budget_max) && (
+                <p className="text-sm text-destructive">
+                  {preferencesForm.formState.errors.budget_max?.message
+                    || preferencesForm.formState.errors.budget_min?.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Bedrooms</Label>
@@ -95,6 +108,12 @@ const PreferencesTab: React.FC<PreferencesTabProps> = ({
                 <span>-</span>
                 <Input type="number" {...preferencesForm.register('bedrooms_max', { valueAsNumber: true })} placeholder="Max" />
               </div>
+              {(preferencesForm.formState.errors.bedrooms_min || preferencesForm.formState.errors.bedrooms_max) && (
+                <p className="text-sm text-destructive">
+                  {preferencesForm.formState.errors.bedrooms_max?.message
+                    || preferencesForm.formState.errors.bedrooms_min?.message}
+                </p>
+              )}
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -105,6 +124,12 @@ const PreferencesTab: React.FC<PreferencesTabProps> = ({
                 <span>-</span>
                 <Input type="number" {...preferencesForm.register('area_max', { valueAsNumber: true })} placeholder="Max" />
               </div>
+              {(preferencesForm.formState.errors.area_min || preferencesForm.formState.errors.area_max) && (
+                <p className="text-sm text-destructive">
+                  {preferencesForm.formState.errors.area_max?.message
+                    || preferencesForm.formState.errors.area_min?.message}
+                </p>
+              )}
             </div>
           </div>
           <div>

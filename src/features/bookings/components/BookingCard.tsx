@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
-import { format, parseISO } from 'date-fns'
 import { MapPin, Star, CreditCard } from 'lucide-react'
 import type { Booking, BookingReview } from '@/types/api'
 import { getBookingStatusColor, getBookingPaymentStatusColor } from '@/lib/statusColors'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatDate } from '@/lib/format'
 import { BookingReviewForm } from './BookingReviewForm'
 
 interface BookingCardProps {
@@ -23,6 +22,8 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
   const [showDetails, setShowDetails] = useState(false)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
 
+  const taxesAndFees = (booking.taxes_amount ?? 0) + (booking.service_charges ?? 0)
+
   return (
     <Card className={`transition-all ${booking.booking_status === 'cancelled' ? 'opacity-60' : ''}`}>
       <CardContent className="pt-6">
@@ -30,10 +31,10 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
           <div className="flex-1">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-lg">{booking.property?.title}</h3>
+                <h3 className="font-semibold text-lg">{booking.property?.title || `Property #${booking.property_id}`}</h3>
                 <p className="text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 inline mr-1" />
-                  {booking.property?.city}, {booking.property?.locality}
+                  {[booking.property?.city, booking.property?.locality].filter(Boolean).join(', ') || 'Location unavailable'}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -49,15 +50,11 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Check-in:</span>
-                <p className="font-medium">
-                  {format(parseISO(booking.check_in_date), 'MMM dd, yyyy')}
-                </p>
+                <p className="font-medium">{formatDate(booking.check_in_date)}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Check-out:</span>
-                <p className="font-medium">
-                  {format(parseISO(booking.check_out_date), 'MMM dd, yyyy')}
-                </p>
+                <p className="font-medium">{formatDate(booking.check_out_date)}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Guests:</span>
@@ -82,9 +79,9 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
                     <span className="text-muted-foreground">Primary Guest:</span>
-                    <p className="font-medium">{booking.primary_guest_name}</p>
-                    <p className="text-sm text-muted-foreground">{booking.primary_guest_phone}</p>
-                    <p className="text-sm text-muted-foreground">{booking.primary_guest_email}</p>
+                    <p className="font-medium">{booking.primary_guest_name || '—'}</p>
+                    <p className="text-sm text-muted-foreground">{booking.primary_guest_phone || '—'}</p>
+                    <p className="text-sm text-muted-foreground">{booking.primary_guest_email || '—'}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Payment Details:</span>
@@ -92,7 +89,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
                     <p className="text-sm">Transaction ID: {booking.transaction_id || 'N/A'}</p>
                     {booking.payment_date && (
                       <p className="text-sm">
-                        Paid on: {format(parseISO(booking.payment_date), 'MMM dd, yyyy')}
+                        Paid on: {formatDate(booking.payment_date)}
                       </p>
                     )}
                   </div>
@@ -101,11 +98,11 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
                 <div className="grid gap-3 md:grid-cols-3 text-sm">
                   <div>
                     <span className="text-muted-foreground">Base Price:</span>
-                    <p>{formatCurrency(booking.base_amount)} × {booking.nights} nights</p>
+                    <p>{formatCurrency(booking.base_amount)} × {booking.nights ?? 0} nights</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Taxes & Fees:</span>
-                    <p>{formatCurrency(booking.taxes_amount + booking.service_charges)}</p>
+                    <p>{formatCurrency(taxesAndFees)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Total Amount:</span>
@@ -156,7 +153,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
               </Button>
             )}
 
-            {showActions && booking.booking_status === 'confirmed' && !booking.guest_rating && (
+            {showActions && booking.booking_status === 'completed' && !booking.guest_rating && (
                   <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">

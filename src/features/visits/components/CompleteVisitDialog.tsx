@@ -72,6 +72,9 @@ const CompleteVisitDialog: React.FC<CompleteVisitDialogProps> = ({
               placeholder="Describe how the visit went..."
               rows={4}
             />
+            {completeForm.formState.errors.notes && (
+              <p className="text-sm text-destructive">{completeForm.formState.errors.notes.message}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="feedback">Feedback (Optional)</Label>

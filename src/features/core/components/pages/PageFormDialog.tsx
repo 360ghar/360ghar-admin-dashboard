@@ -52,6 +52,7 @@ const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, edi
   }, [open, form, formData])
 
   const handleSubmit = async (values: PageFormValues) => {
+    form.clearErrors()
     try {
       if (editingPage) {
         const updateData: PageUpdate = { title: values.title, content: values.content, format: values.format, is_active: values.is_active, is_draft: values.is_draft }

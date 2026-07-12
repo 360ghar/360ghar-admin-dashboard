@@ -69,7 +69,7 @@ describe('activity mappers', () => {
     const entry = visitToActivity({
       id: 7,
       created_at: '2026-06-04T10:00:00Z',
-      status: 'scheduled',
+      status: 'requested',
       property: { title: 'Sea View' },
       user: { full_name: 'Asha' },
     })

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -27,15 +28,24 @@ const CategoryFormDialog: React.FC<CategoryFormDialogProps> = ({ open, onOpenCha
 
   const form = useForm<BlogCategoryForm>({
     resolver: zodResolver(blogCategorySchema),
-    defaultValues: editingCategory ? { name: editingCategory.name, description: editingCategory.description || '' } : { name: '', description: '' },
+    defaultValues: { name: '', description: '' },
   })
+
+  useEffect(() => {
+    if (!open) return
+    form.reset(
+      editingCategory
+        ? { name: editingCategory.name, description: editingCategory.description || '' }
+        : { name: '', description: '' },
+    )
+  }, [open, editingCategory, form])
 
   const handleSubmit = async (data: BlogCategoryForm) => {
     form.clearErrors()
     try {
       if (editingCategory) { await updateCategory({ identifier: editingCategory.id, data }).unwrap(); toast({ title: 'Success', description: 'Category updated successfully' }) }
       else { await createCategory(data).unwrap(); toast({ title: 'Success', description: 'Category created successfully' }) }
-      form.reset(); onSuccess()
+      form.reset({ name: '', description: '' }); onSuccess()
     } catch (error: unknown) { applyServerValidation(error, form.setError); toast({ title: 'Error', description: getErrorMessage(error, `Failed to ${editingCategory ? 'update' : 'create'} category`), variant: 'destructive' }) }
   }
 

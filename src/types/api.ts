@@ -290,17 +290,24 @@ export interface UnifiedPropertyResponse {
   limit: number
 }
 
-// Visit Types
+// Visit Types — wire values match backend VisitStatus enum
+export type VisitStatus =
+  | 'requested'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'reschedule_suggested'
+
 export interface Visit {
   id: number
   property_id: number
   user_id: number
   agent_id?: number
   scheduled_date: string
-  status: 'scheduled' | 'confirmed' | 'rescheduled' | 'cancelled' | 'completed' | 'no_show'
+  status: VisitStatus
   special_requirements?: string
-  notes?: string
-  feedback?: string
+  visit_notes?: string
+  visitor_feedback?: string
   completed_at?: string
   created_at: string
   updated_at: string
@@ -318,7 +325,14 @@ export interface VisitCreate {
 
 export interface VisitUpdate {
   scheduled_date?: string
+  status?: VisitStatus
   special_requirements?: string
+  visit_notes?: string
+  visitor_feedback?: string
+}
+
+/** Body for POST /visits/{id}/complete (backend VisitComplete schema). */
+export interface VisitComplete {
   notes?: string
   feedback?: string
 }

@@ -69,7 +69,7 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
         <div className="font-medium">{row.original.title}</div>
         <div className="text-sm text-muted-foreground flex items-center gap-1">
           <MapPin className="h-3 w-3" />
-          {row.original.city}, {row.original.locality}
+          {[row.original.city, row.original.locality].filter(Boolean).join(', ') || '—'}
         </div>
       </div>
     ),
@@ -91,7 +91,11 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
   {
     accessorKey: 'base_price',
     header: ({ column }) => <SortableHeader column={column}>Price</SortableHeader>,
-    cell: ({ row }) => <div className="font-medium tabular-nums">{formatCurrency(row.original.base_price)}</div>,
+    cell: ({ row }) => (
+      <div className="font-medium tabular-nums">
+        {row.original.base_price != null ? formatCurrency(row.original.base_price) : '—'}
+      </div>
+    ),
   },
   {
     accessorKey: 'status',
@@ -164,7 +168,7 @@ const renderPropertyCard = (property: PropertyResponse, setConfirmId: (id: numbe
 
         <div className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
           <MapPin className="h-3 w-3 shrink-0" />
-          <span className="truncate">{property.city}, {property.locality}</span>
+          <span className="truncate">{[property.city, property.locality].filter(Boolean).join(', ') || '—'}</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
@@ -183,7 +187,9 @@ const renderPropertyCard = (property: PropertyResponse, setConfirmId: (id: numbe
           </Badge>
         </div>
 
-        <div className="font-semibold text-primary">{formatCurrency(property.base_price)}</div>
+        <div className="font-semibold text-primary">
+          {property.base_price != null ? formatCurrency(property.base_price) : '—'}
+        </div>
       </div>
     </div>
 

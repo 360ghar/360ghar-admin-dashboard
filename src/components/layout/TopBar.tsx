@@ -6,9 +6,7 @@ import OwnerSelector from '@/features/pm/components/OwnerSelector'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { SidebarContent } from './SidebarContent'
-import { User, Settings, LogOut, Menu, Search } from 'lucide-react'
+import { User, Settings, LogOut, Search } from 'lucide-react'
 import { ModeToggle } from '@/components/common/mode-toggle'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import NotificationCenter from '@/features/core/components/notifications/NotificationCenter'
@@ -47,30 +45,12 @@ const TopBar = () => {
 
   return (
     <header className="flex items-center justify-between border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 md:py-4">
-      <div className="flex items-center gap-3">
-        {/* Mobile hamburger menu */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="touch-icon" className="md:hidden -ml-2">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Open navigation menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72 overflow-y-auto">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Navigation Menu</SheetTitle>
-            </SheetHeader>
-            <SidebarContent />
-          </SheetContent>
-        </Sheet>
-
+      <div className="flex items-center gap-3 min-w-0">
+        {/* Full nav on mobile is BottomNav "More" — avoid a second identical sheet here. */}
         {showOwnerSelector && <OwnerSelector />}
-        <div className="hidden sm:flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium text-muted-foreground">
-            Welcome back{user?.full_name ? `, ${user.full_name}` : ''}
-          </span>
-        </div>
+        <span className="hidden sm:block text-sm font-medium text-muted-foreground truncate">
+          {user?.full_name ? user.full_name : '360 Ghar'}
+        </span>
       </div>
 
       <div className="flex items-center gap-3">
@@ -124,7 +104,7 @@ const TopBar = () => {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to="/profile" className="flex items-center gap-2">
+              <Link to={role === 'agent' ? '/agents/me' : '/profile'} className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Profile
               </Link>

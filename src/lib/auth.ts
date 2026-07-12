@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase'
 
 export async function fetchUserProfileWithToken(token: string): Promise<User | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/users/profile/`, {
+    // No trailing slash: backend redirect_slashes=False → `/users/profile/` is 404.
+    const res = await fetch(`${API_BASE_URL}/users/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) {

@@ -150,11 +150,19 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(properties.data?.items ?? []).map((p) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          #{p.id} • {p.title}
-                        </SelectItem>
-                      ))}
+                      {properties.isLoading ? (
+                        <SelectItem value="loading" disabled>Loading properties…</SelectItem>
+                      ) : properties.isError ? (
+                        <SelectItem value="error" disabled>Failed to load properties</SelectItem>
+                      ) : !properties.data?.items?.length ? (
+                        <SelectItem value="none" disabled>No properties available</SelectItem>
+                      ) : (
+                        (properties.data?.items ?? []).map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            #{p.id} • {p.title}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -36,10 +36,11 @@ const VisitFilters: React.FC<VisitFiltersProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="requested">Requested</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="no_show">No Show</SelectItem>
+                <SelectItem value="reschedule_suggested">Reschedule suggested</SelectItem>
               </SelectContent>
             </Select>
           )}

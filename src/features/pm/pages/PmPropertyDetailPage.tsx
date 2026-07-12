@@ -15,16 +15,43 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { MANAGED_PROPERTY_STATUSES } from '@/features/pm/constants'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
+
+type LateFeeType = 'none' | 'fixed' | 'percentage'
 
 const statusVariant = (status?: ManagedPropertyStatus | null) => {
   if (status === 'active') return 'default'
   if (status === 'draft') return 'secondary'
   return 'outline'
+}
+
+function parseLateFeePolicy(policy: unknown): {
+  type: LateFeeType
+  amount: string
+  percent: string
+} {
+  if (!policy || typeof policy !== 'object') {
+    return { type: 'none', amount: '', percent: '' }
+  }
+  const p = policy as Record<string, unknown>
+  if (p.type === 'fixed' && typeof p.amount === 'number') {
+    return { type: 'fixed', amount: String(p.amount), percent: '' }
+  }
+  if (p.type === 'percentage' && typeof p.percent === 'number') {
+    return { type: 'percentage', amount: '', percent: String(p.percent) }
+  }
+  if (p.type === 'fixed') {
+    return { type: 'fixed', amount: p.amount != null ? String(p.amount) : '', percent: '' }
+  }
+  if (p.type === 'percentage') {
+    return { type: 'percentage', amount: '', percent: p.percent != null ? String(p.percent) : '' }
+  }
+  return { type: 'none', amount: '', percent: '' }
 }
 
 export default function PmPropertyDetailPage() {
@@ -42,44 +69,40 @@ export default function PmPropertyDetailPage() {
   const [managementStatus, setManagementStatus] = useState<ManagedPropertyStatus>('active')
   const [paymentDueDay, setPaymentDueDay] = useState<string>('1')
   const [graceDays, setGraceDays] = useState<string>('5')
-  const [lateFeePolicyJson, setLateFeePolicyJson] = useState<string>('{}')
+  const [lateFeeType, setLateFeeType] = useState<LateFeeType>('none')
+  const [lateFeeAmount, setLateFeeAmount] = useState<string>('')
+  const [lateFeePercent, setLateFeePercent] = useState<string>('')
 
   const lateFeePreview = useMemo(() => {
     if (!activeLease?.monthly_rent) return null
-    try {
-      const parsed = JSON.parse(lateFeePolicyJson || '{}') as Record<string, unknown>
-      const type = parsed.type
-      if (type === 'fixed' && typeof parsed.amount === 'number') {
-        return `If rent is ${formatCurrency(activeLease.monthly_rent)}, late fee = ${formatCurrency(parsed.amount)}`
-      }
-      if (type === 'percentage' && typeof parsed.percent === 'number') {
-        const fee = Math.round((activeLease.monthly_rent * parsed.percent) / 100)
-        return `If rent is ${formatCurrency(activeLease.monthly_rent)}, late fee ≈ ${formatCurrency(fee)} (${parsed.percent}%)`
-      }
-      return null
-    } catch {
-      return null
+    if (lateFeeType === 'fixed') {
+      const amount = Number(lateFeeAmount)
+      if (!Number.isFinite(amount) || amount < 0) return null
+      return `If rent is ${formatCurrency(activeLease.monthly_rent)}, late fee = ${formatCurrency(amount)}`
     }
-  }, [activeLease?.monthly_rent, lateFeePolicyJson])
+    if (lateFeeType === 'percentage') {
+      const percent = Number(lateFeePercent)
+      if (!Number.isFinite(percent) || percent < 0) return null
+      const fee = Math.round((activeLease.monthly_rent * percent) / 100)
+      return `If rent is ${formatCurrency(activeLease.monthly_rent)}, late fee ≈ ${formatCurrency(fee)} (${percent}%)`
+    }
+    return null
+  }, [activeLease?.monthly_rent, lateFeeType, lateFeeAmount, lateFeePercent])
 
   const openEdit = () => {
     if (!prop) return
     setManagementStatus((prop.management_status as ManagedPropertyStatus) || 'active')
     setPaymentDueDay(String(prop.payment_due_day ?? 1))
     setGraceDays(String(prop.grace_period_days ?? 5))
-    setLateFeePolicyJson(JSON.stringify(prop.late_fee_policy ?? {}, null, 2))
+    const parsed = parseLateFeePolicy(prop.late_fee_policy)
+    setLateFeeType(parsed.type)
+    setLateFeeAmount(parsed.amount)
+    setLateFeePercent(parsed.percent)
     setOpen(true)
   }
 
   const submit = async () => {
     if (!prop) return
-    let lateFeePolicy: Record<string, unknown> | null = null
-    try {
-      lateFeePolicy = JSON.parse(lateFeePolicyJson || '{}') as Record<string, unknown>
-    } catch {
-      toast({ title: 'Invalid JSON', description: 'Late fee policy must be valid JSON.', variant: 'destructive' })
-      return
-    }
 
     const dueDayNum = Number(paymentDueDay)
     if (isNaN(dueDayNum) || dueDayNum < 1 || dueDayNum > 28) {
@@ -90,6 +113,34 @@ export default function PmPropertyDetailPage() {
     if (isNaN(graceDaysNum) || graceDaysNum < 0 || graceDaysNum > 30) {
       toast({ title: 'Invalid grace period', description: 'Grace period must be between 0 and 30 days.', variant: 'destructive' })
       return
+    }
+
+    let lateFeePolicy: Record<string, unknown> | null = null
+    if (lateFeeType === 'fixed') {
+      if (lateFeeAmount.trim() === '') {
+        toast({ title: 'Invalid late fee', description: 'Enter a fixed amount.', variant: 'destructive' })
+        return
+      }
+      const amount = Number(lateFeeAmount)
+      if (!Number.isFinite(amount) || amount < 0) {
+        toast({ title: 'Invalid late fee', description: 'Enter a non-negative fixed amount.', variant: 'destructive' })
+        return
+      }
+      lateFeePolicy = { type: 'fixed', amount }
+    } else if (lateFeeType === 'percentage') {
+      if (lateFeePercent.trim() === '') {
+        toast({ title: 'Invalid late fee', description: 'Enter a percentage of monthly rent.', variant: 'destructive' })
+        return
+      }
+      const percent = Number(lateFeePercent)
+      if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+        toast({ title: 'Invalid late fee', description: 'Enter a percentage between 0 and 100.', variant: 'destructive' })
+        return
+      }
+      lateFeePolicy = { type: 'percentage', percent }
+    } else {
+      // Empty object matches prior JSON default and clears structured type/amount/percent.
+      lateFeePolicy = {}
     }
 
     const payload: ManagedPropertyUpdate = {
@@ -110,6 +161,16 @@ export default function PmPropertyDetailPage() {
 
   if (!propertyIdNum || Number.isNaN(propertyIdNum)) {
     return <EmptyState title="Invalid property id" />
+  }
+
+  if (detail.isError) {
+    return (
+      <ErrorState
+        title="Failed to load property"
+        error={detail.error}
+        onRetry={() => { void detail.refetch() }}
+      />
+    )
   }
 
   if (detail.isLoading) {
@@ -168,25 +229,25 @@ export default function PmPropertyDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {prop?.title || `Property #${propertyIdNum}`}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {(prop?.full_address || prop?.locality || prop?.city || '').toString() || '—'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">ID: {propertyIdNum}</Badge>
-          <Badge variant={statusVariant(prop?.management_status)}>{prop?.management_status || '—'}</Badge>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={openEdit} disabled={!prop}>
-                <Settings2 className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-            </DialogTrigger>
+      <PageHeader
+        title={prop?.title || `Property #${propertyIdNum}`}
+        description={(prop?.full_address || prop?.locality || prop?.city || '').toString() || '—'}
+        icon={Building2}
+        breadcrumbs={[
+          { label: 'Managed Properties', to: '/pm/properties' },
+          { label: prop?.title || `#${propertyIdNum}` },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">ID: {propertyIdNum}</Badge>
+            <Badge variant={statusVariant(prop?.management_status)}>{prop?.management_status || '—'}</Badge>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" onClick={openEdit} disabled={!prop} className="rounded-cohere-pill">
+                  <Settings2 className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Edit PM Settings</DialogTitle>
@@ -213,16 +274,56 @@ export default function PmPropertyDetailPage() {
                   <Label>Grace period days</Label>
                   <Input value={graceDays} onChange={(e) => setGraceDays(e.target.value)} />
                 </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label>Late fee policy (JSON)</Label>
-                  <Textarea value={lateFeePolicyJson} onChange={(e) => setLateFeePolicyJson(e.target.value)} rows={6} />
-                  {lateFeePreview ? (
-                    <div className="text-xs text-muted-foreground">{lateFeePreview}</div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground">
-                      Example: {`{"type":"fixed","amount":500}`} or {`{"type":"percentage","percent":2}`}
+                <div className="md:col-span-2 space-y-3">
+                  <div className="space-y-2">
+                    <Label>Late fee type</Label>
+                    <Select value={lateFeeType} onValueChange={(v) => setLateFeeType(v as LateFeeType)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="fixed">Fixed amount</SelectItem>
+                        <SelectItem value="percentage">Percentage of rent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {lateFeeType === 'fixed' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="late-fee-amount">Fixed amount (₹)</Label>
+                      <Input
+                        id="late-fee-amount"
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={lateFeeAmount}
+                        onChange={(e) => setLateFeeAmount(e.target.value)}
+                        placeholder="e.g. 500"
+                      />
                     </div>
                   )}
+                  {lateFeeType === 'percentage' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="late-fee-percent">Percent of monthly rent</Label>
+                      <Input
+                        id="late-fee-percent"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        value={lateFeePercent}
+                        onChange={(e) => setLateFeePercent(e.target.value)}
+                        placeholder="e.g. 2"
+                      />
+                    </div>
+                  )}
+                  {lateFeePreview ? (
+                    <div className="text-xs text-muted-foreground">{lateFeePreview}</div>
+                  ) : lateFeeType !== 'none' ? (
+                    <div className="text-xs text-muted-foreground">
+                      Preview appears when this property has an active lease with rent set.
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -235,8 +336,9 @@ export default function PmPropertyDetailPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

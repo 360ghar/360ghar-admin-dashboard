@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Edit, HelpCircle, Plus, Trash2 } from 'lucide-react'
@@ -15,6 +15,7 @@ import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
@@ -41,6 +42,7 @@ const defaultValues: FaqFormValues = {
 
 const FaqsManagementPage = () => {
   const { toast } = useToast()
+  // Search is client-side over the current page only — don't put it in resetKey.
   const pager = useCursorPagination()
   const { data, isLoading, isError, refetch } = useGetFaqsQuery({
     cursor: pager.cursor,
@@ -51,8 +53,6 @@ const FaqsManagementPage = () => {
   const [deleteFaq, { isLoading: isDeleting }] = useDeleteFaqMutation()
 
   const [search, setSearch] = useState('')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, search])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Faq | null>(null)
 
@@ -127,16 +127,17 @@ const FaqsManagementPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">FAQs</h1>
-          <p className="text-muted-foreground">Manage frequently asked questions shown in the apps.</p>
-        </div>
-        <Button onClick={openCreate} className="rounded-cohere-pill">
-          <Plus className="h-4 w-4" />
-          New FAQ
-        </Button>
-      </div>
+      <PageHeader
+        title="FAQs"
+        description="Manage frequently asked questions shown in the apps."
+        icon={HelpCircle}
+        actions={
+          <Button onClick={openCreate} className="rounded-cohere-pill">
+            <Plus className="h-4 w-4" />
+            New FAQ
+          </Button>
+        }
+      />
 
       <Card className="rounded-cohere-md border-cohere-card-border">
         <CardContent className="pt-6">

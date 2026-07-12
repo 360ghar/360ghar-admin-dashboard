@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, Download, Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { EXPENSE_CATEGORIES, PAGE_SIZES } from "@/features/pm/constants";
 import { formatINR, downloadCsv } from "@/features/pm/utils";
 import { formatDate } from "@/lib/format";
@@ -15,14 +15,14 @@ import {
   useListPmExpensesQuery,
   useUpdatePmExpenseMutation,
   useDeletePmExpenseMutation,
-  useUploadPmDocumentMutation,
-} from "@/features/pm/api/pmApi";
+  useUploadPmDocumentMutation} from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
@@ -35,8 +35,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue} from "@/components/ui/select";
 
 export default function PmExpensesPage() {
   const { role } = useUserRole();
@@ -52,9 +51,8 @@ export default function PmExpensesPage() {
 
   const validDateRange = !startDate || !endDate || startDate <= endDate;
 
-  const pager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, category, startDate, endDate, limit]);
+  const pager = useCursorPagination(`${category}|${startDate}|${endDate}|${limit}`);
+
 
   const expenses = useListPmExpensesQuery(
     {
@@ -63,8 +61,7 @@ export default function PmExpensesPage() {
       start_date: validDateRange && startDate ? startDate : undefined,
       end_date: validDateRange && endDate ? endDate : undefined,
       limit,
-      cursor: pager.cursor,
-    },
+      cursor: pager.cursor},
     { skip: role === "agent" && !ownerId },
   );
 
@@ -77,23 +74,19 @@ export default function PmExpensesPage() {
       {
         accessorKey: "expense_date",
         header: "Date",
-        cell: ({ row }) => formatDate(row.original.expense_date),
-      },
+        cell: ({ row }) => formatDate(row.original.expense_date)},
       {
         accessorKey: "category",
         header: "Category",
-        cell: ({ row }) => <Badge variant="secondary">{row.original.category}</Badge>,
-      },
+        cell: ({ row }) => <Badge variant="secondary">{row.original.category}</Badge>},
       {
         accessorKey: "amount",
         header: "Amount",
-        cell: ({ row }) => formatINR(row.original.amount),
-      },
+        cell: ({ row }) => formatINR(row.original.amount)},
       {
         accessorKey: "property_id",
         header: "Property",
-        cell: ({ row }) => <span className="text-sm">#{row.original.property_id}</span>,
-      },
+        cell: ({ row }) => <span className="text-sm">#{row.original.property_id}</span>},
       {
         id: "receipt",
         header: "Receipt",
@@ -102,8 +95,7 @@ export default function PmExpensesPage() {
             <Badge variant="outline">Doc #{row.original.receipt_document_id}</Badge>
           ) : (
             "—"
-          ),
-      },
+          )},
       {
         id: "actions",
         header: "",
@@ -158,8 +150,7 @@ export default function PmExpensesPage() {
               )}
             </ConfirmAlertDialog>
           </div>
-        ),
-      },
+        )},
     ];
   }, [updateExpense, updateState.isLoading, deleteExpense, deleteState.isLoading, uploadDoc, uploadDocState.isLoading, toast]);
 
@@ -186,8 +177,7 @@ export default function PmExpensesPage() {
                   property_id: e.property_id,
                   receipt_document_id: e.receipt_document_id,
                   description: e.description,
-                  notes: e.notes,
-                }));
+                  notes: e.notes}));
                 downloadCsv(`expenses_${new Date().toISOString().slice(0, 10)}.csv`, rows);
               }}
             >
@@ -244,13 +234,11 @@ export default function PmExpensesPage() {
             </div>
 
             {expenses.isError ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <AlertCircle className="h-8 w-8 text-destructive" />
-                <p className="text-sm text-muted-foreground">{getErrorMessage(expenses.error, 'Failed to load expenses')}</p>
-                <Button variant="outline" size="sm" onClick={() => { void expenses.refetch(); }}>
-                  Retry
-                </Button>
-              </div>
+              <ErrorState
+                title="Failed to load expenses"
+                error={expenses.error}
+                onRetry={() => { void expenses.refetch(); }}
+              />
             ) : expenses.isLoading ? (
               <LoadingState type="spinner" />
             ) : expenseItems.length ? (

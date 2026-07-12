@@ -87,7 +87,7 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
     try {
       await createRequest(payload).unwrap();
       toast({ title: "Created", description: "Maintenance request created." });
-      setOpen(false);
+      handleOpenChange(false);
     } catch (e: unknown) {
       applyServerValidation(e, form.setError);
       toast({ title: "Failed", description: getErrorMessage(e, "Could not create request."), variant: "destructive" });
@@ -122,11 +122,19 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(properties.data?.items ?? []).map((p) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          #{p.id} • {p.title}
-                        </SelectItem>
-                      ))}
+                      {properties.isLoading ? (
+                        <SelectItem value="loading" disabled>Loading properties…</SelectItem>
+                      ) : properties.isError ? (
+                        <SelectItem value="error" disabled>Failed to load properties</SelectItem>
+                      ) : !properties.data?.items?.length ? (
+                        <SelectItem value="none" disabled>No properties available</SelectItem>
+                      ) : (
+                        (properties.data?.items ?? []).map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            #{p.id} • {p.title}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

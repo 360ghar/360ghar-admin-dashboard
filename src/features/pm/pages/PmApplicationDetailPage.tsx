@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmApplicationDetailPage() {
   const { applicationId } = useParams();
@@ -106,46 +107,46 @@ export default function PmApplicationDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {`Application #${application.data?.id ?? applicationIdNum}`}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Form #{application.data?.form_id} &bull; Property #{application.data?.property_id}
-          </p>
-        </div>
-        {application.data ? (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{application.data.status}</Badge>
-            <DecisionAlertDialog
-              applicationId={applicationIdNum}
-              applicantName={application.data?.applicant_full_name ?? undefined}
-              renderTrigger={({ openApprove, openReject, isLoading }) => (
-                <>
-                  <Button
-                    size="sm"
-                    disabled={isLoading || application.data.status === "approved"}
-                    onClick={openApprove}
-                  >
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={isLoading || application.data.status === "rejected"}
-                    onClick={openReject}
-                  >
-                    <ShieldX className="mr-2 h-4 w-4" />
-                    Reject
-                  </Button>
-                </>
-              )}
-            />
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        title={`Application #${application.data?.id ?? applicationIdNum}`}
+        description={`Form #${application.data?.form_id} • Property #${application.data?.property_id}`}
+        breadcrumbs={[
+          { label: "Applications", to: "/pm/applications" },
+          { label: `Application #${application.data?.id ?? applicationIdNum}` },
+        ]}
+        actions={
+          application.data ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">{application.data.status}</Badge>
+              <DecisionAlertDialog
+                applicationId={applicationIdNum}
+                applicantName={application.data?.applicant_full_name ?? undefined}
+                renderTrigger={({ openApprove, openReject, isLoading }) => (
+                  <>
+                    <Button
+                      size="sm"
+                      disabled={isLoading || application.data?.status === "approved"}
+                      onClick={openApprove}
+                    >
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isLoading || application.data?.status === "rejected"}
+                      onClick={openReject}
+                    >
+                      <ShieldX className="mr-2 h-4 w-4" />
+                      Reject
+                    </Button>
+                  </>
+                )}
+              />
+            </div>
+          ) : null
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -217,7 +218,13 @@ export default function PmApplicationDetailPage() {
           <CardTitle className="text-base">Documents</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          {docs.isLoading ? (
+          {docs.isError ? (
+            <ErrorState
+              title="Failed to load documents"
+              error={docs.error}
+              onRetry={() => { void docs.refetch(); }}
+            />
+          ) : docs.isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-4/6" />

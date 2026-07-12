@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -79,30 +80,33 @@ const PropertyList = () => {
     )
   }
 
+  // clearFilters only resets persisted filter state; amenities live in local state that
+  // re-writes into filters via the effect above — clear both or amenities stick.
+  const handleClearFilters = useCallback(() => {
+    clearFilters()
+    setSelectedAmenities([])
+  }, [clearFilters])
+
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [selectedRows, setSelectedRows] = useState<PropertyResponse[]>([])
   const { toast } = useToast()
   const [pageSize, setPageSize] = useState(20)
-  const pager = useCursorPagination()
 
-  // Debounced search terms
+  // Debounced search terms (must be declared before pager resetKey)
   const dq = useDebounce(filters.q, 300)
   const dcity = useDebounce(filters.city, 300)
   const dlocality = useDebounce(filters.locality, 300)
 
-  /* eslint-disable react-hooks/exhaustive-deps */
-  useEffect(() => {
-    pager.reset()
-  }, [
-    pager.reset,
-    dq, dcity, dlocality,
-    filters.propertyType, filters.purpose, filters.status,
-    filters.priceMin, filters.priceMax,
-    filters.bedroomsMin, filters.bedroomsMax,
-    selectedAmenities, filters.radius,
-    filters.sortBy, pageSize,
-  ])
-  /* eslint-enable react-hooks/exhaustive-deps */
+  const pager = useCursorPagination(
+    [
+      dq, dcity, dlocality,
+      filters.propertyType, filters.purpose, filters.status,
+      filters.priceMin, filters.priceMax,
+      filters.bedroomsMin, filters.bedroomsMax,
+      selectedAmenities.join(','), filters.radius,
+      filters.sortBy, pageSize,
+    ].join('|'),
+  )
 
   const params = useMemo((): PropertySearchParams => {
     const base: PropertySearchParams = {
@@ -117,10 +121,10 @@ const PropertyList = () => {
     if (filters.propertyType) base.property_type = [filters.propertyType]
     if (filters.purpose) base.purpose = filters.purpose
     if (filters.status) base.status = filters.status
-    if (filters.priceMin) base.price_min = Number(filters.priceMin)
-    if (filters.priceMax) base.price_max = Number(filters.priceMax)
-    if (filters.bedroomsMin) base.bedrooms_min = Number(filters.bedroomsMin)
-    if (filters.bedroomsMax) base.bedrooms_max = Number(filters.bedroomsMax)
+    if (filters.priceMin !== '' && !Number.isNaN(Number(filters.priceMin))) base.price_min = Number(filters.priceMin)
+    if (filters.priceMax !== '' && !Number.isNaN(Number(filters.priceMax))) base.price_max = Number(filters.priceMax)
+    if (filters.bedroomsMin !== '' && !Number.isNaN(Number(filters.bedroomsMin))) base.bedrooms_min = Number(filters.bedroomsMin)
+    if (filters.bedroomsMax !== '' && !Number.isNaN(Number(filters.bedroomsMax))) base.bedrooms_max = Number(filters.bedroomsMax)
     if (selectedAmenities.length > 0) {
       const selectedAmenityTitles = selectedAmenities
         .map((amenityId) => amenities.find((amenity) => amenity.id === amenityId))
@@ -130,7 +134,7 @@ const PropertyList = () => {
         base.amenities = selectedAmenityTitles
       }
     }
-    if (filters.radius) base.radius = Number(filters.radius)
+    if (filters.radius !== '' && !Number.isNaN(Number(filters.radius))) base.radius = Number(filters.radius)
 
     if (role === 'agent' && user?.agent_id) base.exclude_swiped = false
 
@@ -244,6 +248,7 @@ const PropertyList = () => {
     filters.locality,
     filters.propertyType,
     filters.purpose,
+    filters.status,
     filters.priceMin,
     filters.priceMax,
     filters.bedroomsMin,
@@ -251,6 +256,9 @@ const PropertyList = () => {
     filters.radius,
     selectedAmenities.length > 0 ? 'amenities' : '',
   ].filter(Boolean).length
+
+  // Amenities can be active even when other defaults match after a partial clear.
+  const filtersActive = hasActiveFilters || selectedAmenities.length > 0
 
   return (
     <div className="space-y-6">
@@ -260,8 +268,8 @@ const PropertyList = () => {
           <PropertyFilters
             filters={filters as unknown as PropertyFiltersState}
             setFilters={(patch) => setFilters(patch as Partial<typeof filters>)}
-            clearFilters={clearFilters}
-            hasActiveFilters={hasActiveFilters}
+            clearFilters={handleClearFilters}
+            hasActiveFilters={filtersActive}
             selectedAmenities={selectedAmenities}
             handleAmenityToggle={handleAmenityToggle}
             amenities={amenities}
@@ -296,13 +304,13 @@ const PropertyList = () => {
             <EmptyState
               title="No properties found"
               description={
-                hasActiveFilters
+                filtersActive
                   ? 'Try adjusting your filters to see more results'
                   : 'Get started by creating your first property'
               }
               action={
-                hasActiveFilters
-                  ? { label: 'Clear Filters', onClick: clearFilters, variant: 'outline' }
+                filtersActive
+                  ? { label: 'Clear Filters', onClick: handleClearFilters, variant: 'outline' }
                   : { label: 'Create Property', onClick: () => navigate('/properties/new') }
               }
             />
@@ -313,14 +321,24 @@ const PropertyList = () => {
                   <span className="text-sm font-medium">
                     {selectedRows.length} selected
                   </span>
-                  <Button
+                  <ConfirmAlertDialog
+                    title="Delete selected properties?"
+                    description={`This will permanently delete ${selectedRows.length} propert${selectedRows.length === 1 ? 'y' : 'ies'}. This action cannot be undone.`}
+                    confirmLabel="Delete"
                     variant="destructive"
-                    size="sm"
-                    onClick={() => { void handleBulkDelete() }}
-                    disabled={isFetching}
+                    onConfirm={handleBulkDelete}
                   >
-                    Delete Selected
-                  </Button>
+                    {(openDialog) => (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={openDialog}
+                        disabled={isFetching}
+                      >
+                        Delete Selected
+                      </Button>
+                    )}
+                  </ConfirmAlertDialog>
                   <Button
                     variant="outline"
                     size="sm"
@@ -341,6 +359,7 @@ const PropertyList = () => {
               <CursorPager
                 canPrev={pager.canPrev}
                 hasMore={data.has_more}
+                nextCursor={data.next_cursor}
                 loading={isFetching}
                 onPrev={pager.prev}
                 onNext={() => pager.next(data.next_cursor)}

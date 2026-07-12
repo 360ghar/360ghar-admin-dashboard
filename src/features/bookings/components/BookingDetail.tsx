@@ -92,8 +92,8 @@ const BookingDetail = ({ id }: { id: number }) => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 text-sm">
-            <div><span className="text-muted-foreground">Property:</span> #{data?.property_id}</div>
-            <div><span className="text-muted-foreground">User:</span> #{data?.user_id}</div>
+            <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
+            <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
             <div><span className="text-muted-foreground">Stay:</span> {data ? `${formatDate(data.check_in_date)} – ${formatDate(data.check_out_date)}` : '-'}</div>
             <div><span className="text-muted-foreground">Nights:</span> {data?.nights ?? '-'}</div>
             <div><span className="text-muted-foreground">Amount:</span> {data?.total_amount ? formatCurrency(data.total_amount) : '-'}</div>

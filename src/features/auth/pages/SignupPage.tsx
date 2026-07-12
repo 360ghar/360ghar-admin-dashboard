@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,8 +8,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { supabase } from '@/lib/supabase'
 import { mapSupabaseAuthError } from '@/lib/authErrors'
 import { fetchUserProfileWithToken } from '@/lib/auth'
+import { isLoginInProgress } from '@/lib/loginState'
 import { useAppDispatch } from '@/hooks/redux'
-import { setCredentials } from '@/features/auth/slices/authSlice'
+import { clearCredentials, setCredentials } from '@/features/auth/slices/authSlice'
 import { signupSchema, otpStepSchema, setPasswordStepSchema, type SignupFormValues, type OtpStepFormValues, type SetPasswordStepFormValues } from '@/features/auth/validations'
 import { useResendTimer } from '@/hooks/useResendTimer'
 
@@ -50,6 +51,13 @@ export default function SignupPage() {
 
   // 30s cooldown for the "Resend code" control on the OTP step.
   const resendTimer = useResendTimer()
+
+  // Never leave the App.tsx race flag stuck if the user leaves mid-signup.
+  useEffect(() => {
+    return () => {
+      isLoginInProgress.current = false
+    }
+  }, [])
 
   const onSubmit = async (values: SignupFormValues) => {
     if (!supabase) {
@@ -115,6 +123,9 @@ export default function SignupPage() {
 
     setErrorMessage(null)
     setIsSubmitting(true)
+    // Block App.tsx from auto-setting credentials mid signup set-password.
+    isLoginInProgress.current = true
+    let holdLoginFlag = false
 
     try {
       const { data, error } = await supabase.auth.verifyOtp({
@@ -130,10 +141,15 @@ export default function SignupPage() {
 
       // OTP verified — move to set-password step.
       setStep('setPassword')
+      setSuccessMessage(null)
+      holdLoginFlag = true
     } catch (err) {
-      setErrorMessage(mapSupabaseAuthError(err))
+      setErrorMessage(mapSupabaseAuthError(err, 'otp'))
     } finally {
       setIsSubmitting(false)
+      if (!holdLoginFlag) {
+        isLoginInProgress.current = false
+      }
     }
   }
 
@@ -142,6 +158,7 @@ export default function SignupPage() {
 
     setErrorMessage(null)
     setIsSubmitting(true)
+    isLoginInProgress.current = true
 
     try {
       // Set the password while the session is live.
@@ -152,40 +169,57 @@ export default function SignupPage() {
       const accessToken = sessionData.session?.access_token
       if (!accessToken) {
         setErrorMessage('Session expired. Please sign in.')
+        isLoginInProgress.current = false
         return
       }
 
       const profile = await fetchUserProfileWithToken(accessToken)
       if (profile) {
         dispatch(setCredentials({ token: accessToken, user: profile }))
+        isLoginInProgress.current = false
         navigate('/dashboard', { replace: true })
       } else {
         // Profile not yet provisioned — sign out the Supabase session so the
         // user doesn't land in a half-logged-in state. They can sign in once
         // provisioning completes.
-        if (supabase) await supabase.auth.signOut()
-        setSuccessMessage(
-          'Account created! Your profile is being provisioned. Please try signing in shortly.'
-        )
+        try {
+          await supabase.auth.signOut()
+        } catch {
+          /* best-effort */
+        }
+        dispatch(clearCredentials())
+        isLoginInProgress.current = false
+        navigate('/login', {
+          replace: true,
+          state: {
+            info: 'Account created! Your profile is being provisioned. Please try signing in shortly.',
+          },
+        })
       }
     } catch (err) {
       setErrorMessage(mapSupabaseAuthError(err))
+      // Keep flag held while still on setPassword with a live session.
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const backToForm = () => {
+    isLoginInProgress.current = false
+    dispatch(clearCredentials())
+    if (supabase) void supabase.auth.signOut()
     setStep('form')
     otpForm.reset()
+    passwordForm.reset()
     setErrorMessage(null)
     setSuccessMessage(null)
     resendTimer.reset()
   }
 
   const backToOtp = () => {
-    setStep('otp')
+    // Stay mid-flow with live session; keep isLoginInProgress held.
     passwordForm.reset()
+    setStep('otp')
     setErrorMessage(null)
     setSuccessMessage(null)
   }
@@ -216,7 +250,7 @@ export default function SignupPage() {
 
       {/* Right Side - Signup Flow */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
-        <Card className="w-full max-w-md shadow-xl border bg-card/80 backdrop-blur-sm">
+        <Card className="w-full max-w-md border bg-card/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 text-center pb-8">
             <div className="flex justify-center mb-4">
               <div className="p-3 bg-primary/10 rounded-full">

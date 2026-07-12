@@ -26,7 +26,7 @@ export function AuthCardLayout({
 }: AuthCardLayoutProps) {
   return (
     <div className="w-full lg:w-1/2 flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
-      <Card className="w-full max-w-md shadow-xl border bg-card/80 backdrop-blur-sm">
+      <Card className="w-full max-w-md border border-cohere-card-border bg-card">
         <CardHeader className="space-y-1 text-center pb-8">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-primary/10 rounded-full">

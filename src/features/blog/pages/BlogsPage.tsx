@@ -68,43 +68,47 @@ const BlogsPage = ({ mode }: Props) => {
 
         {/* Quick Management Cards */}
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/blogs/categories')}>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Folder className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Categories</h3>
+          <Link to="/blogs/categories" className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <Card className="p-6 transition-colors hover:border-cohere-hairline">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Folder className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Categories</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Organize blog content with categories
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Organize blog content with categories
-                </p>
+                <div className="text-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </div>
               </div>
-              <div className="text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
 
-          <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/blogs/tags')}>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Tag className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Tags</h3>
+          <Link to="/blogs/tags" className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <Card className="p-6 transition-colors hover:border-cohere-hairline">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Tags</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Label content with descriptive tags
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Label content with descriptive tags
-                </p>
+                <div className="text-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </div>
               </div>
-              <div className="text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         </div>
 
         <BlogList />

@@ -39,12 +39,30 @@ const baseQueryNoRetryOnAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBase
 
 const baseQueryWithRetries = retry(baseQueryNoRetryOnAuth, { maxRetries: 3 })
 
+/**
+ * fetchBaseQuery serializes `null` as the string "null" (e.g. `?cursor=null`),
+ * which backends reject as INVALID_CURSOR. Drop null/undefined (and empty
+ * cursor strings) so page-1 requests omit the param entirely.
+ */
+function sanitizeFetchArgs(args: string | FetchArgs): string | FetchArgs {
+  if (typeof args === 'string' || !args.params || typeof args.params !== 'object' || Array.isArray(args.params)) {
+    return args
+  }
+  const cleaned: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(args.params as Record<string, unknown>)) {
+    if (value === null || value === undefined) continue
+    if (key === 'cursor' && value === '') continue
+    cleaned[key] = value
+  }
+  return { ...args, params: cleaned }
+}
+
 const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
   api,
   extraOptions,
 ) => {
-  const result = await baseQueryWithRetries(args, api, extraOptions)
+  const result = await baseQueryWithRetries(sanitizeFetchArgs(args), api, extraOptions)
   if (result.error && result.error.status === 401) {
     // Only notify if the user actually had a session (an expired/revoked
     // token) — stay silent for anonymous requests that 401 by design. The

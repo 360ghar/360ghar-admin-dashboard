@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {useCallback,  useMemo, useState} from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { AlertCircle, ClipboardCheck, Plus } from 'lucide-react'
+import { ClipboardCheck, Plus } from 'lucide-react'
 import { INSPECTION_TYPES, PAGE_SIZES } from '@/features/pm/constants'
 import OwnerScopeGate from '@/features/pm/components/OwnerScopeGate'
 import { useUserRole } from '@/hooks/useUserRole'
@@ -13,18 +13,20 @@ import type { InspectionChecklist, InspectionChecklistCreate } from '@/types/pm'
 import {
   useCreatePmInspectionMutation,
   useListPmInspectionsQuery,
-  useListPmLeasesQuery,
-} from '@/features/pm/api/pmApi'
+  useListPmLeasesQuery} from '@/features/pm/api/pmApi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ResponsiveDataTable } from '@/components/ui/responsive-data-table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { getErrorMessage } from '@/lib/errors'
+import { applyServerValidation } from '@/lib/formErrors'
+import { FormRootError } from '@/components/ui/form-root-error'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -43,9 +45,7 @@ export default function PmInspectionsPage() {
 
   const [limit, setLimit] = useState(50)
 
-  const pager = useCursorPagination()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, limit])
+  const pager = useCursorPagination(`${limit}`)
 
   const inspections = useListPmInspectionsQuery(
     { owner_id: ownerId, limit, cursor: pager.cursor },
@@ -71,13 +71,11 @@ export default function PmInspectionsPage() {
               {row.original.inspection_type} • Lease #{row.original.lease_id} • Property #{row.original.property_id}
             </div>
           </div>
-        ),
-      },
+        )},
       {
         accessorKey: 'conducted_at',
         header: 'Conducted',
-        cell: ({ row }) => formatDateTime(row.original.conducted_at),
-      },
+        cell: ({ row }) => formatDateTime(row.original.conducted_at)},
       {
         id: 'signed',
         header: 'Signed',
@@ -86,8 +84,7 @@ export default function PmInspectionsPage() {
             <Badge variant={row.original.signed_by_owner_at ? 'default' : 'outline'}>owner</Badge>
             <Badge variant={row.original.signed_by_tenant_at ? 'default' : 'outline'}>tenant</Badge>
           </div>
-        ),
-      },
+        )},
       {
         id: 'actions',
         header: '',
@@ -97,8 +94,7 @@ export default function PmInspectionsPage() {
               <Link to={`/pm/inspections/${row.original.id}`}>View</Link>
             </Button>
           </div>
-        ),
-      },
+        )},
     ]
   }, [])
 
@@ -112,9 +108,7 @@ export default function PmInspectionsPage() {
       inspection_type: 'routine',
       conducted_at: '',
       rooms_json: '{}',
-      overall_notes: '',
-    },
-  })
+      overall_notes: ''}})
 
   const handleCreateOpenChange = useCallback(
     (open: boolean) => {
@@ -144,14 +138,14 @@ export default function PmInspectionsPage() {
       inspection_type: values.inspection_type,
       rooms_data: roomsData,
       overall_notes: values.overall_notes || undefined,
-      conducted_at: localInputToServerTimestamp(values.conducted_at) ?? undefined,
-    }
+      conducted_at: localInputToServerTimestamp(values.conducted_at) ?? undefined}
     try {
       await createInspection(payload).unwrap()
       toast({ title: 'Created', description: 'Inspection created.' })
       form.reset()
       setCreateOpen(false)
     } catch (e: unknown) {
+      applyServerValidation(e, form.setError)
       toast({ title: 'Failed', description: getErrorMessage(e, 'Could not create inspection.'), variant: 'destructive' })
     }
   }
@@ -179,6 +173,7 @@ export default function PmInspectionsPage() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={(e) => void form.handleSubmit(submitCreate)(e)} className="grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2"><FormRootError form={form} /></div>
                   <FormField
                     control={form.control}
                     name="lease_id"
@@ -193,7 +188,9 @@ export default function PmInspectionsPage() {
                           </FormControl>
                           <SelectContent>
                             {leases.isLoading ? (
-                              <SelectItem value="loading" disabled>Loading leases...</SelectItem>
+                              <SelectItem value="loading" disabled>Loading leases…</SelectItem>
+                            ) : leases.isError ? (
+                              <SelectItem value="error" disabled>Failed to load leases</SelectItem>
                             ) : (leases.data?.items ?? []).length === 0 ? (
                               <SelectItem value="none" disabled>No leases available</SelectItem>
                             ) : (leases.data?.items ?? []).map((l) => (
@@ -274,29 +271,19 @@ export default function PmInspectionsPage() {
           </Dialog>
         </div>
 
-        {inspections.isError && (
+        {inspections.isError ? (
+          <ErrorState
+            title="Failed to load inspections"
+            error={inspections.error}
+            onRetry={() => { void inspections.refetch() }}
+          />
+        ) : inspections.isLoading ? (
           <Card>
             <CardContent className="pt-6">
-              <div className="flex flex-col items-center gap-2 text-destructive">
-                <AlertCircle className="h-8 w-8" />
-                <p className="text-sm">{getErrorMessage(inspections.error, 'Failed to load inspections.')}</p>
-                <Button variant="outline" size="sm" onClick={() => void inspections.refetch()}>
-                  Retry
-                </Button>
-              </div>
+              <LoadingState type="spinner" />
             </CardContent>
           </Card>
-        )}
-
-        {inspections.isLoading && (
-          <Card>
-            <CardContent className="pt-6">
-              <LoadingState />
-            </CardContent>
-          </Card>
-        )}
-
-        {inspectionItems.length === 0 && !inspections.isLoading && !inspections.isError && (
+        ) : inspectionItems.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
               <EmptyState
@@ -306,9 +293,7 @@ export default function PmInspectionsPage() {
               />
             </CardContent>
           </Card>
-        )}
-
-        {inspectionItems.length > 0 && (
+        ) : (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Inspection List</CardTitle>
@@ -346,3 +331,4 @@ export default function PmInspectionsPage() {
     </OwnerScopeGate>
   )
 }
+

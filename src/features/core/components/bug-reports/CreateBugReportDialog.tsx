@@ -27,6 +27,7 @@ const CreateBugReportDialog: React.FC<{ onSuccess?: () => void }> = ({ onSuccess
   })
 
   const onSubmit = async (data: BugReportFormData) => {
+    form.clearErrors()
     try {
       if (attachments.length > 0) {
         const formData = new FormData()

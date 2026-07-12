@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
-import { ArrowLeft, CheckCircle, Clock, Edit2, EyeOff, RotateCcw, Trash2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowLeft, CheckCircle, Clock, Edit2, EyeOff, Trash2 } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { LoadingState } from '@/components/ui/loading-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { useDeleteBlogPostMutation, useGetBlogPostQuery, useUpdateBlogPostMutation } from '@/features/blog/api/blogsApi'
 import { getErrorMessage } from '@/lib/errors'
@@ -111,24 +113,16 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
             Back to Blog Posts
           </Button>
         </div>
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <Alert variant="destructive">
-              <AlertTitle>{isNotFound ? 'Post not found' : 'Failed to load post'}</AlertTitle>
-              <AlertDescription>
-                {isNotFound
-                  ? 'The blog post you are looking for does not exist or may have been removed.'
-                  : 'There was a problem loading this blog post. Please try again.'}
-              </AlertDescription>
-            </Alert>
-            {!isNotFound && (
-              <Button size="sm" variant="outline" onClick={() => { void refetch() }}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Retry
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <ErrorState
+          title={isNotFound ? 'Post not found' : 'Failed to load post'}
+          description={
+            isNotFound
+              ? 'The blog post you are looking for does not exist or may have been removed.'
+              : undefined
+          }
+          error={isNotFound ? undefined : error}
+          onRetry={isNotFound ? undefined : () => { void refetch() }}
+        />
       </div>
     )
   }
@@ -142,16 +136,10 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
             Back to Blog Posts
           </Button>
         </div>
-        <Card>
-          <CardContent className="p-6">
-            <Alert>
-              <AlertTitle>Post not found</AlertTitle>
-              <AlertDescription>
-                We couldn&apos;t find this blog post. It may have been deleted or the link is incorrect.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+        <ErrorState
+          title="Post not found"
+          description="We couldn't find this blog post. It may have been deleted or the link is incorrect."
+        />
       </div>
     )
   }
@@ -160,63 +148,66 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => navigate('/blogs')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Blog Posts
-          </Button>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <PageHeader
+        title={post.title}
+        description={
+          <span className="flex flex-wrap items-center gap-2 text-xs">
             <span>Post ID: #{post.id}</span>
             <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
             <span>Slug: {post.slug}</span>
+          </span>
+        }
+        breadcrumbs={[
+          { label: 'Blog', to: '/blogs' },
+          { label: post.title },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={blogStatusBadgeClass(resolveBlogStatus(post))}>
+              {blogStatusLabel(resolveBlogStatus(post))}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/blogs/${post.slug}/edit`)}
+            >
+              <Edit2 className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+            <Button
+              variant={resolveBlogStatus(post) === 'published' ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => { void handleToggleStatus() }}
+              disabled={isTogglingStatus}
+            >
+              {resolveBlogStatus(post) === 'published' ? (
+                <>
+                  <EyeOff className="mr-2 h-4 w-4" />
+                  Unpublish
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Publish
+                </>
+              )}
+            </Button>
+            <ConfirmAlertDialog
+              title="Delete Blog Post"
+              description={`Are you sure you want to delete "${post.title}"? This action cannot be undone.`}
+              confirmLabel="Delete"
+              variant="destructive"
+              onConfirm={handleDelete}
+            >
+              {(openDialog) => (
+                <Button variant="outline" size="sm" onClick={openDialog} disabled={isDeleting}>
+                  <Trash2 className="mr-2 h-4 w-4" />Delete
+                </Button>
+              )}
+            </ConfirmAlertDialog>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className={blogStatusBadgeClass(resolveBlogStatus(post))}>
-            {blogStatusLabel(resolveBlogStatus(post))}
-          </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/blogs/${post.slug}/edit`)}
-          >
-            <Edit2 className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <Button
-            variant={resolveBlogStatus(post) === 'published' ? 'outline' : 'default'}
-            size="sm"
-            onClick={() => { void handleToggleStatus() }}
-            disabled={isTogglingStatus}
-          >
-            {resolveBlogStatus(post) === 'published' ? (
-              <>
-                <EyeOff className="mr-2 h-4 w-4" />
-                Unpublish
-              </>
-            ) : (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Publish
-              </>
-            )}
-          </Button>
-          <ConfirmAlertDialog
-            title="Delete Blog Post"
-            description={`Are you sure you want to delete "${post.title}"? This action cannot be undone.`}
-            confirmLabel="Delete"
-            variant="destructive"
-            onConfirm={handleDelete}
-          >
-            {(openDialog) => (
-              <Button variant="outline" size="sm" onClick={openDialog} disabled={isDeleting}>
-                <Trash2 className="mr-2 h-4 w-4" />Delete
-              </Button>
-            )}
-          </ConfirmAlertDialog>
-        </div>
-      </div>
+        }
+      />
 
       {resolveBlogStatus(post) !== 'published' && (
         <Alert>
@@ -233,7 +224,6 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">{post.title}</CardTitle>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span>Created {formatDateTime(post.created_at)}</span>
             {post.updated_at && (

@@ -40,7 +40,7 @@ const PropertyFeatureFilters: React.FC<PropertyFeatureFiltersProps> = ({ form, t
             <Checkbox id={`feature-${feature}`}
               checked={form.watch('features')?.includes(feature) || false}
               onCheckedChange={() => toggleFeature(feature)} />
-            <Label htmlFor={`feature-${feature}`} className="text-sm capitalize">{feature.replace('_', ' ')}</Label>
+            <Label htmlFor={`feature-${feature}`} className="text-sm capitalize">{feature.replaceAll('_', ' ')}</Label>
           </div>
         ))}
       </div>

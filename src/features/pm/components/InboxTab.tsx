@@ -1,17 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatDateTime } from "@/lib/format";
@@ -21,6 +11,7 @@ import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useDecideApplicationMutation } from "@/features/pm/api/pmApi";
 import { useToast } from "@/hooks/use-toast";
@@ -74,7 +65,6 @@ export default function InboxTab({
   onReject,
   onDeleteApplication,
 }: InboxTabProps) {
-  const [pendingAction, setPendingAction] = useState<{ type: 'approve' | 'reject'; application: RentalApplication } | null>(null);
   const [selectedRows, setSelectedRows] = useState<RentalApplication[]>([]);
   const { toast } = useToast();
   const [decideApplication, decideState] = useDecideApplicationMutation();
@@ -179,7 +169,7 @@ export default function InboxTab({
             <Button
               size="sm"
               disabled={decideIsLoading || row.original.status === "approved"}
-              onClick={() => setPendingAction({ type: 'approve', application: row.original })}
+              onClick={() => onApprove(row.original)}
             >
               Approve
             </Button>
@@ -187,7 +177,7 @@ export default function InboxTab({
               size="sm"
               variant="destructive"
               disabled={decideIsLoading || row.original.status === "rejected"}
-              onClick={() => setPendingAction({ type: 'reject', application: row.original })}
+              onClick={() => onReject(row.original)}
             >
               Reject
             </Button>
@@ -208,7 +198,7 @@ export default function InboxTab({
         ),
       },
     ];
-  }, [decideIsLoading, onDeleteApplication]);
+  }, [decideIsLoading, onApprove, onReject, onDeleteApplication]);
 
   return (
     <Card>
@@ -249,16 +239,10 @@ export default function InboxTab({
           </Select>
         </div>
 
-        {applicationsIsLoading ? (
+        {applicationsIsError ? (
+          <ErrorState title="Failed to load applications" onRetry={() => { void applicationsRefetch(); }} />
+        ) : applicationsIsLoading ? (
           <LoadingState type="spinner" />
-        ) : applicationsIsError ? (
-          <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-            <AlertCircle className="h-4 w-4" />
-            <span>Failed to load applications.</span>
-            <Button variant="outline" size="sm" onClick={() => { void applicationsRefetch(); }}>
-              Retry
-            </Button>
-          </div>
         ) : applicationsData?.length ? (
           <>
             {selectedRows.length > 0 && (
@@ -307,33 +291,6 @@ export default function InboxTab({
           <EmptyState title="No applications" description="Submissions will show up here." />
         )}
       </CardContent>
-      <AlertDialog open={pendingAction !== null} onOpenChange={(open) => { if (!open) setPendingAction(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingAction?.type === 'approve' ? 'Approve application' : 'Reject application'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingAction?.type === 'approve'
-                ? `This will approve application #${pendingAction?.application.id}. This action cannot be undone.`
-                : `This will reject application #${pendingAction?.application.id}. This action cannot be undone.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className={pendingAction?.type === 'reject' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
-              onClick={() => {
-                if (pendingAction?.type === 'approve') onApprove(pendingAction.application);
-                else if (pendingAction?.type === 'reject') onReject(pendingAction.application);
-                setPendingAction(null);
-              }}
-            >
-              {pendingAction?.type === 'approve' ? 'Approve' : 'Reject'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }

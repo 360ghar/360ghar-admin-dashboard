@@ -95,7 +95,7 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
     try {
       await createLease(payload).unwrap();
       toast({ title: "Created", description: "Lease created." });
-      setOpen(false);
+      handleOpenChange(false);
     } catch (e: unknown) {
       applyServerValidation(e, form.setError);
       toast({ title: "Failed", description: getErrorMessage(e, "Could not create lease."), variant: "destructive" });
@@ -132,6 +132,8 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
                     <SelectContent>
                       {properties.isLoading ? (
                         <SelectItem value="loading" disabled>Loading properties…</SelectItem>
+                      ) : properties.isError ? (
+                        <SelectItem value="error" disabled>Failed to load properties</SelectItem>
                       ) : !properties.data?.items?.length ? (
                         <SelectItem value="none" disabled>No properties available</SelectItem>
                       ) : (

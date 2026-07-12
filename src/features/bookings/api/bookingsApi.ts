@@ -33,7 +33,7 @@ export const bookingsApi = api.injectEndpoints({
     // Create a booking
     createBooking: builder.mutation<Booking, BookingCreate>({
       query: (data) => ({
-        url: '/bookings/',
+        url: '/bookings',
         method: 'POST',
         body: data
       }),
@@ -43,8 +43,8 @@ export const bookingsApi = api.injectEndpoints({
     // Get current user's bookings
     getUserBookings: builder.query<PaginatedResponse<Booking>, BookingsCursorQuery | void>({
       query: (params) => ({
-        url: '/bookings/',
-        params: params && 'cursor' in params ? { limit: 20, ...params } : undefined,
+        url: '/bookings',
+        params: params ? { limit: 20, ...params } : undefined,
       }),
       providesTags: [{type: 'Booking' as const, id: 'LIST'}]
     }),
@@ -52,8 +52,8 @@ export const bookingsApi = api.injectEndpoints({
     // Get upcoming bookings for current user
     getUpcomingBookings: builder.query<PaginatedResponse<Booking>, BookingsCursorQuery | void>({
       query: (params) => ({
-        url: '/bookings/upcoming/',
-        params: params && 'cursor' in params ? { limit: 20, ...params } : undefined,
+        url: '/bookings/upcoming',
+        params: params ? { limit: 20, ...params } : undefined,
       }),
       providesTags: [{type: 'Booking' as const, id: 'LIST'}]
     }),
@@ -61,8 +61,8 @@ export const bookingsApi = api.injectEndpoints({
     // Get past bookings for current user
     getPastBookings: builder.query<PaginatedResponse<Booking>, BookingsCursorQuery | void>({
       query: (params) => ({
-        url: '/bookings/past/',
-        params: params && 'cursor' in params ? { limit: 20, ...params } : undefined,
+        url: '/bookings/past',
+        params: params ? { limit: 20, ...params } : undefined,
       }),
       providesTags: [{type: 'Booking' as const, id: 'LIST'}]
     }),
@@ -70,7 +70,7 @@ export const bookingsApi = api.injectEndpoints({
     // Check booking availability
     checkAvailability: builder.query<AvailabilityInfo, BookingAvailability>({
       query: (data) => ({
-        url: '/bookings/check-availability/',
+        url: '/bookings/check-availability',
         method: 'POST',
         body: data
       })
@@ -79,7 +79,7 @@ export const bookingsApi = api.injectEndpoints({
     // Calculate booking pricing
     calculatePricing: builder.query<BookingPricing, BookingAvailability>({
       query: (data) => ({
-        url: '/bookings/calculate-pricing/',
+        url: '/bookings/calculate-pricing',
         method: 'POST',
         body: data
       })
@@ -104,7 +104,7 @@ export const bookingsApi = api.injectEndpoints({
     // Cancel a booking
     cancelBooking: builder.mutation<void, { bookingId: number; reason: string }>({
       query: ({ bookingId, reason }) => ({
-        url: `/bookings/cancel/`,
+        url: `/bookings/cancel`,
         method: 'POST',
         body: {
           booking_id: bookingId,
@@ -117,7 +117,7 @@ export const bookingsApi = api.injectEndpoints({
     // Process payment for booking
     processPayment: builder.mutation<void, { bookingId: number; paymentData: BookingPayment }>({
       query: ({ bookingId, paymentData }) => ({
-        url: '/bookings/payment/',
+        url: '/bookings/payment',
         method: 'POST',
         body: {
           booking_id: bookingId,
@@ -131,7 +131,7 @@ export const bookingsApi = api.injectEndpoints({
     addReview: builder.mutation<void, { bookingId: number; reviewData: BookingReview }>({
       query: ({ bookingId, reviewData }) => {
         return {
-          url: '/bookings/review/',
+          url: '/bookings/review',
           method: 'POST',
           body: {
             booking_id: bookingId,
@@ -146,7 +146,7 @@ export const bookingsApi = api.injectEndpoints({
     // Get all bookings (admin/agent view)
     getAllBookings: builder.query<PaginatedResponse<Booking>, BookingsQuery>({
       query: (params) => ({
-        url: '/bookings/all/',
+        url: '/bookings/all',
         params: { limit: 20, ...params }
       }),
       providesTags: (res) =>

@@ -11,14 +11,23 @@ import { useToast } from '@/hooks/use-toast'
 import { useUserRole } from '@/hooks/useUserRole'
 import AssignAgent from './assign/AssignAgent'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { FormRootError } from '@/components/ui/form-root-error'
 import { useGetUserNotificationsQuery } from '@/features/core/api/notificationsApi'
 import { Label } from '@/components/ui/label'
 import { getErrorMessage } from '@/lib/errors'
+import { applyServerValidation } from '@/lib/formErrors'
 import { formatDateTime } from '@/lib/format'
 import { userDetailSchema, type UserDetailFormValues } from '@/features/users/validations'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { LoadingState } from '@/components/ui/loading-state'
+import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
+import { Bell } from 'lucide-react'
 
 const UserDetail = ({ id }: { id: number }) => {
-  const { data, isFetching } = useGetUserQuery(id)
+  const skip = !id || Number.isNaN(id)
+  const { data, isLoading, isFetching, error, refetch } = useGetUserQuery(id, { skip })
   const [update, updateState] = useUpdateUserMutation()
   const { toast } = useToast()
   const { role } = useUserRole()
@@ -26,29 +35,43 @@ const UserDetail = ({ id }: { id: number }) => {
 
   const {
     data: notifications,
-    isFetching: notificationsLoading,
+    isLoading: notificationsLoading,
+    isError: notificationsError,
+    error: notificationsQueryError,
     refetch: refetchNotifications,
-  } = useGetUserNotificationsQuery(id)
+  } = useGetUserNotificationsQuery(id, { skip: skip || role !== 'admin' })
   const notifItems = notifications?.items ?? []
 
   const [notifType, setNotifType] = useState<string>('promotion_generic')
   const [notifTitle, setNotifTitle] = useState<string>('Message from 360 Ghar')
   const [notifBody, setNotifBody] = useState<string>('')
 
-  const form = useForm<UserDetailFormValues>({ resolver: zodResolver(userDetailSchema) })
+  const form = useForm<UserDetailFormValues>({
+    resolver: zodResolver(userDetailSchema),
+    defaultValues: { full_name: '', phone: '', email: '', is_active: true },
+  })
   const { reset } = form
 
   useEffect(() => {
     if (data) {
-      reset({ full_name: data.full_name || '', phone: data.phone || '', email: data.email || '', is_active: data.is_active ?? true })
+      reset({
+        full_name: data.full_name || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        is_active: data.is_active ?? true,
+      })
     }
   }, [data, reset])
 
   const onSubmit = async (values: UserDetailFormValues) => {
+    form.clearErrors()
     try {
       await update({ id, data: values }).unwrap()
       toast({ title: 'Saved', description: 'User updated' })
     } catch (e: unknown) {
+      applyServerValidation(e, form.setError, {
+        knownFields: ['full_name', 'phone', 'email', 'is_active'],
+      })
       toast({ title: 'Failed', description: getErrorMessage(e, 'Please try again'), variant: 'destructive' })
     }
   }
@@ -67,6 +90,7 @@ const UserDetail = ({ id }: { id: number }) => {
       }).unwrap()
       toast({ title: 'Notification sent', description: 'The user will receive this notification shortly.' })
       setNotifBody('')
+      void refetchNotifications()
     } catch (e: unknown) {
       toast({
         title: 'Failed to send',
@@ -76,9 +100,55 @@ const UserDetail = ({ id }: { id: number }) => {
     }
   }
 
+  if (skip) {
+    return (
+      <EmptyState
+        title="Invalid user id"
+        description="The URL does not contain a valid user identifier."
+      />
+    )
+  }
+
+  if (error) {
+    return <ErrorState title="Failed to load user" error={error} onRetry={() => { void refetch() }} />
+  }
+
+  if (isLoading) {
+    return <LoadingState type="card" rows={6} />
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="User not found"
+        description="This user may have been removed or you may not have access."
+      />
+    )
+  }
+
+  const displayName = data.full_name || data.phone || `User #${data.id}`
+
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">User Details</h1>
+      <PageHeader
+        title={displayName}
+        breadcrumbs={[
+          { label: 'Users', to: '/users' },
+          { label: displayName },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={data.is_active ? 'default' : 'secondary'}>
+              {data.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+            {data.agent?.name || data.agent?.user?.full_name ? (
+              <Badge variant="outline">
+                Agent: {data.agent?.name || data.agent?.user?.full_name}
+              </Badge>
+            ) : null}
+          </div>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
@@ -86,7 +156,7 @@ const UserDetail = ({ id }: { id: number }) => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="grid gap-4 md:grid-cols-2">
-            <div>
+              <FormRootError form={form} className="md:col-span-2" />
               <FormField
                 control={form.control}
                 name="full_name"
@@ -94,14 +164,12 @@ const UserDetail = ({ id }: { id: number }) => {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
-            <div>
               <FormField
                 control={form.control}
                 name="phone"
@@ -109,14 +177,12 @@ const UserDetail = ({ id }: { id: number }) => {
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
-            <div>
               <FormField
                 control={form.control}
                 name="email"
@@ -124,17 +190,42 @@ const UserDetail = ({ id }: { id: number }) => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
-            <div className="md:col-span-2 flex justify-end">
-              <Button type="submit" disabled={updateState.isLoading || isFetching}>{updateState.isLoading ? 'Saving…' : 'Save'}</Button>
-            </div>
-          </form>
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select
+                      onValueChange={(v) => field.onChange(v === 'true')}
+                      value={field.value ? 'true' : 'false'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="true">Active</SelectItem>
+                        <SelectItem value="false">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="md:col-span-2 flex justify-end">
+                <Button type="submit" disabled={updateState.isLoading || isFetching}>
+                  {updateState.isLoading ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+            </form>
           </Form>
         </CardContent>
       </Card>
@@ -145,7 +236,11 @@ const UserDetail = ({ id }: { id: number }) => {
             <CardTitle>Assign Agent</CardTitle>
           </CardHeader>
           <CardContent>
-            <AssignAgent userId={id} />
+            <AssignAgent
+              userId={id}
+              currentAgentId={data.agent_id}
+              currentAgentLabel={data.agent?.name || data.agent?.user?.full_name}
+            />
           </CardContent>
         </Card>
       )}
@@ -203,52 +298,58 @@ const UserDetail = ({ id }: { id: number }) => {
 
       {role === 'admin' && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>Notification History</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => { void refetchNotifications() }}
+            >
+              Refresh
+            </Button>
           </CardHeader>
           <CardContent>
-            {notificationsLoading && <p className="text-sm text-muted-foreground">Loading notifications…</p>}
-            {!notificationsLoading && notifItems.length === 0 && (
-              <p className="text-sm text-muted-foreground">No notifications have been sent to this user yet.</p>
-            )}
-            {!notificationsLoading && notifItems.length > 0 && (
-              <div className="flex justify-between items-start">
-                <div />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="ml-auto mb-2"
-                  onClick={() => { void refetchNotifications() }}
-                >
-                  Refresh
-                </Button>
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {notifItems.map((n) => (
-                    <div
-                      key={n.id}
-                      className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium">{n.title}</div>
-                        {n.created_at && (
-                          <span className="text-xs text-muted-foreground">
-                            {formatDateTime(n.created_at)}
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-3">
-                        {n.body}
-                      </p>
-                      {n.audience_type && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Audience: {n.audience_type}
-                          {n.topic ? ` • topic: ${n.topic}` : ''}
-                        </p>
+            {notificationsError ? (
+              <ErrorState
+                title="Failed to load notifications"
+                error={notificationsQueryError}
+                onRetry={() => { void refetchNotifications() }}
+              />
+            ) : notificationsLoading ? (
+              <LoadingState type="skeleton" rows={3} />
+            ) : notifItems.length === 0 ? (
+              <EmptyState
+                icon={<Bell className="h-10 w-10" />}
+                title="No notifications"
+                description="No notifications have been sent to this user yet."
+              />
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {notifItems.map((n) => (
+                  <div
+                    key={n.id}
+                    className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-medium">{n.title ?? '—'}</div>
+                      {n.created_at && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {formatDateTime(n.created_at)}
+                        </span>
                       )}
                     </div>
-                  ))}
-                </div>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-3">
+                      {n.body ?? ''}
+                    </p>
+                    {n.audience_type && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Audience: {n.audience_type}
+                        {n.topic ? ` • topic: ${n.topic}` : ''}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>

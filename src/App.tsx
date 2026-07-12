@@ -27,12 +27,9 @@ const AccessDeniedPage = lazy(() => import('@/features/core/pages/AccessDeniedPa
 const ProfilePage = lazy(() => import('@/features/core/pages/ProfilePage'))
 const AgentProfilePage = lazy(() => import('@/features/agents/pages/AgentProfilePage'))
 const UserPreferencesPage = lazy(() => import('@/features/core/pages/UserPreferencesPage'))
-const AgentDashboardPage = lazy(() => import('@/features/agents/pages/AgentDashboardPage'))
 const UserProfilePage = lazy(() => import('@/features/users/pages/UserProfilePage'))
-const VisitManagementPage = lazy(() => import('@/features/visits/pages/VisitManagementPage'))
 const ModerationQueuePage = lazy(() => import('@/features/flatmates/pages/ModerationQueuePage'))
 const ReportsReviewPage = lazy(() => import('@/features/flatmates/pages/ReportsReviewPage'))
-const BookingManagementPage = lazy(() => import('@/features/bookings/pages/BookingManagementPage'))
 const BugReportsPage = lazy(() => import('@/features/core/pages/BugReportsPage'))
 const PagesManagementPage = lazy(() => import('@/features/core/pages/PagesManagementPage'))
 const FaqsManagementPage = lazy(() => import('@/features/core/pages/FaqsManagementPage'))
@@ -186,14 +183,14 @@ function App() {
                 <Route path="/users" element={<ErrorBoundary><UsersPage /></ErrorBoundary>} />
                 <Route path="/users/:id" element={<ErrorBoundary><UsersPage mode="detail" /></ErrorBoundary>} />
                 <Route path="/agents/me" element={<ErrorBoundary><AgentProfilePage /></ErrorBoundary>} />
-                <Route path="/agents/dashboard" element={<ErrorBoundary><AgentDashboardPage /></ErrorBoundary>} />
+                <Route path="/agents/dashboard" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/visits" element={<ErrorBoundary><VisitsPage /></ErrorBoundary>} />
                 <Route path="/visits/new" element={<ErrorBoundary><VisitsPage mode="create" /></ErrorBoundary>} />
+                <Route path="/visits/manage" element={<Navigate to="/visits?view=manage" replace />} />
                 <Route path="/visits/:id" element={<ErrorBoundary><VisitsPage mode="detail" /></ErrorBoundary>} />
-                <Route path="/visits/manage" element={<ErrorBoundary><VisitManagementPage /></ErrorBoundary>} />
                 <Route path="/bookings" element={<ErrorBoundary><BookingsPage /></ErrorBoundary>} />
+                <Route path="/bookings/manage" element={<Navigate to="/bookings?view=manage" replace />} />
                 <Route path="/bookings/:id" element={<ErrorBoundary><BookingsPage mode="detail" /></ErrorBoundary>} />
-                <Route path="/bookings/manage" element={<ErrorBoundary><BookingManagementPage /></ErrorBoundary>} />
                 <Route path="/swipes" element={<ErrorBoundary><SwipePage /></ErrorBoundary>} />
 
                 {/* Admin-only nested */}

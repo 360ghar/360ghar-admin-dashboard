@@ -13,13 +13,11 @@ export const identifierSchema = z.object({
   identifier: z.string().min(3, 'Enter your phone number or email'),
 })
 
-// Step 2a: password (verified accounts)
+// Step 2a: password (verified accounts — login only).
+// Do NOT enforce complexity here: login must accept any existing password.
+// Complexity rules belong on set-password / reset-password schemas.
 export const passwordStepSchema = z.object({
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least 1 number'),
+  password: z.string().min(1, 'Password is required'),
 })
 
 // Step 2b: OTP verification (unverified / OTP-first accounts)

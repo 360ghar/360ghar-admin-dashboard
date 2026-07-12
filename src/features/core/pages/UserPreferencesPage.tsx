@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { MapPin, Save, Home, Building, Warehouse, Bell } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { LoadingState } from '@/components/ui/loading-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { getErrorMessage } from '@/lib/errors'
 
 const normalizePreferences = (p: Partial<UserPreferences> | null | undefined): UserPreferences => {
@@ -24,7 +25,7 @@ const normalizePreferences = (p: Partial<UserPreferences> | null | undefined): U
 }
 
 const UserPreferencesPage = () => {
-  const { data: profile, isLoading: profileLoading } = useGetProfileQuery()
+  const { data: profile, isLoading: profileLoading, isError: profileError, refetch: refetchProfile } = useGetProfileQuery()
   const [updatePreferences, { isLoading: preferencesLoading }] = useUpdatePreferencesMutation()
   const [updateLocation, { isLoading: locationLoading }] = useUpdateLocationMutation()
   const [updateUser, { isLoading: notifLoading }] = useUpdateUserMutation()
@@ -79,7 +80,35 @@ const UserPreferencesPage = () => {
   const togglePropertyType = (type: string) => setPreferences(prev => ({ ...prev, property_type: (prev.property_type || []).includes(type) ? (prev.property_type || []).filter(t => t !== type) : [...(prev.property_type || []), type] }))
   const toggleLocationPreference = (loc: string) => setPreferences(prev => ({ ...prev, location_preference: (prev.location_preference || []).includes(loc) ? (prev.location_preference || []).filter(l => l !== loc) : [...(prev.location_preference || []), loc] }))
 
-  if (profileLoading) return <div className="space-y-6"><div><h1 className="text-3xl font-bold tracking-tight">Preferences</h1><p className="text-muted-foreground">Loading your preferences...</p></div><div className="grid gap-6 md:grid-cols-2"><Card><CardContent className="p-6"><LoadingState type="skeleton" rows={4} /></CardContent></Card></div></div>
+  if (profileLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Preferences</h1>
+          <p className="text-muted-foreground">Loading your preferences...</p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardContent className="p-6">
+              <LoadingState type="skeleton" rows={4} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (profileError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Preferences</h1>
+          <p className="text-muted-foreground">Customize your property search preferences and location settings.</p>
+        </div>
+        <ErrorState title="Failed to load preferences" onRetry={() => void refetchProfile()} />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

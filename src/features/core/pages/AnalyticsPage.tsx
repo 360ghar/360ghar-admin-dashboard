@@ -3,10 +3,9 @@ import { useGetSystemStatsQuery, useGetWorkloadQuery } from '@/features/core/api
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
-import { Home } from 'lucide-react'
-import { useState } from 'react'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
+import { BarChart3, Home, Users } from 'lucide-react'
 import { formatNumber, formatPercent } from '@/lib/format'
 
 const WORKLOAD_COLOR = 'hsl(218 77% 48%)'
@@ -28,7 +27,6 @@ const KPI = ({ label, value, isLoading }: { label: string; value: KPIValue; isLo
 )
 
 const AnalyticsPage = () => {
-  const [view, setView] = useState<'workload' | 'properties' | 'bookings'>('workload')
   const stats = useGetSystemStatsQuery()
   const workload = useGetWorkloadQuery()
   const s = stats.data ?? { active_agents: 0, active_users: 0, properties_listed: 0, occupancy_rate: 0 }
@@ -37,8 +35,12 @@ const AnalyticsPage = () => {
     value: w.current_users,
   })) ?? []
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">System Analytics</h1>
+    <div className="space-y-6">
+      <PageHeader
+        title="System Analytics"
+        description="Platform KPIs and agent workload distribution"
+        icon={BarChart3}
+      />
       <Card>
         <CardHeader>
           <CardTitle>KPIs</CardTitle>
@@ -57,27 +59,21 @@ const AnalyticsPage = () => {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Agent Workload</CardTitle>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                View: {view}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setView('properties')}>Properties</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setView('bookings')}>Bookings</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setView('workload')}>Agent Workload</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </CardHeader>
         <CardContent>
           {workload.isLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : workload.isError ? (
             <ErrorState title="Failed to load analytics" onRetry={() => void workload.refetch()} />
-          ) : view === 'workload' ? (
+          ) : workloadData.length === 0 ? (
+            <EmptyState
+              icon={<Users className="h-10 w-10" />}
+              title="No workload data"
+              description="Agent workload will appear once agents have assigned users."
+            />
+          ) : (
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={workloadData}>
@@ -89,14 +85,6 @@ const AnalyticsPage = () => {
                   <Bar dataKey="value" fill={WORKLOAD_COLOR} name="Workload" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-          ) : view === 'properties' ? (
-            <div className="flex h-64 w-full items-center justify-center">
-              <p className="text-muted-foreground">Properties view — displaying property listing data</p>
-            </div>
-          ) : (
-            <div className="flex h-64 w-full items-center justify-center">
-              <p className="text-muted-foreground">Bookings view — displaying booking analytics data</p>
             </div>
           )}
         </CardContent>

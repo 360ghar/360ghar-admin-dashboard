@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { CalendarDays } from 'lucide-react'
-import { isAfter, isBefore, differenceInDays } from 'date-fns'
+import { isAfter, isBefore, differenceInDays, startOfDay } from 'date-fns'
 import { formatCurrency } from '@/lib/format'
 import type { BookingPricing, AvailabilityInfo } from '@/types/api'
 
@@ -21,14 +21,22 @@ const BookingDateSelection: React.FC<BookingDateSelectionProps> = ({ selectedDat
       <div className="space-y-2">
         <Label>Check-in Date</Label>
         <Calendar mode="single" selected={selectedDates.from}
-          onSelect={(date) => { setSelectedDates(prev => ({ ...prev, from: date })); if (date && selectedDates.to && isAfter(date, selectedDates.to)) setSelectedDates(prev => ({ ...prev, to: undefined })) }}
-          disabled={(date) => isBefore(date, new Date())} />
+          onSelect={(date) => {
+            setSelectedDates((prev) => {
+              const next = { ...prev, from: date }
+              if (date && prev.to && !isAfter(prev.to, date)) {
+                next.to = undefined
+              }
+              return next
+            })
+          }}
+          disabled={(date) => isBefore(date, startOfDay(new Date()))} />
       </div>
       <div className="space-y-2">
         <Label>Check-out Date</Label>
         <Calendar mode="single" selected={selectedDates.to}
           onSelect={(date) => setSelectedDates(prev => ({ ...prev, to: date }))}
-          disabled={(date) => !selectedDates.from || isBefore(date, selectedDates.from)} />
+          disabled={(date) => !selectedDates.from || !isAfter(date, selectedDates.from)} />
       </div>
     </div>
     {selectedDates.from && selectedDates.to && (

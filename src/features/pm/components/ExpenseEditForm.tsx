@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
+import { applyServerValidation } from "@/lib/formErrors";
+import { FormRootError } from "@/components/ui/form-root-error";
 import {
   pmExpenseUpdateSchema,
   type PmExpenseUpdateForm,
@@ -72,6 +74,7 @@ export default function ExpenseEditForm({
       await onSubmit(payload);
       toast({ title: "Updated", description: "Expense updated." });
     } catch (e: unknown) {
+      applyServerValidation(e, form.setError);
       toast({
         title: "Failed",
         description: getErrorMessage(e, "Could not update expense."),
@@ -84,6 +87,7 @@ export default function ExpenseEditForm({
     <div className="space-y-4">
       <Form {...form}>
         <form onSubmit={(e) => void form.handleSubmit(save)(e)} className="space-y-4">
+          <FormRootError form={form} />
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}

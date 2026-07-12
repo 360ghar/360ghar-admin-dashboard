@@ -42,11 +42,11 @@ export function usePropertyStatusBreakdown(): PropertyStatusBreakdown {
 
   const queries = [available, rented, sold, underOffer, maintenance]
   const totals = [
-    available.data?.total ?? available.data?.items.length,
-    rented.data?.total ?? rented.data?.items.length,
-    sold.data?.total ?? sold.data?.items.length,
-    underOffer.data?.total ?? underOffer.data?.items.length,
-    maintenance.data?.total ?? maintenance.data?.items.length,
+    available.data?.total ?? available.data?.items?.length,
+    rented.data?.total ?? rented.data?.items?.length,
+    sold.data?.total ?? sold.data?.items?.length,
+    underOffer.data?.total ?? underOffer.data?.items?.length,
+    maintenance.data?.total ?? maintenance.data?.items?.length,
   ]
 
   const data = PROPERTY_STATUS_META.map((meta, i) => ({ ...meta, count: totals[i] ?? 0 }))
@@ -104,11 +104,17 @@ export function useDashboardActivity(): DashboardActivity {
     return mergeActivity(entries, 8)
   }, [visits.data, bookings.data, newProperties.data])
 
+  const queries = [visits, bookings, newProperties]
+  // Keep partial successes: only treat as hard error when every source failed
+  // (otherwise one flaky endpoint would hide visits/bookings/listings that did load).
+  const allFailed = queries.every((q) => q.isError)
+  const anyLoading = queries.some((q) => q.isLoading)
+
   return {
     trend,
     feed,
-    isLoading: visits.isLoading || bookings.isLoading || newProperties.isLoading,
-    isError: visits.isError || bookings.isError || newProperties.isError,
+    isLoading: anyLoading && feed.length === 0 && !allFailed,
+    isError: allFailed,
     error: visits.error || bookings.error || newProperties.error,
     refetch: () => {
       void visits.refetch()

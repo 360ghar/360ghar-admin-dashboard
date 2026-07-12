@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ColumnDef } from '@tanstack/react-table'
+import { Edit, BarChart3, Users, Search, Download, Scale } from 'lucide-react'
 import { useListAgentsQuery } from '@/features/agents/api/agentsApi'
+import type { AgentSummary } from '@/features/agents/api/agentsApi'
 import { useGetWorkloadQuery } from '@/features/core/api/systemApi'
 import { useAssignAgentMutation, useGetUsersQuery } from '@/features/users/api/usersApi'
 import { Card } from '@/components/ui/card'
-import { DataTable, SortableHeader } from '@/components/ui/data-table'
+import { SortableHeader } from '@/components/ui/data-table'
+import { ResponsiveDataTable } from '@/components/ui/responsive-data-table'
+import { MobileFilters, FilterSection } from '@/components/ui/mobile-filters'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -17,13 +22,9 @@ import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Edit, BarChart3, Users, Search, Download, Scale } from 'lucide-react'
-import {
-  ColumnDef,
-} from '@tanstack/react-table'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFilterPersistence } from '@/hooks/useFilterPersistence'
-import { AgentSummary } from '@/features/agents/api/agentsApi'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { downloadCsv, csvFilename } from '@/lib/csv'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
@@ -34,6 +35,7 @@ type Agent = AgentSummary
 const AgentList = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const isMobile = useIsMobile()
 
   const { filters, setFilters } = useFilterPersistence({
     key: 'agents',
@@ -50,10 +52,9 @@ const AgentList = () => {
   const dq = useDebounce(q, 300)
 
   const [pageSize, setPageSize] = useState(20)
-  const pager = useCursorPagination()
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, dq, status])
+  // Server only supports include_inactive; q/status filtering is client-side on the current page.
+  // Reset on pageSize/include scope so pagination stays consistent.
+  const pager = useCursorPagination(`${pageSize}|${status}`)
 
   const includeInactive = status === 'all' || status === 'inactive'
   const { data, isFetching, isLoading, error, refetch } = useListAgentsQuery({ include_inactive: includeInactive, cursor: pager.cursor, limit: pageSize })
@@ -67,15 +68,21 @@ const AgentList = () => {
 
   const workloadByAgent = useMemo(() => {
     const map = new Map<number, { utilization: number; currentUsers: number }>()
-    ;(workload ?? []).forEach((w) => {
+    const rows = Array.isArray(workload) ? workload : []
+    rows.forEach((w) => {
       map.set(w.agent_id, { utilization: w.utilization_percentage, currentUsers: w.current_users })
     })
     return map
   }, [workload])
 
-  // Client-side search filter (API doesn't expose q)
+  // Client-side status + search filters (API only has include_inactive, not q)
   const filteredResults = useMemo(() => {
-    const all = data?.items ?? []
+    let all = data?.items ?? []
+    if (status === 'active') {
+      all = all.filter((a) => a.is_active)
+    } else if (status === 'inactive') {
+      all = all.filter((a) => !a.is_active)
+    }
     if (!dq) return all
     const needle = dq.toLowerCase()
     return all.filter(
@@ -83,16 +90,25 @@ const AgentList = () => {
         a.name?.toLowerCase().includes(needle) ||
         a.contact_number?.toLowerCase().includes(needle),
     )
-  }, [data?.items, dq])
+  }, [data?.items, dq, status])
+
+  const activeFilterCount = (q ? 1 : 0) + (status !== 'all' ? 1 : 0)
+
+  const clearFilters = () => {
+    setQ('')
+    setStatus('all')
+  }
 
   const columns = useMemo<ColumnDef<Agent>[]>(() => [
     {
       accessorKey: 'name',
       header: ({ column }) => <SortableHeader column={column}>Name</SortableHeader>,
+      cell: ({ row }) => row.original.name ?? '—',
     },
     {
       accessorKey: 'contact_number',
       header: 'Contact',
+      cell: ({ row }) => row.original.contact_number ?? '—',
     },
     {
       accessorKey: 'is_active',
@@ -105,10 +121,12 @@ const AgentList = () => {
     {
       accessorKey: 'total_users_assigned',
       header: ({ column }) => <SortableHeader column={column}>Users Assigned</SortableHeader>,
+      cell: ({ row }) => row.original.total_users_assigned ?? 0,
     },
     {
       accessorKey: 'user_satisfaction_rating',
       header: ({ column }) => <SortableHeader column={column}>Satisfaction</SortableHeader>,
+      cell: ({ row }) => row.original.user_satisfaction_rating ?? '—',
     },
     {
       id: 'workload',
@@ -202,9 +220,97 @@ const AgentList = () => {
     }
   }
 
+  const renderCard = (agent: Agent) => {
+    const w = workloadByAgent.get(agent.id)
+    const tone = w
+      ? w.utilization > 80
+        ? 'text-red-600 dark:text-red-400'
+        : w.utilization > 60
+          ? 'text-orange-600 dark:text-orange-400'
+          : 'text-green-600 dark:text-green-400'
+      : ''
+    return (
+      <Card className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="font-medium truncate">{agent.name ?? `Agent #${agent.id}`}</div>
+            <div className="text-sm text-muted-foreground truncate">{agent.contact_number ?? '—'}</div>
+          </div>
+          <Badge variant={agent.is_active ? 'default' : 'secondary'} className="shrink-0">
+            {agent.is_active ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-muted-foreground">
+            {agent.total_users_assigned ?? 0} users assigned
+          </span>
+          {w ? (
+            <span className={cn('font-medium', tone)}>{Math.round(w.utilization)}% workload</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/agents/${agent.id}`}>
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/agents/${agent.id}/stats`}>
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Stats
+            </Link>
+          </Button>
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card className="p-4 md:p-6">
-      <div className="mb-4 grid gap-3 md:grid-cols-4">
+      {/* Mobile filters */}
+      <div className="mb-4 flex items-center gap-2 md:hidden">
+        <MobileFilters activeCount={activeFilterCount} onClear={clearFilters} title="Agent filters">
+          <FilterSection label="Search">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search agent name or contact"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="pl-10"
+                aria-label="Search agents"
+              />
+            </div>
+          </FilterSection>
+          <FilterSection label="Status">
+            <Select value={status} onValueChange={(v) => setStatus(v as 'all' | 'active' | 'inactive')}>
+              <SelectTrigger aria-label="Filter by status"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </FilterSection>
+          <FilterSection label="Rows per page">
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)) }}>
+              <SelectTrigger aria-label="Page size"><SelectValue placeholder="Rows" /></SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50].map((n) => (<SelectItem key={n} value={String(n)}>{n} / page</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </FilterSection>
+        </MobileFilters>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={isFetching || isLoading} className="gap-2 ml-auto">
+          <Download className="h-4 w-4" />Export
+        </Button>
+      </div>
+
+      {/* Desktop filters */}
+      <div className="mb-4 hidden gap-3 md:grid md:grid-cols-5">
         <div className="relative md:col-span-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -253,12 +359,15 @@ const AgentList = () => {
               </p>
               <div className="space-y-2">
                 <Label htmlFor="auto-assign-user">Select a user without an agent</Label>
-                <Select value={selectedUserId ? String(selectedUserId) : ''} onValueChange={(v) => setSelectedUserId(Number(v))}>
+                <Select
+                  value={selectedUserId != null ? String(selectedUserId) : undefined}
+                  onValueChange={(v) => setSelectedUserId(Number(v))}
+                >
                   <SelectTrigger id="auto-assign-user"><SelectValue placeholder="Choose user…" /></SelectTrigger>
                   <SelectContent>
                     {assignableUsers.map((u) => (
                       <SelectItem key={u.id} value={String(u.id)}>
-                        {u.full_name || u.email} {u.phone ? `(${u.phone})` : ''}
+                        {u.full_name || u.email || `User #${u.id}`}{u.phone ? ` (${u.phone})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -281,20 +390,33 @@ const AgentList = () => {
       {error ? (
         <ErrorState title="Failed to load agents" error={error} onRetry={() => { void refetch() }} />
       ) : isLoading ? (
-        <LoadingState type="card" rows={5} />
-      ) : (!isFetching && filteredResults.length === 0) ? (
+        <LoadingState type={isMobile ? 'cards' : 'table'} rows={5} />
+      ) : filteredResults.length === 0 ? (
         <EmptyState
           icon={<Users className="h-12 w-12" />}
           title={q || status !== 'all' ? 'No agents match your filters' : 'No agents found'}
-          description={q || status !== 'all' ? 'Try adjusting search or filters.' : 'Get started by creating your first agent.'}
+          description={
+            q
+              ? 'Search runs on the current page only — try clearing search or loading more pages.'
+              : status !== 'all'
+                ? 'Try adjusting filters.'
+                : 'Get started by creating your first agent.'
+          }
           action={{ label: 'Create Agent', onClick: () => navigate('/agents/new') }}
         />
       ) : (
         <div className="space-y-4">
-          <DataTable columns={columns} data={filteredResults} enableSorting />
+          <ResponsiveDataTable
+            columns={columns}
+            data={filteredResults}
+            enableSorting
+            mobileCardRender={renderCard}
+            viewStorageKey="agents-table"
+          />
           <CursorPager
             canPrev={pager.canPrev}
             hasMore={data?.has_more ?? false}
+            nextCursor={data?.next_cursor}
             loading={isFetching || isLoading}
             onPrev={pager.prev}
             onNext={() => data && pager.next(data.next_cursor)}

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -26,15 +27,20 @@ const TagFormDialog: React.FC<TagFormDialogProps> = ({ open, onOpenChange, editi
 
   const form = useForm<BlogTagForm>({
     resolver: zodResolver(blogTagSchema),
-    defaultValues: editingTag ? { name: editingTag.name } : { name: '' },
+    defaultValues: { name: '' },
   })
+
+  useEffect(() => {
+    if (!open) return
+    form.reset(editingTag ? { name: editingTag.name } : { name: '' })
+  }, [open, editingTag, form])
 
   const handleSubmit = async (data: BlogTagForm) => {
     form.clearErrors()
     try {
       if (editingTag) { await updateTag({ identifier: editingTag.id, data }).unwrap(); toast({ title: 'Success', description: 'Tag updated successfully' }) }
       else { await createTag(data).unwrap(); toast({ title: 'Success', description: 'Tag created successfully' }) }
-      form.reset(); onSuccess()
+      form.reset({ name: '' }); onSuccess()
     } catch (error: unknown) { applyServerValidation(error, form.setError); toast({ title: 'Error', description: getErrorMessage(error, `Failed to ${editingTag ? 'update' : 'create'} tag`), variant: 'destructive' }) }
   }
 

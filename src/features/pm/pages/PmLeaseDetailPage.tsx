@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmLeaseDetailPage() {
   const { leaseId } = useParams();
@@ -74,32 +75,34 @@ export default function PmLeaseDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Lease #{lease.data?.id ?? leaseIdNum}</h1>
-          <p className="text-sm text-muted-foreground">
-            Property #{lease.data?.property_id} &bull; Owner #{lease.data?.owner_id}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {lease.data ? <Badge variant="secondary">{lease.data.status}</Badge> : null}
-          {lease.data ? (
-            <UploadSignedDialog
-              leaseId={lease.data.id}
-              ownerId={lease.data.owner_id}
-              propertyId={lease.data.property_id}
+      <PageHeader
+        title={`Lease #${lease.data?.id ?? leaseIdNum}`}
+        description={`Property #${lease.data?.property_id} • Owner #${lease.data?.owner_id}`}
+        breadcrumbs={[
+          { label: "Leases", to: "/pm/leases" },
+          { label: `Lease #${lease.data?.id ?? leaseIdNum}` },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            {lease.data ? <Badge variant="secondary">{lease.data.status}</Badge> : null}
+            {lease.data ? (
+              <UploadSignedDialog
+                leaseId={lease.data.id}
+                ownerId={lease.data.owner_id}
+                propertyId={lease.data.property_id}
+              />
+            ) : null}
+            {lease.data ? (
+              <RenewLeaseDialog leaseId={lease.data.id} />
+            ) : null}
+            <TerminateLeaseDialog
+              leaseId={leaseIdNum}
+              tenantName={lease.data?.tenant_name ?? undefined}
+              canTerminate={canTerminate}
             />
-          ) : null}
-          {lease.data ? (
-            <RenewLeaseDialog leaseId={lease.data.id} />
-          ) : null}
-          <TerminateLeaseDialog
-            leaseId={leaseIdNum}
-            tenantName={lease.data?.tenant_name ?? undefined}
-            canTerminate={canTerminate}
-          />
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

@@ -3,7 +3,7 @@ import AgentList from '../components/AgentList'
 import AgentForm from '../components/AgentForm'
 import AgentStats from '../components/AgentStats'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 import { Users } from 'lucide-react'
 
 const AgentsPage = ({ mode }: { mode?: 'create' | 'edit' | 'stats' }) => {
@@ -11,27 +11,20 @@ const AgentsPage = ({ mode }: { mode?: 'create' | 'edit' | 'stats' }) => {
   if (mode === 'create') return <AgentForm />
   if (mode === 'edit') return <AgentForm id={Number(params.id)} />
   if (mode === 'stats') return <AgentStats id={Number(params.id)} />
+  // list mode
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
-            Agents
-          </h1>
-          <p className="text-muted-foreground">
-            Manage agents, availability, and performance stats
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="px-3 py-1">Admin View</Badge>
-          <Button asChild>
+      <PageHeader
+        title="Agents"
+        description="Manage agents, availability, and performance stats"
+        icon={Users}
+        badge="Admin View"
+        actions={
+          <Button asChild className="rounded-cohere-pill">
             <Link to="/agents/new">New Agent</Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
       <AgentList />
     </div>
   )

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import {useState} from 'react'
 import { Plus, Edit, Download, Smartphone, Monitor, CheckCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { useToast } from '@/hooks/use-toast'
@@ -26,14 +28,11 @@ const AppUpdatesPage: React.FC = () => {
   const [editingUpdate, setEditingUpdate] = useState<AppUpdate | null>(null)
   const [formData, setFormData] = useState<AppUpdateFormData>({ ...defaultFormData })
 
-  const pager = useCursorPagination()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, filterPlatform, filterStatus])
+  const pager = useCursorPagination(`${filterPlatform}|${filterStatus}`)
 
-  const { data: updatesData, isLoading, refetch } = useGetAppUpdatesQuery({
+  const { data: updatesData, isLoading, isError, refetch } = useGetAppUpdatesQuery({
     cursor: pager.cursor,
-    limit: 20,
-  })
+    limit: 20})
   const [updateUpdate] = useUpdateAppUpdateMutation()
 
   const filteredUpdates = (updatesData?.items ?? []).filter((update) => {
@@ -41,7 +40,7 @@ const AppUpdatesPage: React.FC = () => {
     const matchesPlatform = filterPlatform === 'all' || update.platform === filterPlatform
     const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' && update.is_active) || (filterStatus === 'inactive' && !update.is_active)
     return matchesSearch && matchesPlatform && matchesStatus
-  }) || []
+  })
 
   const handleEdit = (update: AppUpdate) => {
     setEditingUpdate(update)
@@ -61,11 +60,18 @@ const AppUpdatesPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div><h1 className="text-3xl font-bold">App Updates Management</h1><p className="text-muted-foreground mt-2">Manage application updates and versions</p></div>
-        <Button onClick={() => { resetForm(); setIsDialogOpen(true) }}><Plus className="h-4 w-4 mr-2" />New Update</Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="App Updates"
+        description="Manage application updates and versions"
+        icon={Smartphone}
+        actions={
+          <Button className="rounded-cohere-pill" onClick={() => { resetForm(); setIsDialogOpen(true) }}>
+            <Plus className="h-4 w-4" />
+            New Update
+          </Button>
+        }
+      />
       <Card><CardContent className="pt-6">
         <div className="flex gap-4 flex-wrap">
           <Input placeholder="Search updates..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm" />
@@ -79,7 +85,9 @@ const AppUpdatesPage: React.FC = () => {
           </Select>
         </div>
       </CardContent></Card>
-      {isLoading ? <div className="space-y-4"><LoadingState type="card" rows={3} /></div> : !filteredUpdates.length ? (
+      {isLoading ? <div className="space-y-4"><LoadingState type="card" rows={3} /></div> : isError ? (
+        <ErrorState title="Failed to load app updates" onRetry={() => void refetch()} />
+      ) : !filteredUpdates.length ? (
         <EmptyState icon={<Monitor className="h-10 w-10" />} title="No updates found" description="Create your first app update entry."
           action={{ label: 'New Update', onClick: () => { resetForm(); setIsDialogOpen(true) } }} />
       ) : (

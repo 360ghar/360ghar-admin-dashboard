@@ -15,25 +15,27 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  ColumnDef 
-} from '@tanstack/react-table'
+import { ColumnDef } from '@tanstack/react-table'
 import { useFilterPersistence } from '@/hooks/useFilterPersistence'
-import { DataTable, SortableHeader } from '@/components/ui/data-table'
+import { SortableHeader } from '@/components/ui/data-table'
+import { ResponsiveDataTable } from '@/components/ui/responsive-data-table'
+import { MobileFilters, FilterSection } from '@/components/ui/mobile-filters'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Download } from 'lucide-react'
 import { downloadCsv, csvFilename } from '@/lib/csv'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 
 const UserList = () => {
   const { user: me, role } = useUserRole()
+  const isMobile = useIsMobile()
 
-  // Filter persistence
   const { filters, setFilters } = useFilterPersistence({
     key: 'users',
     defaultValue: {
       q: '',
       agentId: '',
-    }
+    },
   })
 
   const [q, setQ] = useState(filters.q || '')
@@ -46,10 +48,8 @@ const UserList = () => {
   const dq = useDebounce(q)
 
   const [pageSize, setPageSize] = useState(10)
-  const pager = useCursorPagination()
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, dq, agentId])
+  // resetKey resets cursor during render when filters/limit change (avoids stale-cursor requests)
+  const pager = useCursorPagination(`${dq}|${agentId}|${pageSize}`)
 
   const params = useMemo(() => {
     const base: UsersQuery = {}
@@ -62,8 +62,15 @@ const UserList = () => {
   const { data, isFetching, isLoading, error, refetch } = useGetUsersQuery({ ...params, cursor: pager.cursor, limit: pageSize })
   const agents = useListAgentsQuery(
     { include_inactive: false },
-    { skip: role !== 'admin' }
+    { skip: role !== 'admin' },
   )
+
+  const activeFilterCount = (q ? 1 : 0) + (role === 'admin' && agentId ? 1 : 0)
+
+  const clearFilters = () => {
+    setQ('')
+    setAgentId('')
+  }
 
   const handleExport = () => {
     const rows = (data?.items ?? []).map((u) => ({
@@ -80,7 +87,8 @@ const UserList = () => {
     downloadCsv(csvFilename('users'), rows)
   }
 
-  const columns = useMemo<ColumnDef<User>[]>(() => [    {
+  const columns = useMemo<ColumnDef<User>[]>(() => [
+    {
       accessorKey: 'full_name',
       header: ({ column }) => <SortableHeader column={column}>Name</SortableHeader>,
       cell: ({ row }) => row.original.full_name ?? '-',
@@ -97,64 +105,136 @@ const UserList = () => {
     },
     {
       header: 'Assigned Agent',
-      cell: ({ row }) => row.original.agent?.user?.full_name ?? '-',
+      cell: ({ row }) =>
+        row.original.agent?.name
+        ?? row.original.agent?.user?.full_name
+        ?? '-',
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <Badge variant={row.original.is_active ? 'default' : 'secondary'}>
+          {row.original.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
     },
     {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <Link className="text-blue-600 dark:text-blue-400 hover:underline" to={`/users/${row.original.id}`}>
-          View
-        </Link>
+        <Button variant="outline" size="sm" asChild>
+          <Link to={`/users/${row.original.id}`}>View</Link>
+        </Button>
       ),
     },
   ], [])
 
-  return (
-    <Card>
-      <div className="mb-4 grid gap-3 md:grid-cols-5">
+  const filterControls = (
+    <>
+      <FilterSection label="Search">
         <Input placeholder="Search name, phone, email" value={q} onChange={(e) => setQ(e.target.value)} />
-        {role === 'admin' && (
+      </FilterSection>
+      {role === 'admin' && (
+        <FilterSection label="Agent">
           <Combobox
-            items={[{ value: '', label: 'All Agents' }, ...(agents.data?.items || []).map((a) => ({ value: a.id, label: a.name }))]}
+            items={[{ value: '', label: 'All Agents' }, ...(agents.data?.items ?? []).map((a) => ({ value: a.id, label: a.name || `Agent #${a.id}` }))]}
             value={agentId}
             onChange={(v) => setAgentId(v !== '' ? Number(v) : '')}
             placeholder="Filter agents…"
           />
-        )}
-        <div>
+        </FilterSection>
+      )}
+      <FilterSection label="Rows per page">
+        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)) }}>
+          <SelectTrigger><SelectValue placeholder="Rows" /></SelectTrigger>
+          <SelectContent>
+            {[10, 20, 50].map((n) => (<SelectItem key={n} value={String(n)}>{n} / page</SelectItem>))}
+          </SelectContent>
+        </Select>
+      </FilterSection>
+    </>
+  )
+
+  const renderCard = (user: User) => (
+    <Card className="p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-medium truncate">{user.full_name || `User #${user.id}`}</div>
+          <div className="text-sm text-muted-foreground truncate">{user.phone || user.email || '—'}</div>
+        </div>
+        <Badge variant={user.is_active ? 'default' : 'secondary'} className="shrink-0">
+          {user.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        Agent: {user.agent?.name ?? user.agent?.user?.full_name ?? '—'}
+      </div>
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" asChild>
+          <Link to={`/users/${user.id}`}>View</Link>
+        </Button>
+      </div>
+    </Card>
+  )
+
+  return (
+    <Card className="p-4 md:p-6">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="hidden md:grid md:flex-1 gap-3 md:grid-cols-4">
+          <Input placeholder="Search name, phone, email" value={q} onChange={(e) => setQ(e.target.value)} />
+          {role === 'admin' && (
+            <Combobox
+              items={[{ value: '', label: 'All Agents' }, ...(agents.data?.items ?? []).map((a) => ({ value: a.id, label: a.name || `Agent #${a.id}` }))]}
+              value={agentId}
+              onChange={(v) => setAgentId(v !== '' ? Number(v) : '')}
+              placeholder="Filter agents…"
+            />
+          )}
           <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)) }}>
             <SelectTrigger><SelectValue placeholder="Rows" /></SelectTrigger>
             <SelectContent>
-              {[10,20,50].map(n => (<SelectItem key={n} value={String(n)}>{n} / page</SelectItem>))}
+              {[10, 20, 50].map((n) => (<SelectItem key={n} value={String(n)}>{n} / page</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={isFetching || isLoading} className="gap-2 justify-self-start md:justify-self-end">
+        <div className="md:hidden">
+          <MobileFilters activeCount={activeFilterCount} onClear={clearFilters} title="User filters">
+            {filterControls}
+          </MobileFilters>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={isFetching || isLoading} className="gap-2 ml-auto">
           <Download className="h-4 w-4" />Export
         </Button>
       </div>
       {error ? (
-        <ErrorState title="Failed to load users" onRetry={() => { void refetch() }} />
-      ) : isLoading ? (
-        <LoadingState type="card" rows={5} />
-      ) : (!isFetching && (!data?.items || data.items.length === 0)) ? (
+        <ErrorState title="Failed to load users" error={error} onRetry={() => { void refetch() }} />
+      ) : isLoading || (isFetching && !data) ? (
+        <LoadingState type={isMobile ? 'cards' : 'table'} rows={5} />
+      ) : (!data?.items || data.items.length === 0) ? (
         <EmptyState
           title="No users found"
           description={q || agentId ? 'Try adjusting search or filters.' : 'Users will appear here once available.'}
           action={{ label: 'Refresh', onClick: () => { void refetch() }, variant: 'outline' }}
         />
       ) : (
-        <>
-          <DataTable columns={columns} data={data?.items || []} enableSorting />
+        <div className="space-y-4">
+          <ResponsiveDataTable
+            columns={columns}
+            data={data.items}
+            enableSorting
+            mobileCardRender={renderCard}
+            viewStorageKey="users-table"
+          />
           <CursorPager
             canPrev={pager.canPrev}
-            hasMore={data?.has_more ?? false}
+            hasMore={data.has_more ?? false}
+            nextCursor={data.next_cursor}
             loading={isFetching}
             onPrev={pager.prev}
-            onNext={() => data && pager.next(data.next_cursor)}
+            onNext={() => pager.next(data.next_cursor)}
           />
-        </>
+        </div>
       )}
     </Card>
   )

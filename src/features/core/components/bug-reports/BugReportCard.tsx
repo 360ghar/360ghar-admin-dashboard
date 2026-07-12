@@ -3,9 +3,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { format, parseISO } from 'date-fns'
 import { Edit, FileText } from 'lucide-react'
 import type { BugReport, BugReportUpdate } from '@/types/api'
+import { formatDateTime } from '@/lib/format'
 import { BugReportUpdateForm } from './BugReportUpdateForm'
 
 const severityColors: Record<string, string> = {
@@ -34,7 +34,7 @@ const BugReportCard: React.FC<BugReportCardProps> = ({ bugReport, onUpdate, show
   const [showDetails, setShowDetails] = useState(false)
 
   return (
-    <Card className="transition-all hover:shadow-md">
+    <Card className="transition-colors hover:border-cohere-hairline">
       <CardContent className="pt-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
@@ -153,7 +153,7 @@ const BugReportCard: React.FC<BugReportCardProps> = ({ bugReport, onUpdate, show
                   <div>
                     <span className="text-muted-foreground">Created:</span>
                     <p className="font-medium">
-                      {format(parseISO(bugReport.created_at), 'MMM dd, yyyy HH:mm')}
+                      {formatDateTime(bugReport.created_at) || '—'}
                     </p>
                   </div>
                   {bugReport.assigned_to && (

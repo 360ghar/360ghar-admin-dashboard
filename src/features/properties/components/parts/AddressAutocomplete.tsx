@@ -48,12 +48,17 @@ const AddressAutocomplete = ({ value = '', onSelect }: { value?: string; onSelec
       setLoading(true)
       try {
         const res = await fetchPlaces(q, controller.signal)
-        setList(res)
+        if (!controller.signal.aborted) {
+          setList(res)
+          setFetchError(null)
+        }
       } catch (e) {
+        // AbortError is expected when the query changes mid-flight — ignore it.
+        if (controller.signal.aborted || (e instanceof DOMException && e.name === 'AbortError')) return
         setFetchError('Failed to fetch addresses. Please try again.')
         setList([])
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
     const t = setTimeout(() => { void run() }, 300)

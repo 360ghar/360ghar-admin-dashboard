@@ -6,7 +6,7 @@ export interface PropertyResponse {
   id: number
   title: string
   description?: string
-  property_type: 'house' | 'apartment' | 'builder_floor' | 'room'
+  property_type: 'house' | 'apartment' | 'builder_floor' | 'room' | 'villa' | 'plot' | 'condo' | 'penthouse' | 'studio' | 'loft' | 'pg' | 'flatmate' | 'office' | 'shop' | 'warehouse'
   purpose: 'buy' | 'rent' | 'short_stay'
   base_price: number
   latitude?: number
@@ -133,7 +133,7 @@ export const propertiesApi = api.injectEndpoints({
     // Search properties with comprehensive filtering
     searchProperties: builder.query<PaginatedPropertyResponse, PropertySearchParams>({
       query: (params) => ({
-        url: '/properties/',
+        url: '/properties',
         params: toSearchParams(params)
       }),
       providesTags: (res) =>
@@ -153,7 +153,7 @@ export const propertiesApi = api.injectEndpoints({
 
     createProperty: builder.mutation<PropertyResponse, { data: PropertyCreate; ownerId?: number }>({
       query: ({ data, ownerId }) => ({
-        url: '/properties/',
+        url: '/properties',
         method: 'POST',
         params: ownerId ? { owner_id: ownerId } : undefined,
         body: data
@@ -172,7 +172,7 @@ export const propertiesApi = api.injectEndpoints({
 
     deleteProperty: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/properties/${id}/`,
+        url: `/properties/${id}`,
         method: 'DELETE'
       }),
       invalidatesTags: (_res, _e, id) => [{ type: 'Property', id }, { type: 'Property', id: 'LIST' }],
@@ -181,7 +181,7 @@ export const propertiesApi = api.injectEndpoints({
     // Get property recommendations (uniform cursor-paginated shape)
     getRecommendations: builder.query<PaginatedPropertyResponse, { limit?: number; cursor?: string | null }>({
       query: (params) => ({
-        url: '/properties/recommendations/',
+        url: '/properties/recommendations',
         params: { limit: 10, ...params }
       }),
       providesTags: [{ type: 'Property', id: 'RECOMMENDATIONS' }],

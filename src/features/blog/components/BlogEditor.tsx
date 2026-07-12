@@ -16,6 +16,7 @@ import { blogPostSchema, type BlogPostForm } from '@/lib/blogValidation'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
+import { localInputToServerTimestamp } from '@/lib/dateTime'
 import type { BlogCategory, BlogTag } from '@/types/blog'
 
 const BlogEditor = ({ onSuccess }: { onSuccess?: (slug: string) => void }) => {
@@ -58,7 +59,11 @@ const BlogEditor = ({ onSuccess }: { onSuccess?: (slug: string) => void }) => {
         categories: values.categories?.length ? values.categories : undefined,
         tags: values.tags?.length ? values.tags : undefined,
         status: values.status,
-        scheduled_at: values.status === 'scheduled' ? values.scheduled_at || undefined : undefined,
+        // Convert datetime-local to ISO for the API (matches BlogEdit).
+        scheduled_at:
+          values.status === 'scheduled'
+            ? localInputToServerTimestamp(values.scheduled_at ?? '')
+            : undefined,
       }
 
       const res = await createBlogPost(payload).unwrap()
@@ -71,12 +76,12 @@ const BlogEditor = ({ onSuccess }: { onSuccess?: (slug: string) => void }) => {
   }
 
   // Prepare category and tag options for multi-select
-  const categoryOptions = categoriesData?.items.map((cat: BlogCategory) => ({
+  const categoryOptions = categoriesData?.items?.map((cat: BlogCategory) => ({
     value: cat.slug,
     label: cat.name,
   })) || []
 
-  const tagOptions = tagsData?.items.map((tag: BlogTag) => ({
+  const tagOptions = tagsData?.items?.map((tag: BlogTag) => ({
     value: tag.slug,
     label: tag.name,
   })) || []

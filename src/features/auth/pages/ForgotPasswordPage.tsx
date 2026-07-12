@@ -18,6 +18,10 @@ import {
   requireSupabase,
   type IdentifierChannel,
 } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { isLoginInProgress } from '@/lib/loginState'
+import { useAppDispatch } from '@/hooks/redux'
+import { clearCredentials } from '@/features/auth/slices/authSlice'
 import { maskIdentifier } from '@/lib/lastAuthMethod'
 import { useResendTimer } from '@/hooks/useResendTimer'
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout'
@@ -38,6 +42,7 @@ type Step = 'identifier' | 'otp' | 'password'
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
 
   const [step, setStep] = useState<Step>('identifier')
   const [channel, setChannel] = useState<IdentifierChannel>('phone')
@@ -52,12 +57,13 @@ export default function ForgotPasswordPage() {
   const resendTimer = useResendTimer()
   const navigateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Clean up pending navigation timer on unmount.
+  // Clean up pending navigation timer + release the login race flag on unmount.
   useEffect(() => {
     return () => {
       if (navigateTimerRef.current !== null) {
         clearTimeout(navigateTimerRef.current)
       }
+      isLoginInProgress.current = false
     }
   }, [])
 
@@ -75,6 +81,11 @@ export default function ForgotPasswordPage() {
   })
 
   const backToIdentifier = () => {
+    // OTP verify may have created a live Supabase session — tear it down so
+    // App.tsx does not treat the user as signed in after abandoning the flow.
+    isLoginInProgress.current = false
+    dispatch(clearCredentials())
+    if (supabase) void supabase.auth.signOut()
     setStep('identifier')
     setErrorMessage(null)
     setInfoMessage(null)
@@ -123,7 +134,7 @@ export default function ForgotPasswordPage() {
       otpForm.reset()
       setStep('otp')
     } catch (err) {
-      setErrorMessage(mapSupabaseAuthError(err))
+      setErrorMessage(mapSupabaseAuthError(err, 'forgot_password'))
     } finally {
       setIsSubmitting(false)
     }
@@ -133,6 +144,9 @@ export default function ForgotPasswordPage() {
     const sb = requireSupabase()
     setErrorMessage(null)
     setIsSubmitting(true)
+    // Prevent App.tsx SIGNED_IN from auto-logging the user in mid-reset.
+    isLoginInProgress.current = true
+    let holdLoginFlag = false
     try {
       const result =
         channel === 'email'
@@ -145,10 +159,14 @@ export default function ForgotPasswordPage() {
       passwordForm.reset()
       setInfoMessage(null)
       setStep('password')
+      holdLoginFlag = true
     } catch (err) {
-      setErrorMessage(mapSupabaseAuthError(err))
+      setErrorMessage(mapSupabaseAuthError(err, 'otp'))
     } finally {
       setIsSubmitting(false)
+      if (!holdLoginFlag) {
+        isLoginInProgress.current = false
+      }
     }
   }
 
@@ -159,12 +177,24 @@ export default function ForgotPasswordPage() {
     try {
       const { error } = await sb.auth.updateUser({ password: values.password })
       if (error) throw error
+      // End the recovery session so the user must explicitly sign in with the
+      // new password (and so Redux does not retain a half-baked login).
+      try {
+        await sb.auth.signOut()
+      } catch {
+        /* best-effort */
+      }
+      dispatch(clearCredentials())
+      isLoginInProgress.current = false
       setInfoMessage('Your password has been updated. You can now sign in.')
       navigateTimerRef.current = setTimeout(() => {
-        navigate('/login', { replace: true })
+        navigate('/login', {
+          replace: true,
+          state: { info: 'Your password has been updated. You can now sign in.' },
+        })
       }, 1200)
     } catch (err) {
-      setErrorMessage(mapSupabaseAuthError(err))
+      setErrorMessage(mapSupabaseAuthError(err, 'forgot_password'))
     } finally {
       setIsSubmitting(false)
     }
@@ -341,6 +371,7 @@ export default function ForgotPasswordPage() {
                           />
                           <button
                             type="button"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => setShowPassword(!showPassword)}
                           >

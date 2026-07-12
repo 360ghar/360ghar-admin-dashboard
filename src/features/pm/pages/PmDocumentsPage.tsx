@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FolderOpen, Trash2 } from "lucide-react";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
@@ -11,8 +11,7 @@ import type { Document, DocumentType } from "@/types/pm";
 import {
   useListPmDocumentsQuery,
   useUpdatePmDocumentMutation,
-  useDeletePmDocumentMutation,
-} from "@/features/pm/api/pmApi";
+  useDeletePmDocumentMutation} from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,8 +29,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -46,9 +44,8 @@ export default function PmDocumentsPage() {
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentType | "">("");
   const [limit, setLimit] = useState(50);
 
-  const pager = useCursorPagination();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { pager.reset() }, [pager.reset, docTypeFilter, limit]);
+  const pager = useCursorPagination(`${docTypeFilter}|${limit}`);
+
 
   const docs = useListPmDocumentsQuery(
     { owner_id: ownerId, document_type: docTypeFilter || undefined, limit, cursor: pager.cursor },
@@ -68,8 +65,7 @@ export default function PmDocumentsPage() {
             <div className="truncate font-medium">{row.original.title}</div>
             <div className="truncate text-xs text-muted-foreground">{row.original.document_type} • Doc #{row.original.id}</div>
           </div>
-        ),
-      },
+        )},
       {
         id: "linked",
         header: "Linked",
@@ -79,8 +75,7 @@ export default function PmDocumentsPage() {
             {row.original.lease_id ? `L#${row.original.lease_id} ` : ""}
             {row.original.user_id ? `U#${row.original.user_id} ` : ""}
           </div>
-        ),
-      },
+        )},
       {
         id: "sharing",
         header: "Sharing",
@@ -89,8 +84,7 @@ export default function PmDocumentsPage() {
             <Badge variant={row.original.shared_with_agent ? "default" : "outline"}>agent</Badge>
             <Badge variant={row.original.shared_with_tenant ? "default" : "outline"}>tenant</Badge>
           </div>
-        ),
-      },
+        )},
       {
         id: "actions",
         header: "",
@@ -144,8 +138,7 @@ export default function PmDocumentsPage() {
               )}
             </ConfirmAlertDialog>
           </div>
-        ),
-      },
+        )},
     ];
   }, [toast, updateDoc, updateDocState.isLoading, deleteDoc, deleteDocState.isLoading]);
 

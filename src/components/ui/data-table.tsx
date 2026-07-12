@@ -41,11 +41,13 @@ interface DataTableProps<TData, TValue> {
 /** Render a sortable column header with direction indicator. */
 export function SortableHeader({ column, children, className }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => false | SortDirection }; children: ReactNode; className?: string }) {
   const sorted = column.getIsSorted()
+  const ariaSort = sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
   return (
     <button
       type="button"
       onClick={() => column.toggleSorting()}
       className={cn('inline-flex items-center gap-1 hover:opacity-80', className)}
+      aria-sort={ariaSort}
     >
       {children}
       {sorted === 'asc' ? <ArrowUp className="h-3 w-3" /> : sorted === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3 opacity-50" />}

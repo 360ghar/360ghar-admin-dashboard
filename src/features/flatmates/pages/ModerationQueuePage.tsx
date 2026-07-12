@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { ModerationActionDialog } from '../components/ModerationActionDialog'
@@ -23,7 +23,7 @@ export function ModerationQueuePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const pager = useCursorPagination()
-  const { data, isLoading, error } = useGetPendingListingsQuery({
+  const { data, isLoading, error, refetch } = useGetPendingListingsQuery({
     status: 'pending_review',
     cursor: pager.cursor,
     limit: 20,
@@ -33,6 +33,8 @@ export function ModerationQueuePage() {
 
   const handleModerate = (listing: FlatmatesListing) => {
     setSelectedListing(listing)
+    setAction('approve')
+    setReason('')
     setIsDialogOpen(true)
   }
 
@@ -45,12 +47,13 @@ export function ModerationQueuePage() {
       }).unwrap()
       toast({ title: 'Listing moderated successfully' })
       setIsDialogOpen(false)
+      setSelectedListing(null)
       setAction('approve')
       setReason('')
     } catch (err) {
       toast({
         title: 'Failed to moderate listing',
-        description: getErrorMessage(err),
+        description: getErrorMessage(err, 'Failed to moderate listing'),
         variant: 'destructive',
       })
     }
@@ -66,20 +69,15 @@ export function ModerationQueuePage() {
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <h2 className="text-2xl font-bold">Error Loading Queue</h2>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">
-            {getErrorMessage(error, 'Failed to load moderation queue')}
-          </p>
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Failed to load moderation queue"
+        error={error}
+        onRetry={() => { void refetch() }}
+      />
     )
   }
 
-  const listings = data?.items || []
+  const listings = data?.items ?? []
 
   return (
     <div className="space-y-6">
@@ -91,7 +89,7 @@ export function ModerationQueuePage() {
           </p>
         </div>
         <Badge variant="secondary" className="text-lg px-4 py-2">
-          {listings.length} Pending
+          {listings.length} on this page
         </Badge>
       </div>
 

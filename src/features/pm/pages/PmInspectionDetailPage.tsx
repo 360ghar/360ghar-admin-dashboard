@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 
 export default function PmInspectionDetailPage() {
   const { inspectionId } = useParams()
@@ -26,6 +28,16 @@ export default function PmInspectionDetailPage() {
 
   if (!inspectionIdNum || Number.isNaN(inspectionIdNum)) {
     return <EmptyState title="Invalid inspection id" />
+  }
+
+  if (inspection.isError) {
+    return (
+      <ErrorState
+        title="Failed to load inspection"
+        error={inspection.error}
+        onRetry={() => { void inspection.refetch() }}
+      />
+    )
   }
 
   if (inspection.isLoading) {
@@ -63,20 +75,20 @@ export default function PmInspectionDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {`Inspection #${inspection.data?.id ?? inspectionIdNum}`}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Lease #{inspection.data?.lease_id} • Property #{inspection.data?.property_id}
-          </p>
-        </div>
-        <Badge variant="secondary" className="h-fit">
-          <ClipboardCheck className="mr-1 h-3 w-3" />
-          {inspection.data?.inspection_type || '—'}
-        </Badge>
-      </div>
+      <PageHeader
+        title={`Inspection #${inspection.data?.id ?? inspectionIdNum}`}
+        description={`Lease #${inspection.data?.lease_id} • Property #${inspection.data?.property_id}`}
+        breadcrumbs={[
+          { label: 'Inspections', to: '/pm/inspections' },
+          { label: `Inspection #${inspection.data?.id ?? inspectionIdNum}` },
+        ]}
+        actions={
+          <Badge variant="secondary" className="h-fit">
+            <ClipboardCheck className="mr-1 h-3 w-3" />
+            {inspection.data?.inspection_type || '—'}
+          </Badge>
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

@@ -93,8 +93,19 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
     }
   }
 
+  const handleOpenChange = (open: boolean) => {
+    setCreateOpen(open)
+    if (!open) {
+      setTitle('Rental Application')
+      setDescription('')
+      setPropertyId('')
+      setApplicationFeeAmount('')
+      setQuestionsJson('{}')
+    }
+  }
+
   return (
-    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+    <Dialog open={createOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -128,11 +139,17 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>
-                {(properties.data?.items ?? []).map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    #{p.id} • {p.title}
-                  </SelectItem>
-                ))}
+                {properties.isLoading ? (
+                  <SelectItem value="loading" disabled>Loading properties…</SelectItem>
+                ) : properties.isError ? (
+                  <SelectItem value="error" disabled>Failed to load properties</SelectItem>
+                ) : (
+                  (properties.data?.items ?? []).map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      #{p.id} • {p.title}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

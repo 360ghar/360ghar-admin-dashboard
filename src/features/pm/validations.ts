@@ -3,7 +3,10 @@ import { VALIDATION } from './constants'
 
 export const pmPropertyCreateSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  property_type: z.enum(['apartment', 'house', 'builder_floor', 'room']),
+  property_type: z.enum([
+    'house', 'apartment', 'builder_floor', 'room', 'villa', 'plot', 'condo',
+    'penthouse', 'studio', 'loft', 'pg', 'flatmate', 'office', 'shop', 'warehouse',
+  ]),
   purpose: z.enum(['rent', 'buy', 'short_stay']),
   base_price: z
     .string()

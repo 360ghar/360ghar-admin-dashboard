@@ -26,7 +26,7 @@ export const usersApi = api.injectEndpoints({
     // List users with cursor pagination and search
     getUsers: builder.query<PaginatedResponse<User>, UsersQuery>({
       query: (params) => ({
-        url: '/users/',
+        url: '/users',
         params: { limit: 20, ...params }
       }),
       providesTags: (res) =>
@@ -40,14 +40,14 @@ export const usersApi = api.injectEndpoints({
 
     // Get user details
     getUser: builder.query<User, number>({
-      query: (id) => `/users/${id}/`,
+      query: (id) => `/users/${id}`,
       providesTags: (res, _e, id) => [{ type: 'User', id }],
     }),
 
     // Update user
     updateUser: builder.mutation<User, { id: number; data: Partial<UserUpdate> }>({
       query: ({ id, data }) => ({
-        url: `/users/${id}/`,
+        url: `/users/${id}`,
         method: 'PUT',
         body: data
       }),
@@ -57,23 +57,28 @@ export const usersApi = api.injectEndpoints({
     // Assign agent to user
     assignAgent: builder.mutation<void, { userId: number; agentId: number }>({
       query: ({ userId, agentId }) => ({
-        url: `/users/${userId}/assign-agent/`,
+        url: `/users/${userId}/assign-agent`,
         method: 'POST',
         body: { agent_id: agentId }
       }),
-      invalidatesTags: (_res, _e, { userId }) => [{ type: 'User', id: userId }, { type: 'User', id: 'LIST' }],
+      invalidatesTags: (_res, _e, { userId, agentId }) => [
+        { type: 'User', id: userId },
+        { type: 'User', id: 'LIST' },
+        { type: 'Agent', id: agentId },
+        { type: 'Agent', id: 'LIST' },
+      ],
     }),
 
     // Get current user's profile
     getProfile: builder.query<User, void>({
-      query: () => '/users/profile/',
+      query: () => '/users/profile',
       providesTags: [{type: 'User' as const, id: 'PROFILE'}],
     }),
 
     // Update current user's profile
     updateProfile: builder.mutation<User, Partial<UserUpdate>>({
       query: (data) => ({
-        url: '/users/profile/',
+        url: '/users/profile',
         method: 'PUT',
         body: data
       }),
@@ -83,7 +88,7 @@ export const usersApi = api.injectEndpoints({
     // Update user preferences
     updatePreferences: builder.mutation<void, UserPreferences>({
       query: (data) => ({
-        url: '/users/preferences/',
+        url: '/users/preferences',
         method: 'PUT',
         body: data
       }),
@@ -93,7 +98,7 @@ export const usersApi = api.injectEndpoints({
     // Update user location
     updateLocation: builder.mutation<void, { latitude: number; longitude: number }>({
       query: (data) => ({
-        url: '/users/location/',
+        url: '/users/location',
         method: 'PUT',
         body: data
       }),
@@ -102,13 +107,13 @@ export const usersApi = api.injectEndpoints({
 
     // Notification settings
     getNotificationSettings: builder.query<UserNotificationSettings, void>({
-      query: () => '/users/notification-settings/',
+      query: () => '/users/notification-settings',
       providesTags: [{type: 'User', id: 'NOTIFICATION_SETTINGS'}],
     }),
 
     updateNotificationSettings: builder.mutation<void, UserNotificationSettings>({
       query: (data) => ({
-        url: '/users/notification-settings/',
+        url: '/users/notification-settings',
         method: 'PUT',
         body: data,
       }),
@@ -117,7 +122,7 @@ export const usersApi = api.injectEndpoints({
 
     updateNotificationsCompat: builder.mutation<void, Record<string, unknown>>({
       query: (data) => ({
-        url: '/users/notifications/',
+        url: '/users/notifications',
         method: 'PUT',
         body: data,
       }),
@@ -126,13 +131,13 @@ export const usersApi = api.injectEndpoints({
 
     // Privacy settings
     getPrivacySettings: builder.query<UserPrivacySettings, void>({
-      query: () => '/users/privacy-settings/',
+      query: () => '/users/privacy-settings',
       providesTags: [{type: 'User', id: 'PRIVACY_SETTINGS'}],
     }),
 
     updatePrivacySettings: builder.mutation<void, UserPrivacySettings>({
       query: (data) => ({
-        url: '/users/privacy-settings/',
+        url: '/users/privacy-settings',
         method: 'PUT',
         body: data,
       }),
@@ -141,7 +146,7 @@ export const usersApi = api.injectEndpoints({
 
     updatePrivacyCompat: builder.mutation<void, Record<string, unknown>>({
       query: (data) => ({
-        url: '/users/privacy/',
+        url: '/users/privacy',
         method: 'PUT',
         body: data,
       }),
