@@ -10,6 +10,7 @@ import { User, Settings, LogOut, Search } from 'lucide-react'
 import { ModeToggle } from '@/components/common/mode-toggle'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import NotificationCenter from '@/features/core/components/notifications/NotificationCenter'
+import { HealthIndicator } from '@/components/common/HealthIndicator'
 import { supabase } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
 
@@ -75,6 +76,7 @@ const TopBar = () => {
         </Button>
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
         <NotificationCenter />
+        <HealthIndicator />
         <ModeToggle />
         {/* User Menu */}
         <DropdownMenu>

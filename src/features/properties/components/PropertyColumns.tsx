@@ -12,7 +12,7 @@ import {
 import { Link } from 'react-router-dom'
 import { Eye, Edit, Trash2, MapPin, Bed, Bath, Square, MoreHorizontal, Check } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import type { PropertyResponse } from '@/features/properties/api/propertiesApi'
+import type { Property } from '@/features/properties/api/propertiesApi'
 import type { PropertyStatus } from '@/types/pm'
 import { formatCurrency } from '@/lib/format'
 import { SortableHeader } from '@/components/ui/data-table'
@@ -55,7 +55,7 @@ function StatusMenuItems({
   )
 }
 
-const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): ColumnDef<PropertyResponse>[] => [
+const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): ColumnDef<Property>[] => [
   {
     accessorKey: 'id',
     header: 'ID',
@@ -147,7 +147,7 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
 export { PropertyColumns }
 
 // Mobile card renderer for properties
-const renderPropertyCard = (property: PropertyResponse, setConfirmId: (id: number | null) => void) => (
+const renderPropertyCard = (property: Property, setConfirmId: (id: number | null) => void) => (
   <Card className="p-4 hover:bg-muted/50 transition-colors">
     <div className="flex gap-3">
       <div className="w-24 h-24 flex-shrink-0 rounded-cohere-sm overflow-hidden bg-muted">

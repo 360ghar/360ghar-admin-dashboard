@@ -91,6 +91,33 @@ export function buildActivityTrend(
   return buckets
 }
 
+export interface StatusQueryLike<T> {
+  data?: { total?: number; items?: T[] } | null
+  isLoading: boolean
+  isError: boolean
+}
+
+/**
+ * Contract: every status query is issued with `include_total: true` and the
+ * backend returns the exact count in `total`. The `items.length` fallback
+ * keeps a non-compliant backend from crashing the UI, but the caller should
+ * treat a missing `total` as a contract violation (see useDashboardData).
+ */
+export function computeStatusBreakdown<T>(queries: ReadonlyArray<StatusQueryLike<T>>): {
+  totals: number[]
+  isLoading: boolean
+  isError: boolean
+} {
+  const totals = queries.map((q) => q.data?.total ?? q.data?.items?.length ?? 0)
+  return {
+    totals,
+    // Surface an error if ANY status query failed — otherwise a single failed
+    // query is counted as 0 and silently corrupts the totals/percentages.
+    isLoading: queries.some((q) => q.isLoading),
+    isError: queries.some((q) => q.isError),
+  }
+}
+
 /** Sort newest-first by timestamp and cap to `limit`. */
 export function mergeActivity(entries: ActivityEntry[], limit = 8): ActivityEntry[] {
   return [...entries]

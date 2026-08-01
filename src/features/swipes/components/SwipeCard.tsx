@@ -4,14 +4,14 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MapPin, Bed, Bath, Square, X, Heart, Info, ImageIcon, Loader2 } from 'lucide-react'
-import { PropertyResponse } from '@/features/properties/api/propertiesApi'
+import { Property } from '@/features/properties/api/propertiesApi'
 import { formatCurrency } from '@/lib/format'
 import { getPropertyStatusColor } from '@/lib/statusColors'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 interface SwipeCardProps {
-  property: PropertyResponse
+  property: Property
   /** Resolves on success; rejects (or throws) on failure so the card can stay put. */
   onSwipe: (direction: 'left' | 'right') => Promise<void>
 }

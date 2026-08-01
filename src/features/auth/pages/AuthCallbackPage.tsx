@@ -4,7 +4,7 @@ import { useAppDispatch } from '@/hooks/redux'
 import { setCredentials, setError } from '@/features/auth/slices/authSlice'
 import { supabase } from '@/lib/supabase'
 import {
-  fetchUserProfileWithToken,
+  fetchUserProfileWithStatus,
   isAllowedGoogleEmail,
   recordLastAuthMethod,
 } from '@/lib/auth'
@@ -93,11 +93,17 @@ export default function AuthCallbackPage() {
         }
 
         const accessToken = session.access_token
-        const user = await fetchUserProfileWithToken(accessToken)
+        const { user, status } = await fetchUserProfileWithStatus(accessToken)
         if (!user) {
-          // No backend profile -> not a provisioned staff member.
-          try { await client.auth.signOut() } catch { /* best-effort signout */ }
-          failTo('Your account is not authorized for the admin portal.')
+          if (status === 404) {
+            // No backend profile -> not a provisioned staff member.
+            try { await client.auth.signOut() } catch { /* best-effort signout */ }
+            failTo('Your account is not authorized for the admin portal.')
+          } else {
+            // Transient failure — keep the Supabase session (App.tsx may retry
+            // the profile fetch) and surface a retryable message.
+            failTo('Could not verify your account. Please try again.')
+          }
           return
         }
 

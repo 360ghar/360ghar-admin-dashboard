@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidJson } from '@/lib/json'
 
 // Bug report form validation schema
 export const bugReportSchema = z.object({
@@ -60,12 +61,8 @@ export const cmsPageSchema = z.object({
   is_active: z.boolean(),
   is_draft: z.boolean(),
 }).superRefine((data, ctx) => {
-  if (data.custom_config_text) {
-    try {
-      JSON.parse(data.custom_config_text)
-    } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON', path: ['custom_config_text'] })
-    }
+  if (data.custom_config_text && !isValidJson(data.custom_config_text)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON', path: ['custom_config_text'] })
   }
 })
 

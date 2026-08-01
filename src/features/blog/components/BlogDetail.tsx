@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { useDeleteBlogPostMutation, useGetBlogPostQuery, useUpdateBlogPostMutation } from '@/features/blog/api/blogsApi'
-import { getErrorMessage } from '@/lib/errors'
+import { getErrorMessage, isApiError } from '@/lib/errors'
 import { formatDateTime } from '@/lib/format'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { SanitizedHtml } from '@/components/ui/sanitized-html'
@@ -19,9 +19,8 @@ import { resolveBlogStatus, blogStatusBadgeClass, blogStatusLabel } from '@/feat
 import type { BlogPostStatus } from '@/types/blog'
 
 const getErrorStatus = (error: unknown) => {
-  if (!error || typeof error !== 'object') return undefined
-  const status = (error as { status?: unknown }).status
-  return typeof status === 'number' ? status : undefined
+  if (!isApiError(error)) return undefined
+  return typeof error.status === 'number' ? error.status : undefined
 }
 
 const isProbablyHtml = (content: string) => {

@@ -62,18 +62,32 @@ const ImageUpload = ({ folder = 'properties', value = [], onChange, multiple = t
     setUploading(true)
     setProgress({ done: 0, total: valid.length })
     const urls: string[] = []
-    let failed = false
+    const CONCURRENCY = 3
     try {
-      for (const file of valid) {
+      const uploadOne = async (file: File): Promise<string | null> => {
         const fd = new FormData()
         fd.append('file', file)
         if (folder) fd.append('folder', folder)
-        const res = await uploadFile(fd).unwrap()
-        urls.push(res.public_url)
-        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p))
+        try {
+          const res = await uploadFile(fd).unwrap()
+          return res.public_url
+        } catch {
+          return null
+        }
+      }
+
+      // Upload batches of CONCURRENCY at a time so large batches don't starve
+      // the network, but partial failures within a batch don't discard files
+      // that already made it to storage.
+      for (let i = 0; i < valid.length; i += CONCURRENCY) {
+        const batch = valid.slice(i, i + CONCURRENCY)
+        const results = await Promise.all(batch.map(uploadOne))
+        for (const url of results) {
+          if (url) urls.push(url)
+        }
+        setProgress({ done: urls.length, total: valid.length })
       }
     } catch (e: unknown) {
-      failed = true
       toast({
         title: 'Upload failed',
         description: getErrorMessage(e, 'Please try again or check your connection.'),
@@ -83,8 +97,12 @@ const ImageUpload = ({ folder = 'properties', value = [], onChange, multiple = t
       // Always commit whatever uploaded successfully so a mid-batch failure
       // doesn't discard (and orphan) files that already made it to storage.
       if (urls.length) onChange?.([...(value || []), ...urls])
-      if (!failed && urls.length) {
+      if (urls.length === valid.length) {
         toast({ title: 'Upload complete', description: `${urls.length} image${urls.length > 1 ? 's' : ''} uploaded.` })
+      } else if (urls.length > 0) {
+        toast({ title: 'Upload partial', description: `${urls.length} of ${valid.length} uploaded. Some files failed.`, variant: 'destructive' })
+      } else {
+        toast({ title: 'Upload failed', description: 'None of the selected files could be uploaded. Please try again.', variant: 'destructive' })
       }
       setUploading(false)
       setProgress(null)

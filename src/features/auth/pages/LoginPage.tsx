@@ -22,7 +22,7 @@ import {
   UNVERIFIED_ACCOUNT_MESSAGE,
 } from '@/lib/authErrors'
 import {
-  fetchUserProfileWithToken,
+  fetchUserProfileWithStatus,
   signInWithGoogle as startGoogleSignIn,
   checkIdentifierStatus,
   recordLastAuthMethod,
@@ -191,9 +191,13 @@ const LoginPage = () => {
   const finishLogin = async (accessToken: string, method: AuthMethod) => {
     isLoginInProgress.current = true
     try {
-      const user = await fetchUserProfileWithToken(accessToken)
+      const { user, status } = await fetchUserProfileWithStatus(accessToken)
       if (!user) {
-        throw new Error('Signed in, but your account is not authorized for the admin portal.')
+        throw new Error(
+          status === 404
+            ? 'Signed in, but your account is not authorized for the admin portal.'
+            : 'Could not verify your account. Please try again.',
+        )
       }
       dispatch(setCredentials({ token: accessToken, user }))
       setLastAuthMethod(method, displayIdentifier || normalized)

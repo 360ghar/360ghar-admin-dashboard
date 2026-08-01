@@ -4,5 +4,11 @@ set -e
 echo "Running TypeScript typecheck..."
 npm run -s typecheck
 
+echo "Running test typecheck..."
+npm run -s typecheck:tests
+
 echo "Running ESLint..."
 npm run -s lint
+
+echo "Running unit tests..."
+npm run -s test

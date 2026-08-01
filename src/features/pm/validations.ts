@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidJson } from '@/lib/json'
 import { VALIDATION } from './constants'
 
 export const pmPropertyCreateSchema = z.object({
@@ -38,15 +39,7 @@ export const pmPropertyCreateSchema = z.object({
     ),
   late_fee_policy_json: z
     .string()
-    .refine((v) => {
-      if (!v) return true
-      try {
-        JSON.parse(v)
-        return true
-      } catch {
-        return false
-      }
-    }, 'Late fee policy must be valid JSON'),
+    .refine((v) => !v || isValidJson(v), 'Late fee policy must be valid JSON'),
 })
 
 export const pmPropertySettingsSchema = z.object({
@@ -73,15 +66,7 @@ export const pmPropertySettingsSchema = z.object({
     ),
   late_fee_policy_json: z
     .string()
-    .refine((v) => {
-      if (!v) return true
-      try {
-        JSON.parse(v)
-        return true
-      } catch {
-        return false
-      }
-    }, 'Late fee policy must be valid JSON'),
+    .refine((v) => !v || isValidJson(v), 'Late fee policy must be valid JSON'),
 })
 
 export const pmLeaseCreateSchema = z
@@ -198,15 +183,7 @@ export const pmInspectionCreateSchema = z.object({
   conducted_at: z.string().optional().or(z.literal('')),
   rooms_json: z
     .string()
-    .refine((v) => {
-      if (!v) return true
-      try {
-        JSON.parse(v)
-        return true
-      } catch {
-        return false
-      }
-    }, 'Rooms JSON must be valid'),
+    .refine((v) => !v || isValidJson(v), 'Rooms JSON must be valid'),
   overall_notes: z.string().optional().or(z.literal('')),
 })
 
@@ -217,15 +194,7 @@ export const pmApplicationFormSchema = z.object({
   application_fee_amount: z.string().optional().or(z.literal('')),
   questions_json: z
     .string()
-    .refine((v) => {
-      if (!v) return true
-      try {
-        JSON.parse(v)
-        return true
-      } catch {
-        return false
-      }
-    }, 'Questions must be valid JSON'),
+    .refine((v) => !v || isValidJson(v), 'Questions must be valid JSON'),
 })
 
 export type PmPropertyCreateForm = z.infer<typeof pmPropertyCreateSchema>

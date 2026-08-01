@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 import { supabase } from '@/lib/supabase'
 import { mapSupabaseAuthError } from '@/lib/authErrors'
-import { fetchUserProfileWithToken } from '@/lib/auth'
+import { fetchUserProfileWithStatus, OAUTH_CALLBACK_URL, requireSupabase } from '@/lib/auth'
 import { isLoginInProgress } from '@/lib/loginState'
 import { useAppDispatch } from '@/hooks/redux'
 import { clearCredentials, setCredentials } from '@/features/auth/slices/authSlice'
@@ -60,11 +60,6 @@ export default function SignupPage() {
   }, [])
 
   const onSubmit = async (values: SignupFormValues) => {
-    if (!supabase) {
-      setErrorMessage('Supabase is not configured. Please set environment variables.')
-      return
-    }
-
     setErrorMessage(null)
     setSuccessMessage(null)
     setIsSubmitting(true)
@@ -87,12 +82,12 @@ export default function SignupPage() {
   // Send (or resend) the 6-digit email OTP via signInWithOtp (creates user
   // without password). Starts the 30s resend cooldown on success.
   const sendSignupOtp = async (values: SignupFormValues) => {
-    if (!supabase) throw new Error('Supabase is not configured.')
-    const { error } = await supabase.auth.signInWithOtp({
+    const sb = requireSupabase()
+    const { error } = await sb.auth.signInWithOtp({
       email: values.email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: OAUTH_CALLBACK_URL,
         data: {
           full_name: values.full_name,
           phone: values.phone,
@@ -104,7 +99,7 @@ export default function SignupPage() {
   }
 
   const handleResendOtp = async () => {
-    if (!supabase || !signupDataRef.current || !resendTimer.canResend) return
+    if (!signupDataRef.current || !resendTimer.canResend) return
     setErrorMessage(null)
     setIsSubmitting(true)
     try {
@@ -118,7 +113,7 @@ export default function SignupPage() {
   }
 
   const handleOtpSubmit = async (values: OtpStepFormValues) => {
-    if (!supabase || !signupDataRef.current) return
+    if (!signupDataRef.current) return
     const code = values.otp.replace(/\D/g, '')
 
     setErrorMessage(null)
@@ -128,7 +123,8 @@ export default function SignupPage() {
     let holdLoginFlag = false
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const sb = requireSupabase()
+      const { data, error } = await sb.auth.verifyOtp({
         email: signupDataRef.current.email,
         token: code,
         type: 'email',
@@ -154,18 +150,19 @@ export default function SignupPage() {
   }
 
   const handleSetPassword = async (values: SetPasswordStepFormValues) => {
-    if (!supabase || !signupDataRef.current) return
+    if (!signupDataRef.current) return
 
     setErrorMessage(null)
     setIsSubmitting(true)
     isLoginInProgress.current = true
 
     try {
+      const sb = requireSupabase()
       // Set the password while the session is live.
-      const { error } = await supabase.auth.updateUser({ password: values.password })
+      const { error } = await sb.auth.updateUser({ password: values.password })
       if (error) throw error
 
-      const { data: sessionData } = await supabase.auth.getSession()
+      const { data: sessionData } = await sb.auth.getSession()
       const accessToken = sessionData.session?.access_token
       if (!accessToken) {
         setErrorMessage('Session expired. Please sign in.')
@@ -173,17 +170,17 @@ export default function SignupPage() {
         return
       }
 
-      const profile = await fetchUserProfileWithToken(accessToken)
-      if (profile) {
-        dispatch(setCredentials({ token: accessToken, user: profile }))
+      const { user, status } = await fetchUserProfileWithStatus(accessToken)
+      if (user) {
+        dispatch(setCredentials({ token: accessToken, user }))
         isLoginInProgress.current = false
         navigate('/dashboard', { replace: true })
       } else {
-        // Profile not yet provisioned — sign out the Supabase session so the
-        // user doesn't land in a half-logged-in state. They can sign in once
-        // provisioning completes.
+        // Profile not yet provisioned (404) or backend unreachable (transient).
+        // Either way, leave the half-logged-in state — sign out of Supabase so
+        // the user can retry cleanly from the login page.
         try {
-          await supabase.auth.signOut()
+          await sb.auth.signOut()
         } catch {
           /* best-effort */
         }
@@ -192,7 +189,10 @@ export default function SignupPage() {
         navigate('/login', {
           replace: true,
           state: {
-            info: 'Account created! Your profile is being provisioned. Please try signing in shortly.',
+            info:
+              status === 404
+                ? 'Account created! Your profile is being provisioned. Please try signing in shortly.'
+                : 'Could not verify your account. Please try signing in again.',
           },
         })
       }

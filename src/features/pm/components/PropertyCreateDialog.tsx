@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { safeJsonObject } from '@/lib/json'
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { PmPropertyCreate } from "@/types/pm";
@@ -86,18 +87,14 @@ export default function PropertyCreateDialog({
       return;
     }
 
-    let lateFeePolicy: Record<string, unknown> | undefined;
-    try {
-      lateFeePolicy = values.late_fee_policy_json
-        ? (JSON.parse(values.late_fee_policy_json) as Record<string, unknown>)
-        : undefined;
-    } catch {
+    const lateFeePolicy = values.late_fee_policy_json ? safeJsonObject(values.late_fee_policy_json) : undefined
+    if (values.late_fee_policy_json && lateFeePolicy === null) {
       toast({
         title: 'Invalid JSON',
         description: 'Late fee policy contains invalid JSON. Please correct it.',
         variant: 'destructive',
       })
-      return;
+      return
     }
 
     const data: PmPropertyCreate = {

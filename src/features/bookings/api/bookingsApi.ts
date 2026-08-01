@@ -49,24 +49,6 @@ export const bookingsApi = api.injectEndpoints({
       providesTags: [{type: 'Booking' as const, id: 'LIST'}]
     }),
 
-    // Get upcoming bookings for current user
-    getUpcomingBookings: builder.query<PaginatedResponse<Booking>, BookingsCursorQuery | void>({
-      query: (params) => ({
-        url: '/bookings/upcoming',
-        params: params ? { limit: 20, ...params } : undefined,
-      }),
-      providesTags: [{type: 'Booking' as const, id: 'LIST'}]
-    }),
-
-    // Get past bookings for current user
-    getPastBookings: builder.query<PaginatedResponse<Booking>, BookingsCursorQuery | void>({
-      query: (params) => ({
-        url: '/bookings/past',
-        params: params ? { limit: 20, ...params } : undefined,
-      }),
-      providesTags: [{type: 'Booking' as const, id: 'LIST'}]
-    }),
-
     // Check booking availability
     checkAvailability: builder.query<AvailabilityInfo, BookingAvailability>({
       query: (data) => ({
@@ -165,8 +147,6 @@ export const bookingsApi = api.injectEndpoints({
 export const {
   useCreateBookingMutation,
   useGetUserBookingsQuery,
-  useGetUpcomingBookingsQuery,
-  useGetPastBookingsQuery,
   useCheckAvailabilityQuery,
   useCalculatePricingQuery,
   useGetBookingQuery,

@@ -1,6 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { clearCredentials } from '@/features/auth/slices/authSlice'
 import type { RootState } from '@/store'
+import { readJSON, removeStored, writeJSON } from '@/lib/storage'
 
 export interface SelectedOwner {
   id: number
@@ -13,19 +14,14 @@ interface PmState {
 
 const STORAGE_KEY = 'pm_selected_owner'
 
-const readSelectedOwner = (): SelectedOwner | null => {
-  if (typeof localStorage === 'undefined') return null
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as { id?: unknown; label?: unknown }
-    if (typeof parsed?.id !== 'number') return null
-    if (typeof parsed?.label !== 'string') return null
-    return { id: parsed.id, label: parsed.label }
-  } catch {
-    return null
-  }
+const isSelectedOwner = (value: unknown): value is SelectedOwner => {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as Record<string, unknown>
+  return typeof candidate.id === 'number' && typeof candidate.label === 'string'
 }
+
+const readSelectedOwner = (): SelectedOwner | null =>
+  readJSON<SelectedOwner | null>(STORAGE_KEY, null, isSelectedOwner)
 
 const initialState: PmState = {
   selected_owner: readSelectedOwner(),
@@ -37,15 +33,14 @@ const pmSlice = createSlice({
   reducers: {
     setSelectedOwner: (state, action: PayloadAction<SelectedOwner | null>) => {
       state.selected_owner = action.payload
-      if (typeof localStorage === 'undefined') return
-      if (action.payload) localStorage.setItem(STORAGE_KEY, JSON.stringify(action.payload))
-      else localStorage.removeItem(STORAGE_KEY)
+      if (action.payload) writeJSON(STORAGE_KEY, action.payload)
+      else removeStored(STORAGE_KEY)
     },
   },
   extraReducers: (builder) => {
     builder.addCase(clearCredentials, (state) => {
       state.selected_owner = null
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY)
+      removeStored(STORAGE_KEY)
     })
   },
 })

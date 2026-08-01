@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty",
+    "typecheck:tests": "tsc -p tsconfig.test.json --noEmit --pretty",
     "lint": "eslint src --max-warnings=0",
     "lint:fix": "eslint src --fix",
     "test": "vitest run",

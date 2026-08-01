@@ -1,5 +1,23 @@
 // Core Types
-import type { PropertyPurpose, PropertyType, PropertyStatus } from './pm'
+
+export type PropertyPurpose = 'buy' | 'rent' | 'short_stay'
+export type PropertyType =
+  | 'house'
+  | 'apartment'
+  | 'builder_floor'
+  | 'room'
+  | 'villa'
+  | 'plot'
+  | 'condo'
+  | 'penthouse'
+  | 'studio'
+  | 'loft'
+  | 'pg'
+  | 'flatmate'
+  | 'office'
+  | 'shop'
+  | 'warehouse'
+export type PropertyStatus = 'available' | 'sold' | 'rented' | 'under_offer' | 'maintenance'
 
 export interface ApiResponse<T> {
   data?: T

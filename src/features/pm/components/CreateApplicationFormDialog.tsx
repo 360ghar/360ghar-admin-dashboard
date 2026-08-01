@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { safeJsonObject } from '@/lib/json'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -41,15 +42,11 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
   const [createForm, createState] = useCreateApplicationFormMutation()
 
   const submitCreateForm = async () => {
-    let questions: Record<string, unknown> | undefined
-    try {
-      questions = questionsJson
-        ? (JSON.parse(questionsJson) as Record<string, unknown>)
-        : undefined
-    } catch {
+    const questions = questionsJson ? safeJsonObject(questionsJson) : undefined
+    if (questionsJson && questions === null) {
       toast({
         title: 'Invalid JSON',
-        description: 'Questions must be valid JSON.',
+        description: 'Questions must be a valid JSON object.',
         variant: 'destructive',
       })
       return

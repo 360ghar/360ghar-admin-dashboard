@@ -1,22 +1,28 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Building, Calendar, ClipboardList, MoreHorizontal, User } from 'lucide-react'
+import { MoreHorizontal, User } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { SidebarContent } from './SidebarContent'
 import { cn } from '@/lib/utils'
 import { useUserRole } from '@/hooks/useUserRole'
+import { filterByRole, NAV_ROUTES, type NavRoute } from './navConfig'
 
-interface NavItem {
-  name: string
-  href: string
-  icon: typeof Home
-}
-
-const staffNavItems: NavItem[] = [
-  { name: 'Home', href: '/dashboard', icon: Home },
-  { name: 'Properties', href: '/properties', icon: Building },
-  { name: 'Visits', href: '/visits', icon: Calendar },
-  { name: 'PM', href: '/pm/dashboard', icon: ClipboardList },
-]
+// Derive the mobile tab bar from the shared nav config (Dashboard, Properties,
+// Visits, PM) so it can never drift from the sidebar / command palette.
+const staffNavItems: NavRoute[] = (() => {
+  const all = filterByRole(NAV_ROUTES, 'admin')
+  const pick = (name: string): NavRoute => {
+    const found = all.find((r) => r.name === name)
+    if (!found) throw new Error(`BottomNav: route "${name}" not found in NAV_ROUTES`)
+    return found
+  }
+  const pm = pick('Property Management')
+  return [
+    { ...pick('Dashboard'), name: 'Home' },
+    { ...pick('All Properties'), name: 'Properties' },
+    pick('Visits'),
+    { ...pm, name: 'PM' },
+  ]
+})()
 
 const BottomNav = () => {
   const location = useLocation()

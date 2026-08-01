@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { selectCurrentUser } from '@/features/auth/slices/authSlice'
 import { useAppSelector } from '@/hooks/redux'
+import { readJSON, writeJSON } from '@/lib/storage'
 import {
   useGetUserNotificationsQuery,
   useMarkDeliveryOpenedMutation,
@@ -52,21 +53,30 @@ export interface NotificationItem {
 
 const LOCAL_STORAGE_KEY = 'notifications_local'
 
+const isNotificationItem = (value: unknown): value is NotificationItem => {
+  if (typeof value !== 'object' || value === null) return false
+  const p = value as Record<string, unknown>
+  return (
+    typeof p.id === 'string' &&
+    typeof p.rawId === 'string' &&
+    (p.source === 'server' || p.source === 'local') &&
+    typeof p.type === 'string' &&
+    typeof p.title === 'string' &&
+    typeof p.message === 'string' &&
+    typeof p.isRead === 'boolean' &&
+    typeof p.createdAt === 'string'
+  )
+}
+
+const isNotificationItemArray = (value: unknown): value is NotificationItem[] =>
+  Array.isArray(value) && value.every(isNotificationItem)
+
 function loadLocalNotifications(): NotificationItem[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (!raw) return []
-    const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed as NotificationItem[]
-  } catch {
-    localStorage.removeItem(LOCAL_STORAGE_KEY)
-    return []
-  }
+  return readJSON<NotificationItem[]>(LOCAL_STORAGE_KEY, [], isNotificationItemArray)
 }
 
 function saveLocalNotifications(items: NotificationItem[]) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items))
+  writeJSON(LOCAL_STORAGE_KEY, items)
 }
 
 /** Map audience_type / topic from the server entry to a local NotificationType. */

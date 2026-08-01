@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { safeJsonObject } from '@/lib/json'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Input } from '@/components/ui/input'
@@ -31,11 +32,7 @@ interface PageFormDialogProps {
 
 const generateSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-const parseCustomConfig = (value?: string) => {
-  if (!value) return undefined
-  try { const parsed: unknown = JSON.parse(value); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown> } catch { return undefined }
-  return undefined
-}
+const parseCustomConfig = (value?: string) => (value ? safeJsonObject(value) : undefined)
 
 const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, editingPage, formData, setFormData, onSuccess }) => {
   const { toast } = useToast()

@@ -51,24 +51,6 @@ export const visitsApi = api.injectEndpoints({
       providesTags: [{type: 'Visit' as const, id: 'LIST'}]
     }),
 
-    // Get upcoming visits for current user
-    getUpcomingVisits: builder.query<PaginatedResponse<Visit>, VisitsCursorQuery>({
-      query: ({ cursor, limit }) => ({
-        url: '/visits/upcoming',
-        params: { limit: limit ?? DEFAULT_VISITS_LIMIT, cursor: cursor ?? undefined }
-      }),
-      providesTags: [{type: 'Visit' as const, id: 'LIST'}]
-    }),
-
-    // Get past visits for current user
-    getPastVisits: builder.query<PaginatedResponse<Visit>, VisitsCursorQuery>({
-      query: ({ cursor, limit }) => ({
-        url: '/visits/past',
-        params: { limit: limit ?? DEFAULT_VISITS_LIMIT, cursor: cursor ?? undefined }
-      }),
-      providesTags: [{type: 'Visit' as const, id: 'LIST'}]
-    }),
-
     // Get visit details
     getVisit: builder.query<Visit, number>({
       query: (id) => `/visits/${id}`,
@@ -140,8 +122,6 @@ export const visitsApi = api.injectEndpoints({
 export const {
   useScheduleVisitMutation,
   useGetUserVisitsQuery,
-  useGetUpcomingVisitsQuery,
-  useGetPastVisitsQuery,
   useGetVisitQuery,
   useUpdateVisitMutation,
   useRescheduleVisitMutation,

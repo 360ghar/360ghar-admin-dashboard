@@ -89,24 +89,10 @@ export interface ActivityItem {
   status?: string | null
 }
 
-export type PropertyPurpose = 'buy' | 'rent' | 'short_stay'
-export type PropertyType =
-  | 'house'
-  | 'apartment'
-  | 'builder_floor'
-  | 'room'
-  | 'villa'
-  | 'plot'
-  | 'condo'
-  | 'penthouse'
-  | 'studio'
-  | 'loft'
-  | 'pg'
-  | 'flatmate'
-  | 'office'
-  | 'shop'
-  | 'warehouse'
-export type PropertyStatus = 'available' | 'sold' | 'rented' | 'under_offer' | 'maintenance'
+// Property status/purpose/type live in `types/api.ts` (single source of truth).
+// Imported here for local use and re-exported so existing PM imports keep working.
+import type { PropertyPurpose, PropertyType, PropertyStatus } from './api'
+export type { PropertyPurpose, PropertyType, PropertyStatus } from './api'
 
 export interface PmPropertyImage {
   id: number

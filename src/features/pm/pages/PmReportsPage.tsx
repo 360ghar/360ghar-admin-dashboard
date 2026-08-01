@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Download, FileBarChart } from 'lucide-react'
-import { formatINR, downloadCsv } from '@/features/pm/utils'
+import { downloadCsv } from '@/features/pm/utils'
+import { formatCurrency } from '@/lib/format'
 import OwnerScopeGate from '@/features/pm/components/OwnerScopeGate'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
@@ -117,7 +118,7 @@ export default function PmReportsPage() {
                 <ErrorState title="Failed to load" onRetry={() => void income.refetch()} />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{formatINR(income.data?.total_income ?? 0)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(income.data?.total_income ?? 0)}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {start || end ? 'Filtered' : 'All time'}
                   </div>
@@ -136,7 +137,7 @@ export default function PmReportsPage() {
                 <ErrorState title="Failed to load" onRetry={() => void expenses.refetch()} />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{formatINR(expenses.data?.total_expenses ?? 0)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(expenses.data?.total_expenses ?? 0)}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {start || end ? 'Filtered' : 'All time'}
                   </div>
@@ -155,7 +156,7 @@ export default function PmReportsPage() {
                 <ErrorState title="Failed to load" onRetry={() => void pnl.refetch()} />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{formatINR(pnl.data?.net_income ?? 0)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(pnl.data?.net_income ?? 0)}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     Income − Expenses
                   </div>
@@ -238,7 +239,7 @@ export default function PmReportsPage() {
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-medium">{r.monthly_rent ? formatINR(r.monthly_rent) : '—'}</div>
+                      <div className="font-medium">{r.monthly_rent ? formatCurrency(r.monthly_rent) : '—'}</div>
                       <div className="text-xs text-muted-foreground">
                         {r.lease_end_date ? `Ends ${formatDate(r.lease_end_date)}` : ''}
                       </div>

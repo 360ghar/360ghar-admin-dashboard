@@ -8,13 +8,10 @@ import type {
   PageCreate,
   PageUpdate,
   PagesQuery,
-  PagePublicResponse,
   AppUpdate,
   AppUpdateCreate,
   AppUpdateUpdate,
   AppUpdatesQuery,
-  AppUpdateCheckRequest,
-  AppUpdateCheckResponse,
   HealthResponse,
   AppConfig,
   PaginatedResponse,
@@ -133,11 +130,6 @@ export const coreApi = api.injectEndpoints({
       providesTags: (res, _e, uniqueName) => [{ type: 'Page', id: uniqueName }]
     }),
 
-    getPagePublic: builder.query<PagePublicResponse, string>({
-      query: (uniqueName) => `/pages/${uniqueName}/public`,
-      providesTags: (_result, _error, uniqueName) => [{ type: 'Page', id: uniqueName }],
-    }),
-
     updatePage: builder.mutation<Page, { uniqueName: string; data: PageUpdate }>({
       query: ({ uniqueName, data }) => ({
         url: `/pages/${uniqueName}`,
@@ -163,15 +155,6 @@ export const coreApi = api.injectEndpoints({
         body: data
       }),
       invalidatesTags: [{type: 'AppUpdate', id: 'LIST'}]
-    }),
-
-    checkForUpdates: builder.query<AppUpdateCheckResponse, AppUpdateCheckRequest>({
-      query: (data) => ({
-        url: '/versions/check',
-        method: 'POST',
-        body: data
-      }),
-      providesTags: [{type: 'AppUpdate' as const, id: 'LIST'}],
     }),
 
     getAppUpdates: builder.query<PaginatedResponse<AppUpdate>, AppUpdatesQuery | void>({
@@ -256,11 +239,9 @@ export const {
   useCreatePageMutation,
   useGetPagesQuery,
   useGetPageQuery,
-  useGetPagePublicQuery,
   useUpdatePageMutation,
   useDeletePageMutation,
   useCreateAppUpdateMutation,
-  useCheckForUpdatesQuery,
   useGetAppUpdatesQuery,
   useUpdateAppUpdateMutation,
   useCreateFaqMutation,

@@ -3,9 +3,6 @@ import type { User } from '@/types'
 // New code should import directly from `@/lib/csv`.
 export { downloadCsv, csvFilename } from '@/lib/csv'
 
-export const formatINR = (value: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
-
 export const getOwnerLabel = (u: Pick<User, 'full_name' | 'phone' | 'email'>) =>
   (u.full_name || u.phone || u.email || 'Unnamed owner').trim()
 

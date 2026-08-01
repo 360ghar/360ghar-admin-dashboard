@@ -1,7 +1,8 @@
 import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download } from "lucide-react";
-import { formatINR, downloadCsv } from "@/features/pm/utils";
+import { downloadCsv } from "@/features/pm/utils";
+import { formatCurrency } from "@/lib/format"
 import { formatDate, formatDateTime } from "@/lib/format";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import GenerateChargesDialog from "@/features/pm/components/GenerateChargesDialog";
@@ -79,20 +80,20 @@ export default function PmRentLedgerPage() {
         id: "due",
         header: "Due",
         cell: ({ row }) => (
-          <span className="text-sm">{formatINR(row.original.amount_due_total)}</span>
+          <span className="text-sm">{formatCurrency(row.original.amount_due_total)}</span>
         )},
       {
         id: "paid",
         header: "Paid",
         cell: ({ row }) => (
-          <span className="text-sm">{formatINR(row.original.amount_paid_total)}</span>
+          <span className="text-sm">{formatCurrency(row.original.amount_paid_total)}</span>
         )},
       {
         id: "outstanding",
         header: "Outstanding",
         cell: ({ row }) => (
           <span className={row.original.outstanding > 0 ? "text-sm font-medium" : "text-sm text-muted-foreground"}>
-            {formatINR(row.original.outstanding)}
+            {formatCurrency(row.original.outstanding)}
           </span>
         )},
     ];
@@ -107,7 +108,7 @@ export default function PmRentLedgerPage() {
       {
         accessorKey: "amount_paid",
         header: "Amount",
-        cell: ({ row }) => formatINR(row.original.amount_paid)},
+        cell: ({ row }) => formatCurrency(row.original.amount_paid)},
       {
         accessorKey: "payment_method",
         header: "Method",

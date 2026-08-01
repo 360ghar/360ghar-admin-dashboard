@@ -2,7 +2,8 @@ import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Trash2 } from "lucide-react";
 import { EXPENSE_CATEGORIES, PAGE_SIZES } from "@/features/pm/constants";
-import { formatINR, downloadCsv } from "@/features/pm/utils";
+import { downloadCsv } from "@/features/pm/utils";
+import { formatCurrency } from "@/lib/format"
 import { formatDate } from "@/lib/format";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import CreateExpenseDialog from "@/features/pm/components/CreateExpenseDialog";
@@ -82,7 +83,7 @@ export default function PmExpensesPage() {
       {
         accessorKey: "amount",
         header: "Amount",
-        cell: ({ row }) => formatINR(row.original.amount)},
+        cell: ({ row }) => formatCurrency(row.original.amount)},
       {
         accessorKey: "property_id",
         header: "Property",

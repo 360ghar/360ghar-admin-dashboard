@@ -2,7 +2,19 @@ import type { User } from '@/types'
 import { API_BASE_URL, ALLOWED_GOOGLE_EMAIL_DOMAINS } from '@/lib/config'
 import { supabase } from '@/lib/supabase'
 
-export async function fetchUserProfileWithToken(token: string): Promise<User | null> {
+export interface ProfileFetchResult {
+  user: User | null
+  /** HTTP status when the backend responded; null on network/parse failure. */
+  status: number | null
+}
+
+/**
+ * Fetch the backend profile, distinguishing "backend says there is no such
+ * staff account" (404) from "backend unreachable / transient failure"
+ * (status === null). Callers use the distinction to decide between bouncing
+ * the user (404) and falling back to a cached profile (transient).
+ */
+export async function fetchUserProfileWithStatus(token: string): Promise<ProfileFetchResult> {
   try {
     // No trailing slash: backend redirect_slashes=False → `/users/profile/` is 404.
     const res = await fetch(`${API_BASE_URL}/users/profile`, {
@@ -13,13 +25,30 @@ export async function fetchUserProfileWithToken(token: string): Promise<User | n
       if (res.status !== 404) {
         console.error(`[auth] fetchUserProfile failed: ${res.status}`)
       }
-      return null
+      return { user: null, status: res.status }
     }
-    return (await res.json()) as User
+    return { user: (await res.json()) as User, status: res.status }
   } catch {
-    return null
+    return { user: null, status: null }
   }
 }
+
+export async function fetchUserProfileWithToken(token: string): Promise<User | null> {
+  const { user } = await fetchUserProfileWithStatus(token)
+  return user
+}
+
+/**
+ * Origin-scoped OAuth callback URL for Supabase redirectTo.
+ * Eager-evaluated at module load using window.location.origin. The raw template
+ * literal is safe — window.location.origin never contains query params, and using
+ * a module-level constant avoids re-allocating a URL object on every auth call.
+ *
+ * NOTE: if this module is imported in a non-browser context (Vitest, SSR) where
+ * `window` is not defined, this line will throw. Tests that import auth.ts
+ * without a JSDOM-like global should either mock window or import only sub-modules.
+ */
+export const OAUTH_CALLBACK_URL = `${window.location.origin}/auth/callback`
 
 /**
  * Start the Google OAuth redirect flow. Supabase redirects to Google, then back
@@ -27,13 +56,11 @@ export async function fetchUserProfileWithToken(token: string): Promise<User | n
  * code for a session and enforces the staff gate.
  */
 export async function signInWithGoogle(): Promise<void> {
-  if (!supabase) {
-    throw new Error('Supabase is not configured. Please set environment variables.')
-  }
-  const { error } = await supabase.auth.signInWithOAuth({
+  const sb = requireSupabase()
+  const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: OAUTH_CALLBACK_URL,
     },
   })
   if (error) throw error
@@ -139,17 +166,17 @@ export async function sendOtp(
   channel: IdentifierChannel,
   options?: { shouldCreateUser?: boolean; emailRedirectTo?: string },
 ): Promise<void> {
-  if (!supabase) throw new Error('Supabase is not configured.')
+  const sb = requireSupabase()
   const { error } =
     channel === 'email'
-      ? await supabase.auth.signInWithOtp({
+      ? await sb.auth.signInWithOtp({
           email: canonical,
           options: {
             shouldCreateUser: options?.shouldCreateUser ?? false,
-            emailRedirectTo: options?.emailRedirectTo ?? `${window.location.origin}/auth/callback`,
+            emailRedirectTo: options?.emailRedirectTo ?? OAUTH_CALLBACK_URL,
           },
         })
-      : await supabase.auth.signInWithOtp({
+      : await sb.auth.signInWithOtp({
           phone: canonical,
           options: { shouldCreateUser: options?.shouldCreateUser ?? false },
         })

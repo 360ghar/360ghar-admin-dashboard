@@ -16,7 +16,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import type { UseFormReturn } from 'react-hook-form'
 import type { PropertyFormPageValues } from '@/features/properties/validations'
 import type { Amenity } from '@/types/api'
-import type { PropertyResponse } from '@/features/properties/api/propertiesApi'
+import type { Property } from '@/features/properties/api/propertiesApi'
 
 interface Location { latitude: number; longitude: number }
 
@@ -34,7 +34,7 @@ interface PropertyFormFieldsProps {
   isEditing: boolean
   creating: boolean
   updating: boolean
-  property?: PropertyResponse
+  property?: Property
   availableFeatures: string[]
   isPropertyType: (value: string) => boolean
   isPurpose: (value: string) => boolean
@@ -199,7 +199,7 @@ const PropertyOwnerFields: React.FC<{ form: UseFormReturn<PropertyFormPageValues
   </Card>
 )
 
-const PropertySidebar: React.FC<{ form: UseFormReturn<PropertyFormPageValues>; uploadedImages: string[]; setUploadedImages: (urls: string[]) => void; removeImage: (i: number) => void; isEditing: boolean; creating: boolean; updating: boolean; property?: PropertyResponse; onCancel: () => void }> = ({ form: _form, uploadedImages, setUploadedImages, removeImage, isEditing, creating, updating, property, onCancel }) => (
+const PropertySidebar: React.FC<{ form: UseFormReturn<PropertyFormPageValues>; uploadedImages: string[]; setUploadedImages: (urls: string[]) => void; removeImage: (i: number) => void; isEditing: boolean; creating: boolean; updating: boolean; property?: Property; onCancel: () => void }> = ({ form: _form, uploadedImages, setUploadedImages, removeImage, isEditing, creating, updating, property, onCancel }) => (
   <div className="space-y-6">
     <Card>
       <CardHeader><CardTitle>Property Images</CardTitle><CardDescription>Upload property photos</CardDescription></CardHeader>

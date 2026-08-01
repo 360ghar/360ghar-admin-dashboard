@@ -1,152 +1,57 @@
 import { useUserRole } from '@/hooks/useUserRole'
-import {
-    Home,
-    Building,
-    Users,
-    Calendar,
-    BookOpen,
-    User,
-    BarChart3,
-    FileText,
-    AlertCircle,
-    Settings,
-    Smartphone,
-    Folder,
-    Tag,
-    Bell,
-    Heart,
-    ClipboardList,
-    Receipt,
-    Wrench,
-    FileSearch,
-    ClipboardCheck,
-    FileBarChart,
-    Briefcase,
-    HardHat,
-    HelpCircle,
-} from 'lucide-react'
-import { NavItem, type NavChild } from './NavItem'
+import { NavItem } from './NavItem'
 import { Separator } from '@/components/ui/separator'
-
-interface NavItemConfig {
-    name: string
-    href: string
-    icon: typeof Home
-    children?: NavChild[]
-}
+import { filterByRole, NAV_ROUTES, type NavRoute } from './navConfig'
+import { User } from 'lucide-react'
 
 interface NavSection {
     label?: string
-    items: NavItemConfig[]
+    items: NavRoute[]
 }
 
+/**
+ * Sidebar sections, composed from the shared `NAV_ROUTES` config so the
+ * desktop sidebar, mobile nav and command palette can never drift apart.
+ */
 export const SidebarContent = () => {
     const { role } = useUserRole()
 
-    const pmChildren: NavChild[] = [
-        { name: 'Overview', href: '/pm/dashboard', icon: Home },
-        { name: 'Owners', href: '/pm/owners', icon: Users },
-        { name: 'Managed Properties', href: '/pm/properties', icon: Building },
-        {
-            name: 'Leases & Tenants',
-            href: '/pm/leases',
-            icon: Briefcase,
-            children: [
-                { name: 'Applications', href: '/pm/applications', icon: FileSearch },
-                { name: 'Leases', href: '/pm/leases', icon: FileText },
-                { name: 'Rent Ledger', href: '/pm/rent-ledger', icon: Receipt },
-            ]
-        },
-        {
-            name: 'Operations',
-            href: '/pm/maintenance',
-            icon: HardHat,
-            children: [
-                { name: 'Maintenance', href: '/pm/maintenance', icon: Wrench },
-                { name: 'Inspections', href: '/pm/inspections', icon: ClipboardCheck },
-                { name: 'Expenses', href: '/pm/expenses', icon: Receipt },
-            ]
-        },
-        { name: 'Documents', href: '/pm/documents', icon: Folder },
-        { name: 'Reports', href: '/pm/reports', icon: FileBarChart },
-    ]
-    if (role === 'admin') {
-        pmChildren.push(
-            { name: 'Audit Log', href: '/pm/audit', icon: FileText },
-            { name: 'Settings', href: '/pm/settings', icon: Settings },
-        )
+    const routes = filterByRole(NAV_ROUTES, role)
+    const profileItem: NavRoute = { name: 'My Profile', href: role === 'agent' ? '/agents/me' : '/profile', icon: User }
+
+    const byName = (name: string): NavRoute => {
+        const found = routes.find((r) => r.name === name)
+        if (!found) throw new Error(`Sidebar: route "${name}" not found in NAV_ROUTES`)
+        return found
     }
 
-    const pmNav: NavItemConfig = {
-        name: 'Property Management',
-        href: '/pm/dashboard',
-        icon: ClipboardList,
-        children: pmChildren,
-    }
-
-    const propertiesNav: NavItemConfig[] = [
-        { name: 'All Properties', href: '/properties', icon: Building },
-    ]
-
-    const engagementNav: NavItemConfig[] = [
-        { name: 'Visits', href: '/visits', icon: Calendar },
-        { name: 'Bookings', href: '/bookings', icon: BookOpen },
-        { name: 'Discover', href: '/swipes', icon: Heart },
+    const engagementNav: NavRoute[] = [
+        byName('Visits'),
+        byName('Bookings'),
+        byName('Discover'),
         ...(role === 'admin'
-            ? [
-                { name: 'Flatmates Moderation', href: '/flatmates/moderation', icon: ClipboardCheck },
-                { name: 'Flatmates Reports', href: '/flatmates/reports', icon: AlertCircle },
-            ]
+            ? [byName('Flatmates Moderation'), byName('Flatmates Reports')]
             : []),
     ]
 
-    // Parent href is the first child — collapsible parents are not links themselves.
-    const adminToolsNav: NavItemConfig = {
-        name: 'Admin Tools',
-        href: '/bug-reports',
-        icon: Settings,
-        children: [
-            { name: 'Bug Reports', href: '/bug-reports', icon: AlertCircle },
-            { name: 'Notifications', href: '/notifications', icon: Bell },
-            {
-                name: 'Blogs',
-                href: '/blogs',
-                icon: FileText,
-                children: [
-                    { name: 'All Posts', href: '/blogs', icon: FileText },
-                    { name: 'Categories', href: '/blogs/categories', icon: Folder },
-                    { name: 'Tags', href: '/blogs/tags', icon: Tag },
-                ]
-            },
-            { name: 'Pages', href: '/pages', icon: FileText },
-            { name: 'FAQs', href: '/faqs', icon: HelpCircle },
-            { name: 'App Updates', href: '/app-updates', icon: Smartphone },
-        ]
-    }
-
-    const profileItem: NavItemConfig = { name: 'My Profile', href: role === 'agent' ? '/agents/me' : '/profile', icon: User }
+    const adminToolsNav = byName('Admin Tools')
 
     const sections: NavSection[] = role === 'admin'
         ? [
-            { items: [{ name: 'Dashboard', href: '/dashboard', icon: Home }] },
-            { label: 'Properties', items: propertiesNav },
+            { items: [byName('Dashboard')] },
+            { label: 'Properties', items: [byName('All Properties')] },
             { label: 'Engagement', items: engagementNav },
-            { label: 'Property Management', items: [pmNav] },
-            { label: 'Admin', items: [
-                { name: 'Users', href: '/users', icon: Users },
-                { name: 'Agents', href: '/agents', icon: User },
-                { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-                adminToolsNav
-            ]},
+            { label: 'Property Management', items: [byName('Property Management')] },
+            { label: 'Admin', items: [byName('Users'), byName('Agents'), byName('Analytics'), adminToolsNav] },
             { items: [profileItem] },
         ]
         : role === 'agent'
             ? [
-                { items: [{ name: 'Dashboard', href: '/dashboard', icon: Home }] },
-                { label: 'Properties', items: propertiesNav },
+                { items: [byName('Dashboard')] },
+                { label: 'Properties', items: [byName('All Properties')] },
                 { label: 'Engagement', items: engagementNav },
-                { label: 'Property Management', items: [pmNav] },
-                { items: [{ name: 'Users', href: '/users', icon: Users }, profileItem] },
+                { label: 'Property Management', items: [byName('Property Management')] },
+                { items: [byName('Users'), profileItem] },
             ]
             : [
                 // Non-staff authenticated users only have account routes (App.tsx).

@@ -16,5 +16,16 @@ export const REALTIME_URL: string | undefined =
  * list is signed out at the callback with a clear message (defence-in-depth on
  * top of the role guard, which already bounces non-staff). Leave empty to rely
  * solely on the role guard.
+ *
+ * Configure via the comma-separated `VITE_ALLOWED_GOOGLE_EMAIL_DOMAINS` env
+ * var (e.g. "360ghar.com,example.com"). When unset, defaults to the staff
+ * domain `360ghar.com` so existing deployments keep their current policy.
  */
-export const ALLOWED_GOOGLE_EMAIL_DOMAINS: readonly string[] = ['360ghar.com']
+const rawAllowedDomains = import.meta.env.VITE_ALLOWED_GOOGLE_EMAIL_DOMAINS as string | undefined
+
+export const ALLOWED_GOOGLE_EMAIL_DOMAINS: readonly string[] = rawAllowedDomains
+  ? rawAllowedDomains
+      .split(',')
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean)
+  : ['360ghar.com']

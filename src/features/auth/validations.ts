@@ -1,11 +1,5 @@
 import { z } from 'zod'
 
-// Login form validation schema (legacy single-step phone+password)
-export const loginSchema = z.object({
-  phone: z.string().min(8, 'Phone is required'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-})
-
 // --- Login state-machine schemas ---
 
 // Step 1: identifier (phone or email) entry
@@ -92,7 +86,6 @@ export const resetPasswordSchema = z
   })
 
 // Export inferred types
-export type LoginFormValues = z.infer<typeof loginSchema>
 export type SignupFormValues = z.infer<typeof signupSchema>
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
 export type ForgotPasswordOtpFormValues = z.infer<typeof forgotPasswordOtpSchema>

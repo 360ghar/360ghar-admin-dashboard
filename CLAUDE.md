@@ -15,19 +15,25 @@ npm run dev              # Start dev server on port 5173
 # Build & Type Check
 npm run build            # TypeScript compilation + Vite build
 npm run typecheck        # TypeScript type checking only
+npm run typecheck:tests  # Type-check the Vitest suite (tsconfig.test.json)
 npm run preview          # Preview production build
 
 # Tests (Vitest + Testing Library, jsdom)
 npm run test             # Run the unit test suite once
 npm run test:watch       # Watch mode
-# Tests live in src/**/__tests__/ and are excluded from tsc/eslint (see tsconfig "exclude"
-# and eslint ignores). Config: vitest.config.ts + vitest.setup.ts (jest-dom + a jest→vi shim).
+# Tests live in src/**/__tests__/ and ARE covered by typecheck:tests + eslint.
+# Config: vitest.config.ts + vitest.setup.ts (jest-dom + a jest→vi shim).
 
 # Setup
 npm install              # Install dependencies
 cp .env.example .env     # Copy environment variables
 npx getdesign@latest add cohere  # Install Cohere design specification
 ```
+
+CI (`.github/workflows/ci.yml`) runs typecheck, test typecheck, lint, tests and the
+production build on every push/PR; the pre-commit hook runs the same gates. The production
+build injects a CSP meta tag (`script-src 'self'`) — keep bootstrap/theme scripts in
+`public/` instead of inline `<script>` blocks.
 
 ## Architecture Overview
 

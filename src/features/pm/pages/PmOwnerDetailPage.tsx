@@ -32,7 +32,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { formatINR } from "@/features/pm/utils";
+import { formatCurrency } from '@/lib/format'
 
 const kycStatuses = ["unknown", "pending", "verified", "rejected"] as const;
 type KycStatus = (typeof kycStatuses)[number];
@@ -152,7 +152,7 @@ export default function PmOwnerDetailPage() {
               {overview.isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <div className="text-2xl font-bold">{formatINR(overview.data?.outstanding_rent_total ?? 0)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(overview.data?.outstanding_rent_total ?? 0)}</div>
               )}
               <Button asChild variant="link" className="h-auto p-0 text-xs mt-2">
                 <Link to="/pm/rent-ledger">Open rent ledger</Link>
@@ -227,7 +227,7 @@ export default function PmOwnerDetailPage() {
                       <div className="min-w-0">
                         <span className="font-medium">{a.type}</span>
                         {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                        {a.amount ? <span className="text-muted-foreground"> • {formatINR(a.amount)}</span> : null}
+                        {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
                       </div>
                       <div className="shrink-0 text-xs text-muted-foreground">
                         {formatDateTime(a.at)}

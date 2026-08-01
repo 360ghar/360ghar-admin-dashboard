@@ -2,7 +2,13 @@
 
 ## Outcome
 
-Typecheck (`tsc -b --pretty`) and lint (`eslint src --max-warnings=0`) both pass cleanly from the repo root with zero diagnostics. The full Vite production build (`npm run build`) also succeeds. All 45 unit tests pass.
+Typecheck (`tsc -b --pretty`) and lint (`eslint src --max-warnings=0`) both pass cleanly from the repo root with zero diagnostics. The full Vite production build (`npm run build`) also succeeds.
+
+> Status update (post-review hardening): the unit suite has grown to **112 tests** (17 files),
+> tests are now included in typecheck (`npm run typecheck:tests`) and ESLint, CI runs all gates
+> on every PR (`.github/workflows/ci.yml`), retries are limited to idempotent GETs, and the
+> production build ships a Content-Security-Policy meta tag. See the remediation summary in the
+> PR description for the full list.
 
 ## Files edited
 

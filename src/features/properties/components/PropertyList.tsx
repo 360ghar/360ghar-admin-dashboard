@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useUserRole } from '@/hooks/useUserRole'
-import { useDeletePropertyMutation, useSearchPropertiesQuery, useUpdatePropertyMutation, type PropertySearchParams, type PropertyResponse } from '@/features/properties/api/propertiesApi'
+import { useDeletePropertyMutation, useSearchPropertiesQuery, useUpdatePropertyMutation, type PropertySearchParams, type Property } from '@/features/properties/api/propertiesApi'
 import type { PropertyStatus } from '@/types/pm'
 import { useGetAmenitiesQuery } from '@/features/core/api/amenitiesApi'
 import { Card } from '@/components/ui/card'
@@ -88,7 +88,7 @@ const PropertyList = () => {
   }, [clearFilters])
 
   const [confirmId, setConfirmId] = useState<number | null>(null)
-  const [selectedRows, setSelectedRows] = useState<PropertyResponse[]>([])
+  const [selectedRows, setSelectedRows] = useState<Property[]>([])
   const { toast } = useToast()
   const [pageSize, setPageSize] = useState(20)
 
@@ -217,7 +217,7 @@ const PropertyList = () => {
     downloadCsv(csvFilename('properties'), rows)
   }
 
-  const columns = useMemo<ColumnDef<PropertyResponse>[]>(
+  const columns = useMemo<ColumnDef<Property>[]>(
     () => [
       {
         id: 'select',

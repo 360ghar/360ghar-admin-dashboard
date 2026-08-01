@@ -1,4 +1,5 @@
 import {useCallback,  useMemo, useState} from 'react'
+import { safeJsonObject } from '@/lib/json'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -125,11 +126,9 @@ export default function PmInspectionsPage() {
       return
     }
     const selectedLeaseOwnerId = selectedLease.owner_id
-    let roomsData: Record<string, unknown> | undefined
-    try {
-      roomsData = values.rooms_json ? (JSON.parse(values.rooms_json) as Record<string, unknown>) : undefined
-    } catch {
-      toast({ title: 'Invalid JSON', description: 'Rooms JSON must be valid.', variant: 'destructive' })
+    const roomsData = values.rooms_json ? safeJsonObject(values.rooms_json) : undefined
+    if (values.rooms_json && roomsData === null) {
+      toast({ title: 'Invalid JSON', description: 'Rooms JSON must be a valid object.', variant: 'destructive' })
       return
     }
     const payload: InspectionChecklistCreate = {

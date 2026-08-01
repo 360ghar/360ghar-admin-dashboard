@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Activity } from 'lucide-react'
-import { formatINR } from '@/features/pm/utils'
+import { formatCurrency } from '@/lib/format'
 import { formatDateTime } from '@/lib/format'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
@@ -156,7 +156,7 @@ export default function PmAuditLogPage() {
                   <div className="min-w-0">
                     <span className="font-medium">{a.type}</span>
                     {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                    {a.amount ? <span className="text-muted-foreground"> • {formatINR(a.amount)}</span> : null}
+                    {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
                     {a.property_id ? <span className="text-muted-foreground"> • P#{a.property_id}</span> : null}
                     {a.lease_id ? <span className="text-muted-foreground"> • L#{a.lease_id}</span> : null}
                   </div>

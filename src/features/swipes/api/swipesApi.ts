@@ -23,13 +23,6 @@ export interface SwipeListParams {
     price_max?: number
 }
 
-export interface SwipeStatsResponse {
-    total?: number
-    liked?: number
-    disliked?: number
-    [key: string]: number | undefined
-}
-
 export const swipesApi = api.injectEndpoints({
     endpoints: (builder) => ({
         swipeProperty: builder.mutation<SwipeResponse, SwipeRequest>({
@@ -63,10 +56,6 @@ export const swipesApi = api.injectEndpoints({
             }),
             invalidatesTags: [{type: 'Swipe', id: 'LIST'}],
         }),
-        getSwipeStats: builder.query<SwipeStatsResponse, void>({
-            query: () => '/swipes/stats',
-            providesTags: [{type: 'Swipe' as const, id: 'LIST'}],
-        }),
     }),
 })
 
@@ -75,5 +64,4 @@ export const {
     useListSwipesQuery,
     useUndoLastSwipeMutation,
     useToggleSwipeLikeMutation,
-    useGetSwipeStatsQuery,
 } = swipesApi

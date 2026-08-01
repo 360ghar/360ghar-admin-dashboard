@@ -1,66 +1,8 @@
 import { api } from '@/store/api'
-import type { PropertyCreate, PropertyUpdate } from '@/types/api'
+import type { PaginatedResponse, Property, PropertyCreate, PropertyUpdate } from '@/types/api'
 
-// Updated Property interface to match API documentation
-export interface PropertyResponse {
-  id: number
-  title: string
-  description?: string
-  property_type: 'house' | 'apartment' | 'builder_floor' | 'room' | 'villa' | 'plot' | 'condo' | 'penthouse' | 'studio' | 'loft' | 'pg' | 'flatmate' | 'office' | 'shop' | 'warehouse'
-  purpose: 'buy' | 'rent' | 'short_stay'
-  base_price: number
-  latitude?: number
-  longitude?: number
-  city?: string
-  locality?: string
-  pincode?: string
-  area_sqft?: number
-  bedrooms?: number
-  bathrooms?: number
-  balconies?: number
-  parking_spaces?: number
-  floor_number?: number
-  total_floors?: number
-  age_of_property?: number
-  max_occupancy?: number
-  minimum_stay_days?: number
-  amenities: Array<{
-    id: number
-    title: string
-    icon?: string
-    category?: string
-  }>
-  features: string[]
-  images: Array<{
-    id: number
-    property_id: number
-    image_url: string
-    caption?: string
-    image_category: string
-    display_order?: number
-    is_main_image: boolean
-  }>
-  main_image_url: string
-  owner_id: number
-  owner_name: string
-  owner_contact: string
-  status: string
-  liked: boolean
-  user_has_scheduled_visit: boolean
-  user_scheduled_visit_count: number
-  user_next_visit_date?: string
-  distance_km?: number
-  created_at: string
-  updated_at?: string
-}
-
-export interface PaginatedPropertyResponse {
-  items: PropertyResponse[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-  total?: number
-}
+// PropertyCreate and PropertyUpdate are imported from @/types/api
+export type { Property, PropertyCreate, PropertyUpdate }
 
 export interface PropertySearchParams {
   // Location
@@ -110,9 +52,6 @@ export interface PropertySearchParams {
   include_total?: boolean
 }
 
-// PropertyCreate and PropertyUpdate are imported from @/types/api
-export type { PropertyCreate, PropertyUpdate }
-
 const toSearchParams = (params: PropertySearchParams): URLSearchParams => {
   const search = new URLSearchParams()
 
@@ -131,7 +70,7 @@ const toSearchParams = (params: PropertySearchParams): URLSearchParams => {
 export const propertiesApi = api.injectEndpoints({
   endpoints: (builder) => ({
     // Search properties with comprehensive filtering
-    searchProperties: builder.query<PaginatedPropertyResponse, PropertySearchParams>({
+    searchProperties: builder.query<PaginatedResponse<Property>, PropertySearchParams>({
       query: (params) => ({
         url: '/properties',
         params: toSearchParams(params)
@@ -146,12 +85,12 @@ export const propertiesApi = api.injectEndpoints({
       keepUnusedDataFor: 60,
     }),
 
-    getProperty: builder.query<PropertyResponse, number>({
+    getProperty: builder.query<Property, number>({
       query: (id) => `/properties/${id}`,
       providesTags: (res, _e, id) => [{ type: 'Property', id }],
     }),
 
-    createProperty: builder.mutation<PropertyResponse, { data: PropertyCreate; ownerId?: number }>({
+    createProperty: builder.mutation<Property, { data: PropertyCreate; ownerId?: number }>({
       query: ({ data, ownerId }) => ({
         url: '/properties',
         method: 'POST',
@@ -161,7 +100,7 @@ export const propertiesApi = api.injectEndpoints({
       invalidatesTags: [{ type: 'Property', id: 'LIST' }],
     }),
 
-    updateProperty: builder.mutation<PropertyResponse, { id: number; data: PropertyUpdate }>({
+    updateProperty: builder.mutation<Property, { id: number; data: PropertyUpdate }>({
       query: ({ id, data }) => ({
         url: `/properties/${id}`,
         method: 'PUT',
@@ -179,7 +118,7 @@ export const propertiesApi = api.injectEndpoints({
     }),
 
     // Get property recommendations (uniform cursor-paginated shape)
-    getRecommendations: builder.query<PaginatedPropertyResponse, { limit?: number; cursor?: string | null }>({
+    getRecommendations: builder.query<PaginatedResponse<Property>, { limit?: number; cursor?: string | null }>({
       query: (params) => ({
         url: '/properties/recommendations',
         params: { limit: 10, ...params }
@@ -187,7 +126,7 @@ export const propertiesApi = api.injectEndpoints({
       providesTags: [{ type: 'Property', id: 'RECOMMENDATIONS' }],
     }),
 
-    semanticSearchProperties: builder.query<PaginatedPropertyResponse, PropertySearchParams>({
+    semanticSearchProperties: builder.query<PaginatedResponse<Property>, PropertySearchParams>({
       query: (params) => ({
         url: '/properties/semantic-search',
         params: toSearchParams(params)

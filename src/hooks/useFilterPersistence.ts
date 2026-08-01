@@ -1,9 +1,39 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { readJSON, removeStored, writeJSON } from '@/lib/storage'
 
 interface FilterPersistenceOptions<T extends Record<string, unknown>> {
   key: string
   defaultValue: T
   debounceMs?: number
+}
+
+/**
+ * Restore a persisted filter object onto the current defaults, dropping or
+ * replacing anything whose shape no longer matches (stale keys from older
+ * deploys, wrong types, malformed arrays). Without this, a stale localStorage
+ * value could silently produce invalid API query params.
+ */
+function sanitizeRestored<T extends Record<string, unknown>>(restored: unknown, defaults: T): T {
+  if (typeof restored !== 'object' || restored === null || Array.isArray(restored)) {
+    return { ...defaults }
+  }
+  const input = restored as Record<string, unknown>
+  const result: Record<string, unknown> = {}
+  for (const [key, fallback] of Object.entries(defaults)) {
+    const value = input[key]
+    if (value === undefined) {
+      result[key] = fallback
+      continue
+    }
+    if (Array.isArray(fallback)) {
+      result[key] = Array.isArray(value)
+        ? value.filter((item) => fallback.length === 0 || typeof item === typeof fallback[0])
+        : fallback
+      continue
+    }
+    result[key] = typeof value === typeof fallback ? value : fallback
+  }
+  return result as T
 }
 
 export function useFilterPersistence<T extends Record<string, unknown>>({
@@ -12,16 +42,10 @@ export function useFilterPersistence<T extends Record<string, unknown>>({
   debounceMs = 300
 }: FilterPersistenceOptions<T>) {
   const defaultValueRef = useRef(defaultValue)
-  const [filters, setFiltersState] = useState<T>(() => {
-    try {
-      const saved = localStorage.getItem(`filters_${key}`)
-      return saved
-        ? { ...defaultValueRef.current, ...(JSON.parse(saved) as Partial<T>) }
-        : { ...defaultValueRef.current }
-    } catch {
-      return { ...defaultValueRef.current }
-    }
-  })
+  const storageKey = `filters_${key}`
+  const [filters, setFiltersState] = useState<T>(() =>
+    sanitizeRestored(readJSON<unknown>(storageKey, null), defaultValueRef.current),
+  )
 
   const setFilters = (newFilters: Partial<T>) => {
     setFiltersState((prev) => ({ ...prev, ...newFilters }))
@@ -29,11 +53,7 @@ export function useFilterPersistence<T extends Record<string, unknown>>({
 
   const clearFilters = () => {
     setFiltersState({ ...defaultValueRef.current })
-    try {
-      localStorage.removeItem(`filters_${key}`)
-    } catch (error) {
-      console.warn('Failed to clear filters from localStorage:', error)
-    }
+    removeStored(storageKey)
   }
 
   const resetFilters = () => {
@@ -56,19 +76,15 @@ export function useFilterPersistence<T extends Record<string, unknown>>({
   // Auto-save on filter changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      try {
-        if (!hasActiveFilters) {
-          localStorage.removeItem(`filters_${key}`)
-          return
-        }
-        localStorage.setItem(`filters_${key}`, JSON.stringify(filters))
-      } catch (error) {
-        console.warn('Failed to auto-save filters:', error)
+      if (!hasActiveFilters) {
+        removeStored(storageKey)
+        return
       }
+      writeJSON(storageKey, filters)
     }, debounceMs)
 
     return () => clearTimeout(timer)
-  }, [filters, key, debounceMs, hasActiveFilters])
+  }, [filters, storageKey, debounceMs, hasActiveFilters])
 
   return {
     filters,

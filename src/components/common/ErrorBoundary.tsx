@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { reportError } from '@/lib/telemetry'
 
 interface Props {
   children: ReactNode
@@ -31,7 +32,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo)
+    reportError(error, { componentStack: errorInfo.componentStack ?? undefined })
     this.setState({
       error,
       errorInfo
@@ -60,8 +61,13 @@ class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      const isNetworkError = this.state.error?.message.includes('Network Error') ||
-        this.state.error?.message.includes('fetch')
+      // Fetch failures surface as TypeError ("Failed to fetch") or network
+      // message strings; anything else is an app bug.
+      const message = this.state.error?.message ?? ''
+      const isNetworkError =
+        this.state.error?.name === 'TypeError' ||
+        message.includes('Network Error') ||
+        message.includes('fetch')
 
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -81,7 +87,7 @@ class ErrorBoundary extends Component<Props, State> {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p>We encountered an unexpected error. Our team has been notified.</p>
+                    <p>We encountered an unexpected error. Please reload the page and try again.</p>
                     {import.meta.env.DEV && this.state.error && (
                       <details className="text-sm">
                         <summary className="cursor-pointer hover:underline">Error details</summary>

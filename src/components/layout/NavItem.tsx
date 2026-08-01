@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { readJSON, writeJSON } from '@/lib/storage'
 
 export interface NavChild {
     name: string
@@ -47,17 +48,16 @@ export function isPathActive(pathname: string, href: string): boolean {
     return true
 }
 
+const isStringArray = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((item) => typeof item === 'string')
+
 function getExpandedState(): Set<string> {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        return stored ? new Set(JSON.parse(stored) as string[]) : new Set()
-    } catch {
-        return new Set()
-    }
+    const stored = readJSON<string[] | null>(STORAGE_KEY, null, isStringArray)
+    return new Set(stored ?? [])
 }
 
 function saveExpandedState(expanded: Set<string>) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...expanded]))
+    writeJSON(STORAGE_KEY, [...expanded])
 }
 
 function hasActiveChild(children: NavChild[], pathname: string): boolean {

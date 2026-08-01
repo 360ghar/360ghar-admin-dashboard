@@ -81,3 +81,47 @@ describe('activity mappers', () => {
     expect(entry).toMatchObject({ id: 'property-3', kind: 'property', title: 'New listing · Loft', subtitle: 'Indiranagar, Bengaluru', href: '/properties/3/view' })
   })
 })
+
+import { computeStatusBreakdown } from '@/features/core/lib/dashboard'
+
+describe('computeStatusBreakdown', () => {
+  it('extracts totals from queries with total fields', () => {
+    const { totals, isLoading, isError } = computeStatusBreakdown([
+      { data: { total: 10, items: [] }, isLoading: false, isError: false },
+      { data: { total: 3, items: [] }, isLoading: false, isError: false },
+    ])
+    expect(totals).toEqual([10, 3])
+    expect(isLoading).toBe(false)
+    expect(isError).toBe(false)
+  })
+
+  it('falls back to items.length when total is missing', () => {
+    const { totals } = computeStatusBreakdown([
+      { data: { items: [{ id: 1 }, { id: 2 }] }, isLoading: false, isError: false },
+    ])
+    expect(totals).toEqual([2])
+  })
+
+  it('reports loading when any query is loading', () => {
+    const { isLoading } = computeStatusBreakdown([
+      { data: null, isLoading: true, isError: false },
+      { data: null, isLoading: false, isError: false },
+    ])
+    expect(isLoading).toBe(true)
+  })
+
+  it('reports error when any query errored', () => {
+    const { isError } = computeStatusBreakdown([
+      { data: null, isLoading: false, isError: true },
+      { data: null, isLoading: false, isError: false },
+    ])
+    expect(isError).toBe(true)
+  })
+
+  it('returns 0 for a query with null data', () => {
+    const { totals } = computeStatusBreakdown([
+      { data: null, isLoading: false, isError: false },
+    ])
+    expect(totals).toEqual([0])
+  })
+})

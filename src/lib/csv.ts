@@ -6,9 +6,20 @@
  * for backward compatibility.
  */
 
+/**
+ * Spreadsheet formula triggers: cells starting with these are neutralised
+ * with a leading apostrophe to prevent CSV formula injection when the export
+ * is opened in Excel/Sheets.
+ */
+const FORMULA_TRIGGERS = new Set(['=', '+', '-', '@', '\t', '\r'])
+
+/**
+ * Escape one CSV cell. Every value is quoted; embedded quotes are doubled.
+ */
 const escapeCsv = (v: unknown) => {
   const s = v === null || v === undefined ? '' : String(v)
-  return `"${s.replaceAll('"', '""')}"`
+  const neutralised = FORMULA_TRIGGERS.has(s.charAt(0)) ? `'${s}` : s
+  return `"${neutralised.replaceAll('"', '""')}"`
 }
 
 export const downloadCsv = (filename: string, rows: Record<string, unknown>[]) => {

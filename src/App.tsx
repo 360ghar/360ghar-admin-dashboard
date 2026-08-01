@@ -9,7 +9,7 @@ import { useAppDispatch } from '@/hooks/redux'
 import { clearCredentials, loadUserFromStorage, setCredentials, setInitialized } from '@/features/auth/slices/authSlice'
 import { supabase } from '@/lib/supabase'
 import { store } from '@/store'
-import { fetchUserProfileWithToken } from '@/lib/auth'
+import { fetchUserProfileWithStatus } from '@/lib/auth'
 import { isLoginInProgress } from '@/lib/loginState'
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
@@ -78,9 +78,15 @@ function App() {
       async (event, session) => {
         if (!isMounted) return
 
-        // TOKEN_REFRESHED: prepareHeaders already reads the fresh token from
-        // supabase.auth.getSession() on every API call — no Redux update needed.
-        if (event === 'TOKEN_REFRESHED') return
+        // TOKEN_REFRESHED: keep the Redux token fresh so prepareHeaders can
+        // serve it without a per-request Supabase getSession() round-trip.
+        if (event === 'TOKEN_REFRESHED') {
+          const { auth } = store.getState()
+          if (auth.user && session?.access_token) {
+            dispatch(setCredentials({ token: session.access_token, user: auth.user }))
+          }
+          return
+        }
 
         if (event === 'SIGNED_OUT') {
           dispatch(clearCredentials())
@@ -105,15 +111,20 @@ function App() {
             if (auth.token && auth.user) return
           }
 
-          const user = await fetchUserProfileWithToken(session.access_token)
+          const { user, status } = await fetchUserProfileWithStatus(session.access_token)
           if (!isMounted) return
 
           if (user) {
             dispatch(setCredentials({ token: session.access_token, user }))
+          } else if (status === 404) {
+            // The backend explicitly has no profile for this session — the
+            // account is not a provisioned staff member. Do NOT fall back to
+            // the cached user (that would keep a revoked account logged in).
+            dispatch(clearCredentials())
           } else {
-            // Profile fetch failed — do NOT sign out of Supabase.
-            // The session is still valid; the backend may be temporarily down.
-            // Fall back to the cached user so the session survives a refresh.
+            // Transient failure (backend down / network) — do NOT sign out of
+            // Supabase. The session is still valid; fall back to the cached
+            // user so the session survives a refresh.
             const cachedUser = loadUserFromStorage()
             if (cachedUser) {
               dispatch(setCredentials({ token: session.access_token, user: cachedUser }))

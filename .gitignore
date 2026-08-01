@@ -21,6 +21,7 @@ pnpm-debug.log*
 # Build artifacts
 *.tsbuildinfo
 vite.config.d.ts
+vite.config.js
 
 # Claude Code
 skills-lock.json

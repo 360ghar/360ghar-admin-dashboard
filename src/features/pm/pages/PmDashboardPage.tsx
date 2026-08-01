@@ -4,7 +4,7 @@ import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
 import { selectSelectedOwner } from '@/features/pm/slices/pmSlice'
 import { useGetPmDashboardActivityQuery, useGetPmDashboardOverviewQuery } from '@/features/pm/api/pmApi'
-import { formatINR } from '@/features/pm/utils'
+import { formatCurrency } from '@/lib/format'
 import { formatRelativeTime } from '@/lib/format'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -76,7 +76,7 @@ export default function PmDashboardPage() {
               <Skeleton className="h-8 w-32" />
             ) : (
               <div className="text-2xl font-bold">
-                {formatINR(overview.data?.outstanding_rent_total ?? 0)}
+                {formatCurrency(overview.data?.outstanding_rent_total ?? 0)}
               </div>
             )}
             <div className="mt-2">
@@ -99,11 +99,11 @@ export default function PmDashboardPage() {
               <Skeleton className="h-8 w-32" />
             ) : (
               <div className="text-2xl font-bold">
-                {formatINR(overview.data?.monthly_revenue_current ?? 0)}
+                {formatCurrency(overview.data?.monthly_revenue_current ?? 0)}
               </div>
             )}
             <div className="mt-2 text-xs text-muted-foreground">
-              Prev month: {formatINR(overview.data?.monthly_revenue_previous ?? 0)}
+              Prev month: {formatCurrency(overview.data?.monthly_revenue_previous ?? 0)}
             </div>
           </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export default function PmDashboardPage() {
                   <div className="min-w-0">
                     <span className="font-medium">{a.type}</span>
                     {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                    {a.amount ? <span className="text-muted-foreground"> • {formatINR(a.amount)}</span> : null}
+                    {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
                   </div>
                   <div className="shrink-0 text-xs text-muted-foreground">
                     {formatRelativeTime(a.at)}

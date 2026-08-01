@@ -54,6 +54,47 @@ import type {
   PmSettingsUpdate,
 } from '@/types/pm'
 
+import type { RootState } from '@/store'
+
+/**
+ * Optimistically patch a cached PM list (across every filter combination the
+ * user may have cached) and return the patches so the caller can undo them if
+ * the mutation fails.
+ *
+ * Single implementation of the pattern that used to be copy-pasted across
+ * updatePmProperty / updateMaintenanceRequest / decideApplication — a fix here
+ * (e.g. tag selection or patch semantics) applies to every list endpoint.
+ */
+type PatchableListEndpoint = 'listPmProperties' | 'listMaintenanceRequests' | 'listApplications'
+type PatchableListTag =
+  | { type: 'PmProperty'; id: 'LIST' }
+  | { type: 'PmMaintenanceRequest'; id: 'LIST' }
+  | { type: 'PmApplication'; id: 'LIST' }
+
+function patchCachedList(
+  endpointName: PatchableListEndpoint,
+  tag: PatchableListTag,
+  getState: () => unknown,
+  dispatch: (action: unknown) => unknown,
+  update: (draft: { items: Array<{ id: number }> }) => void,
+): Array<{ undo: () => void }> {
+  return pmApi.util
+    .selectInvalidatedBy(getState() as RootState, [tag])
+    .filter((entry) => entry.endpointName === endpointName)
+    .map((entry) =>
+      dispatch(
+        pmApi.util.updateQueryData(
+          endpointName,
+          // The cached entry's args are exactly the initiate args for this
+          // endpoint. `never` (a subtype of every type) keeps the no-`any`
+          // policy while satisfying updateQueryData's per-endpoint arg typing.
+          entry.originalArgs as never,
+          update as never,
+        ),
+      ) as { undo: () => void },
+    )
+}
+
 export const pmApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getPmDashboardOverview: builder.query<DashboardOverview, { owner_id?: number | null }>({
@@ -134,26 +175,22 @@ export const pmApi = api.injectEndpoints({
         const { dispatch, queryFulfilled } = lifecycle
         // Patch every cached list entry (any filter combination) — not just a
         // single hard-coded arg key that no subscriber actually uses.
-        const listPatches = pmApi.util
-          .selectInvalidatedBy(lifecycle.getState(), [{ type: 'PmProperty', id: 'LIST' }])
-          .filter((entry) => entry.endpointName === 'listPmProperties')
-          .map((entry) =>
-            dispatch(
-              pmApi.util.updateQueryData(
-                'listPmProperties',
-                entry.originalArgs as Parameters<typeof pmApi.endpoints.listPmProperties.initiate>[0],
-                (draft) => {
-                  const item = draft.items.find((p) => p.id === property_id)
-                  if (item) {
-                    if (payload.management_status !== undefined && payload.management_status !== null) item.management_status = payload.management_status
-                    if (payload.payment_due_day !== undefined && payload.payment_due_day !== null) item.payment_due_day = payload.payment_due_day
-                    if (payload.grace_period_days !== undefined && payload.grace_period_days !== null) item.grace_period_days = payload.grace_period_days
-                    if (payload.late_fee_policy !== undefined && payload.late_fee_policy !== null) item.late_fee_policy = payload.late_fee_policy
-                  }
-                },
-              ),
-            ),
-          )
+        const listPatches = patchCachedList(
+          'listPmProperties',
+          { type: 'PmProperty', id: 'LIST' },
+          () => lifecycle.getState(),
+          dispatch,
+          (draft) => {
+            const item = draft.items.find((p) => p.id === property_id)
+            if (item) {
+              const typed = item as PmProperty
+              if (payload.management_status !== undefined && payload.management_status !== null) typed.management_status = payload.management_status
+              if (payload.payment_due_day !== undefined && payload.payment_due_day !== null) typed.payment_due_day = payload.payment_due_day
+              if (payload.grace_period_days !== undefined && payload.grace_period_days !== null) typed.grace_period_days = payload.grace_period_days
+              if (payload.late_fee_policy !== undefined && payload.late_fee_policy !== null) typed.late_fee_policy = payload.late_fee_policy
+            }
+          },
+        )
         const detailPatch = dispatch(
           pmApi.util.updateQueryData('getPmPropertyDetail', property_id, (draft) => {
             if (payload.management_status !== undefined && payload.management_status !== null) draft.property.management_status = payload.management_status
@@ -423,30 +460,26 @@ export const pmApi = api.injectEndpoints({
       invalidatesTags: (_res, _e, { request_id }) => [{ type: 'PmMaintenanceRequest', id: request_id }, { type: 'PmMaintenanceRequest', id: 'LIST' }, {type: 'PmDashboard', id: 'LIST'}],
       onQueryStarted: async ({ request_id, payload }, lifecycle) => {
         const { dispatch, queryFulfilled } = lifecycle
-        const patches = pmApi.util
-          .selectInvalidatedBy(lifecycle.getState(), [{ type: 'PmMaintenanceRequest', id: 'LIST' }])
-          .filter((entry) => entry.endpointName === 'listMaintenanceRequests')
-          .map((entry) =>
-            dispatch(
-              pmApi.util.updateQueryData(
-                'listMaintenanceRequests',
-                entry.originalArgs as Parameters<typeof pmApi.endpoints.listMaintenanceRequests.initiate>[0],
-                (draft) => {
-                  const item = draft.items.find((r) => r.id === request_id)
-                  if (item) {
-                    if (payload.request_status !== undefined && payload.request_status !== null) item.request_status = payload.request_status
-                    if (payload.work_order_status !== undefined && payload.work_order_status !== null) item.work_order_status = payload.work_order_status
-                    if (payload.priority !== undefined && payload.priority !== null) item.priority = payload.priority
-                    if (payload.assigned_agent_id !== undefined && payload.assigned_agent_id !== null) item.assigned_agent_id = payload.assigned_agent_id
-                    if (payload.estimated_cost !== undefined && payload.estimated_cost !== null) item.estimated_cost = payload.estimated_cost
-                    if (payload.actual_cost !== undefined && payload.actual_cost !== null) item.actual_cost = payload.actual_cost
-                    if (payload.scheduled_for !== undefined && payload.scheduled_for !== null) item.scheduled_for = payload.scheduled_for
-                    if (payload.completion_notes !== undefined && payload.completion_notes !== null) item.completion_notes = payload.completion_notes
-                  }
-                },
-              ),
-            ),
-          )
+        const patches = patchCachedList(
+          'listMaintenanceRequests',
+          { type: 'PmMaintenanceRequest', id: 'LIST' },
+          () => lifecycle.getState(),
+          dispatch,
+          (draft) => {
+            const item = draft.items.find((r) => r.id === request_id)
+            if (item) {
+              const typed = item as MaintenanceRequest
+              if (payload.request_status !== undefined && payload.request_status !== null) typed.request_status = payload.request_status
+              if (payload.work_order_status !== undefined && payload.work_order_status !== null) typed.work_order_status = payload.work_order_status
+              if (payload.priority !== undefined && payload.priority !== null) typed.priority = payload.priority
+              if (payload.assigned_agent_id !== undefined && payload.assigned_agent_id !== null) typed.assigned_agent_id = payload.assigned_agent_id
+              if (payload.estimated_cost !== undefined && payload.estimated_cost !== null) typed.estimated_cost = payload.estimated_cost
+              if (payload.actual_cost !== undefined && payload.actual_cost !== null) typed.actual_cost = payload.actual_cost
+              if (payload.scheduled_for !== undefined && payload.scheduled_for !== null) typed.scheduled_for = payload.scheduled_for
+              if (payload.completion_notes !== undefined && payload.completion_notes !== null) typed.completion_notes = payload.completion_notes
+            }
+          },
+        )
         try {
           await queryFulfilled
         } catch {
@@ -517,6 +550,7 @@ export const pmApi = api.injectEndpoints({
 
     getPmDocumentDownloadUrl: builder.query<DocumentDownload, number>({
       query: (document_id) => `/pm/documents/${document_id}/download`,
+      providesTags: (_res, _e, document_id) => [{ type: 'PmDocument', id: document_id }],
     }),
 
     createPmInspection: builder.mutation<InspectionChecklist, InspectionChecklistCreate>({
@@ -771,24 +805,20 @@ export const pmApi = api.injectEndpoints({
       invalidatesTags: [{type: 'PmApplication', id: 'LIST'}],
       onQueryStarted: async ({ application_id, payload }, lifecycle) => {
         const { dispatch, queryFulfilled } = lifecycle
-        const patches = pmApi.util
-          .selectInvalidatedBy(lifecycle.getState(), [{ type: 'PmApplication', id: 'LIST' }])
-          .filter((entry) => entry.endpointName === 'listApplications')
-          .map((entry) =>
-            dispatch(
-              pmApi.util.updateQueryData(
-                'listApplications',
-                entry.originalArgs as Parameters<typeof pmApi.endpoints.listApplications.initiate>[0],
-                (draft) => {
-                  const item = draft.items.find((a) => a.id === application_id)
-                  if (item) {
-                    item.status = payload.decision
-                    item.decision_at = new Date().toISOString()
-                  }
-                },
-              ),
-            ),
-          )
+        const patches = patchCachedList(
+          'listApplications',
+          { type: 'PmApplication', id: 'LIST' },
+          () => lifecycle.getState(),
+          dispatch,
+          (draft) => {
+            const item = draft.items.find((a) => a.id === application_id)
+            if (item) {
+              const typed = item as RentalApplication
+              typed.status = payload.decision
+              typed.decision_at = new Date().toISOString()
+            }
+          },
+        )
         try {
           await queryFulfilled
         } catch {

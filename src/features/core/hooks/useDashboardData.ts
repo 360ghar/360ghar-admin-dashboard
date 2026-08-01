@@ -6,6 +6,7 @@ import {
   PROPERTY_STATUS_META,
   buildActivityTrend,
   bookingToActivity,
+  computeStatusBreakdown,
   mergeActivity,
   propertyToActivity,
   visitToActivity,
@@ -41,13 +42,7 @@ export function usePropertyStatusBreakdown(): PropertyStatusBreakdown {
   const maintenance = useSearchPropertiesQuery({ status: 'maintenance', limit: 1, include_total: true })
 
   const queries = [available, rented, sold, underOffer, maintenance]
-  const totals = [
-    available.data?.total ?? available.data?.items?.length,
-    rented.data?.total ?? rented.data?.items?.length,
-    sold.data?.total ?? sold.data?.items?.length,
-    underOffer.data?.total ?? underOffer.data?.items?.length,
-    maintenance.data?.total ?? maintenance.data?.items?.length,
-  ]
+  const { totals, isLoading, isError } = computeStatusBreakdown(queries)
 
   const data = PROPERTY_STATUS_META.map((meta, i) => ({ ...meta, count: totals[i] ?? 0 }))
   const total = data.reduce((sum, slice) => sum + slice.count, 0)
@@ -55,10 +50,10 @@ export function usePropertyStatusBreakdown(): PropertyStatusBreakdown {
   return {
     data,
     total,
-    isLoading: queries.some((q) => q.isLoading),
+    isLoading,
     // Surface an error if ANY status query failed — otherwise a single failed
     // query is counted as 0 and silently corrupts the totals/percentages.
-    isError: queries.some((q) => q.isError),
+    isError,
     refetch: () => queries.forEach((q) => void q.refetch()),
   }
 }

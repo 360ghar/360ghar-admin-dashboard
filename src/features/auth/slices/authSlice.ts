@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '@/store'
 import type { User } from '@/types'
+import { readJSON, removeStored, writeJSON } from '@/lib/storage'
 
 interface AuthState {
   token: string | null
@@ -9,18 +10,15 @@ interface AuthState {
   error: string | null
 }
 
+const USER_STORAGE_KEY = 'user'
+
+const isStoredUser = (value: unknown): value is User => {
+  if (typeof value !== 'object' || value === null) return false
+  return Boolean((value as Record<string, unknown>).id)
+}
+
 export function loadUserFromStorage(): User | null {
-  try {
-    if (typeof localStorage === 'undefined') return null
-    const raw = localStorage.getItem('user')
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    if (!parsed?.id) return null
-    return parsed as unknown as User
-  } catch {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem('user')
-    return null
-  }
+  return readJSON<User | null>(USER_STORAGE_KEY, null, isStoredUser)
 }
 
 const initialState: AuthState = {
@@ -39,16 +37,12 @@ const authSlice = createSlice({
         state.token = action.payload.token
       }
       state.user = action.payload.user
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('user', JSON.stringify(action.payload.user))
-      }
+      writeJSON(USER_STORAGE_KEY, action.payload.user)
     },
     clearCredentials: (state) => {
       state.token = null
       state.user = null
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('user')
-      }
+      removeStored(USER_STORAGE_KEY)
     },
     setInitialized: (state, action: PayloadAction<boolean>) => {
       state.initialized = action.payload

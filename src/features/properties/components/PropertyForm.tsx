@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { useCreatePropertyMutation, useGetPropertyQuery, useUpdatePropertyMutation, PropertyCreate, type PropertyResponse } from '@/features/properties/api/propertiesApi'
+import { useCreatePropertyMutation, useGetPropertyQuery, useUpdatePropertyMutation, PropertyCreate, type Property } from '@/features/properties/api/propertiesApi'
 import { useToast } from '@/hooks/use-toast'
 import { useGetUsersQuery } from '@/features/users/api/usersApi'
 import { useUserRole } from '@/hooks/useUserRole'
@@ -54,7 +54,7 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
 
   useEffect(() => {
     if (data) {
-      const extras = data as PropertyResponse & { is_available?: boolean; available_from?: string; amenities?: Array<{ id: number }>; thumbnail_url?: string }
+      const extras = data as Property & { is_available?: boolean; available_from?: string; amenities?: Array<{ id: number }>; thumbnail_url?: string }
       const amenityIds = Array.isArray(extras.amenities) ? extras.amenities.map((a) => Number(a.id)).filter((v) => !Number.isNaN(v)) : []
       reset({
         title: data.title,

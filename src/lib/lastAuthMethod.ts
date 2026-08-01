@@ -1,4 +1,5 @@
 import type { AuthMethod } from '@/lib/auth'
+import { readJSON, removeStored, writeJSON } from '@/lib/storage'
 
 const STORAGE_KEY = '360ghar:lastAuthMethod'
 
@@ -39,41 +40,30 @@ export function maskIdentifier(identifier: string): string {
   return `${prefix}${'•'.repeat(4)}${last4}`
 }
 
+const isValidLastAuthMethod = (value: unknown): value is LastAuthMethod => {
+  if (typeof value !== 'object' || value === null) return false
+  const p = value as Record<string, unknown>
+  return (
+    typeof p.method === 'string' &&
+    VALID_METHODS.has(p.method) &&
+    typeof p.identifierHint === 'string' &&
+    typeof p.ts === 'number'
+  )
+}
+
 export function getLastAuthMethod(): LastAuthMethod | null {
-  try {
-    if (typeof localStorage === 'undefined') return null
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<LastAuthMethod>
-    if (!parsed?.method || !VALID_METHODS.has(parsed.method)) return null
-    return {
-      method: parsed.method,
-      identifierHint: typeof parsed.identifierHint === 'string' ? parsed.identifierHint : '',
-      ts: typeof parsed.ts === 'number' ? parsed.ts : 0,
-    }
-  } catch {
-    return null
-  }
+  return readJSON<LastAuthMethod | null>(STORAGE_KEY, null, isValidLastAuthMethod)
 }
 
 export function setLastAuthMethod(method: AuthMethod, identifier?: string): void {
-  try {
-    if (typeof localStorage === 'undefined') return
-    const payload: LastAuthMethod = {
-      method,
-      identifierHint: identifier ? maskIdentifier(identifier) : '',
-      ts: Date.now(),
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-  } catch {
-    // ignore storage failures (private mode / quota)
+  const payload: LastAuthMethod = {
+    method,
+    identifierHint: identifier ? maskIdentifier(identifier) : '',
+    ts: Date.now(),
   }
+  writeJSON(STORAGE_KEY, payload)
 }
 
 export function clearLastAuthMethod(): void {
-  try {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // ignore
-  }
+  removeStored(STORAGE_KEY)
 }
