@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { downloadCsv, csvFilename } from '@/lib/csv'
 
 /** jsdom's Blob has no `.text()` — read it via FileReader. */
@@ -15,6 +15,9 @@ describe('downloadCsv', () => {
 
   beforeEach(() => {
     captured.length = 0
+    // `a.click()` triggers a jsdom "navigation not implemented" warning; the
+    // download trigger itself is irrelevant to these assertions.
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     // jsdom's URL lacks createObjectURL/revokeObjectURL (Node's has them), so
     // install stubs on the global; the Record cast keeps the linter quiet.
     ;(URL as unknown as Record<string, unknown>).createObjectURL = (blob: Blob) => {
@@ -25,6 +28,7 @@ describe('downloadCsv', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     delete (URL as unknown as Record<string, unknown>).createObjectURL
     delete (URL as unknown as Record<string, unknown>).revokeObjectURL
   })
