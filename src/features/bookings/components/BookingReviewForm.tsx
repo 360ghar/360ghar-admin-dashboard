@@ -38,7 +38,7 @@ const BookingReviewForm: React.FC<{ onSubmit: (data: BookingReviewFormValues) =>
           ))}
         </div>
         {errors.guest_rating && (
-          <p className="text-sm text-red-500">{errors.guest_rating.message}</p>
+          <p className="text-sm text-destructive">{errors.guest_rating.message}</p>
         )}
       </div>
 

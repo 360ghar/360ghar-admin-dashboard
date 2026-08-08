@@ -177,12 +177,12 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
               <p className="text-sm text-destructive">{form.formState.errors.property_id.message}</p>
             )}
             {searchResults?.items && searchResults.items.length > 0 && !propertyId && (
-              <div className="border rounded-md max-h-40 overflow-y-auto">
+              <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 max-h-40 overflow-y-auto backdrop-blur-md">
                 {searchResults.items.map((p) => (
                   <button
                     key={p.id}
                     type="button"
-                    className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0"
+                    className="w-full text-left px-3 py-2 hover:bg-muted/60 text-sm border-b border-cohere-card-border/60 last:border-b-0 transition-colors"
                     onClick={() => {
                       setSelectedPropertyId(p.id)
                       setPropertySearch(p.title)

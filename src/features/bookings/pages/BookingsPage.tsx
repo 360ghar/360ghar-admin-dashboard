@@ -8,9 +8,10 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useGetAllBookingsQuery } from '../api/bookingsApi'
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const StatCard = ({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number | string; tone: string }) => (
-  <div className="flex items-center gap-3 p-4 rounded-cohere-sm border border-cohere-card-border bg-muted/30">
+  <div className="flex items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 backdrop-blur-md">
     <div className={`p-2 rounded-full ${tone}`}>{icon}</div>
     <div>
       <p className="text-sm text-muted-foreground">{label}</p>
@@ -63,7 +64,7 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
           icon={CalendarCheck}
           badge={role === 'admin' ? 'Admin View' : 'Agent View'}
           actions={
-            <div className="flex rounded-cohere-pill border p-0.5 bg-muted/40">
+            <div className="flex rounded-cohere-pill border border-cohere-card-border p-0.5 bg-card/40 backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => setView('list')}
@@ -90,7 +91,7 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
 
         {view === 'list' && (
           <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <FadeContent container="#main-content" threshold={0} duration={600} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 icon={<CalendarCheck className="h-4 w-4 text-primary" />}
                 label="Total (up to 1000)"
@@ -101,13 +102,13 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
                 icon={<CalendarClock className="h-4 w-4 text-cohere-action-blue" />}
                 label="Upcoming (sample)"
                 value={isFetching ? '…' : counts.upcoming}
-                tone="bg-cohere-pale-blue"
+                tone="bg-cohere-action-blue/10"
               />
               <StatCard
                 icon={<CheckCircle2 className="h-4 w-4 text-cohere-deep-green" />}
                 label="Completed (sample)"
                 value={isFetching ? '…' : counts.completed}
-                tone="bg-cohere-pale-green"
+                tone="bg-cohere-deep-green/15"
               />
               <StatCard
                 icon={<XCircle className="h-4 w-4 text-destructive" />}
@@ -115,7 +116,7 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
                 value={isFetching ? '…' : counts.cancelled}
                 tone="bg-destructive/10"
               />
-            </div>
+            </FadeContent>
             <p className="text-xs text-muted-foreground">
               {isError
                 ? 'Could not load booking stats. List below may still work.'

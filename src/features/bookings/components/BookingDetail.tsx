@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, CalendarCheck, Star } from 'lucide-react'
 import { useAddReviewMutation, useCancelBookingMutation, useGetBookingQuery, useProcessPaymentMutation } from '@/features/bookings/api/bookingsApi'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,11 +13,13 @@ import { Label } from '@/components/ui/label'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Star } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { getBookingStatusColor, getBookingPaymentStatusColor } from '@/lib/statusColors'
 import type { BookingReview } from '@/types/api'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const BookingDetail = ({ id }: { id: number }) => {
   const navigate = useNavigate()
@@ -79,38 +81,49 @@ const BookingDetail = ({ id }: { id: number }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Go back">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-        <h1 className="text-xl font-semibold">Booking Details</h1>
-        {data?.booking_status ? <Badge>{data.booking_status}</Badge> : null}
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 text-sm">
-            <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
-            <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
-            <div><span className="text-muted-foreground">Stay:</span> {data ? `${formatDate(data.check_in_date)} – ${formatDate(data.check_out_date)}` : '-'}</div>
-            <div><span className="text-muted-foreground">Nights:</span> {data?.nights ?? '-'}</div>
-            <div><span className="text-muted-foreground">Amount:</span> {data?.total_amount ? formatCurrency(data.total_amount) : '-'}</div>
-            <div><span className="text-muted-foreground">Status:</span> {data?.booking_status ?? '-'}</div>
-            <div><span className="text-muted-foreground">Payment:</span> {data?.payment_status || '-'}</div>
-          </div>
-          <div className="mt-4 flex gap-2">
-            {(data?.booking_status === 'pending' || data?.booking_status === 'confirmed') && (
-              <>
-                <Button onClick={() => setOpen('cancel')}>Cancel</Button>
-                <Button variant="outline" onClick={() => setOpen('payment')}>Process Payment</Button>
-              </>
-            )}
-            {data?.booking_status === 'completed' && <Button onClick={() => setOpen('review')}>Add Review</Button>}
-          </div>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title="Booking Details"
+        icon={CalendarCheck}
+        badge={data?.booking_status}
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Go back">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        }
+      />
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 text-sm">
+              <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
+              <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
+              <div><span className="text-muted-foreground">Stay:</span> {data ? `${formatDate(data.check_in_date)} – ${formatDate(data.check_out_date)}` : '-'}</div>
+              <div><span className="text-muted-foreground">Nights:</span> {data?.nights ?? '-'}</div>
+              <div><span className="text-muted-foreground">Amount:</span> {data?.total_amount ? formatCurrency(data.total_amount) : '-'}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Status:</span>
+                {data?.booking_status ? <Badge variant={getBookingStatusColor(data.booking_status)}>{data.booking_status}</Badge> : <span>-</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Payment:</span>
+                {data?.payment_status ? <Badge variant={getBookingPaymentStatusColor(data.payment_status)}>{data.payment_status}</Badge> : <span>-</span>}
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              {(data?.booking_status === 'pending' || data?.booking_status === 'confirmed') && (
+                <>
+                  <Button onClick={() => setOpen('cancel')}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setOpen('payment')}>Process Payment</Button>
+                </>
+              )}
+              {data?.booking_status === 'completed' && <Button onClick={() => setOpen('review')}>Add Review</Button>}
+            </div>
+          </CardContent>
+        </Card>
+      </FadeContent>
 
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent>
@@ -119,7 +132,7 @@ const BookingDetail = ({ id }: { id: number }) => {
           </DialogHeader>
           {open === 'payment' ? (
             <div className="grid gap-2">
-              <label className="text-sm">Payment Method</label>
+              <Label>Payment Method</Label>
               <Select value={payment.method} onValueChange={(value) => setPayment({ ...payment, method: value })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -130,9 +143,9 @@ const BookingDetail = ({ id }: { id: number }) => {
                   <SelectItem value="cash">Cash</SelectItem>
                 </SelectContent>
               </Select>
-              <label className="text-sm">Transaction ID</label>
+              <Label>Transaction ID</Label>
               <Input value={payment.txn} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayment({ ...payment, txn: e.target.value })} />
-              <label className="text-sm">Amount</label>
+              <Label>Amount</Label>
               <Input type="number" value={payment.amount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayment({ ...payment, amount: e.target.value })} />
             </div>
           ) : open === 'cancel' ? (

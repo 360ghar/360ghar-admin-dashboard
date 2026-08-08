@@ -20,30 +20,34 @@ const BookingDateSelection: React.FC<BookingDateSelectionProps> = ({ selectedDat
     <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
         <Label>Check-in Date</Label>
-        <Calendar mode="single" selected={selectedDates.from}
-          onSelect={(date) => {
-            setSelectedDates((prev) => {
-              const next = { ...prev, from: date }
-              if (date && prev.to && !isAfter(prev.to, date)) {
-                next.to = undefined
-              }
-              return next
-            })
-          }}
-          disabled={(date) => isBefore(date, startOfDay(new Date()))} />
+        <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
+          <Calendar mode="single" selected={selectedDates.from}
+            onSelect={(date) => {
+              setSelectedDates((prev) => {
+                const next = { ...prev, from: date }
+                if (date && prev.to && !isAfter(prev.to, date)) {
+                  next.to = undefined
+                }
+                return next
+              })
+            }}
+            disabled={(date) => isBefore(date, startOfDay(new Date()))} className="rounded-md" />
+        </div>
       </div>
       <div className="space-y-2">
         <Label>Check-out Date</Label>
-        <Calendar mode="single" selected={selectedDates.to}
-          onSelect={(date) => setSelectedDates(prev => ({ ...prev, to: date }))}
-          disabled={(date) => !selectedDates.from || !isAfter(date, selectedDates.from)} />
+        <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
+          <Calendar mode="single" selected={selectedDates.to}
+            onSelect={(date) => setSelectedDates(prev => ({ ...prev, to: date }))}
+            disabled={(date) => !selectedDates.from || !isAfter(date, selectedDates.from)} className="rounded-md" />
+        </div>
       </div>
     </div>
     {selectedDates.from && selectedDates.to && (
       <div className="text-sm text-muted-foreground"><CalendarDays className="h-4 w-4 inline mr-1" />{differenceInDays(selectedDates.to, selectedDates.from)} nights</div>
     )}
     {availabilityInfo && !availabilityInfo.available && (
-      <div className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800/40"><p className="text-sm text-red-800 dark:text-red-300">{availabilityInfo.reason || 'Property is not available for selected dates'}</p></div>
+      <div className="rounded-cohere-sm border border-destructive/30 bg-destructive/10 p-3"><p className="text-sm text-destructive">{availabilityInfo.reason || 'Property is not available for selected dates'}</p></div>
     )}
     {pricingInfo && (
       <Card>

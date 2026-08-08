@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +9,8 @@ import type { Booking, BookingReview } from '@/types/api'
 import { getBookingStatusColor, getBookingPaymentStatusColor } from '@/lib/statusColors'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { BookingReviewForm } from './BookingReviewForm'
+import TiltedCard from '@/components/reactbits/TiltedCard'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 interface BookingCardProps {
   booking: Booking
@@ -18,14 +20,37 @@ interface BookingCardProps {
   showActions?: boolean
 }
 
+/** 1x1 transparent GIF so the tilt layer stays invisible when no photo exists. */
+const TRANSPARENT_PIXEL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
 const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true }: BookingCardProps) => {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [cardHeight, setCardHeight] = useState(0)
+
+  // TiltedCard needs a definite height; keep it in sync with the card's
+  // content height (changes when the details section expands/collapses).
+  useLayoutEffect(() => {
+    const el = cardRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setCardHeight(el.offsetHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   const [showDetails, setShowDetails] = useState(false)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
 
   const taxesAndFees = (booking.taxes_amount ?? 0) + (booking.service_charges ?? 0)
 
-  return (
-    <Card className={`transition-all ${booking.booking_status === 'cancelled' ? 'opacity-60' : ''}`}>
+  const cardBody = (
+    <Card
+      ref={cardRef}
+      className={`w-full transition-all ${booking.booking_status === 'cancelled' ? 'opacity-60' : ''}`}
+    >
       <CardContent className="pt-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
@@ -67,7 +92,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
             </div>
 
             {booking.special_requests && (
-              <div className="mt-3 p-3 bg-muted rounded-lg">
+              <div className="mt-3 p-3 bg-muted/40 border border-cohere-card-border/70 rounded-cohere-md">
                 <p className="text-sm">
                   <strong>Special Requests:</strong> {booking.special_requests}
                 </p>
@@ -75,7 +100,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
             )}
 
             {showDetails && (
-              <div className="mt-4 pt-4 border-t space-y-3">
+              <div className="mt-4 pt-4 border-t border-cohere-card-border/70 space-y-3">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
                     <span className="text-muted-foreground">Primary Guest:</span>
@@ -111,7 +136,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
                 </div>
 
                 {booking.guest_rating && (
-                  <div className="mt-3 p-3 bg-muted rounded-lg">
+                  <div className="mt-3 p-3 bg-muted/40 border border-cohere-card-border/70 rounded-cohere-md">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex">
                         {Array.from({ length: 5 }).map((_, i) => (
@@ -195,6 +220,25 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
         </div>
       </CardContent>
     </Card>
+  )
+
+  if (prefersReducedMotion) return cardBody
+
+  return (
+    <TiltedCard
+      imageSrc={booking.property?.main_image_url || TRANSPARENT_PIXEL}
+      altText={booking.property?.title || 'Property booking'}
+      containerHeight={`${cardHeight}px`}
+      containerWidth="100%"
+      imageHeight={`${cardHeight}px`}
+      imageWidth="100%"
+      rotateAmplitude={2}
+      scaleOnHover={1.01}
+      showMobileWarning={false}
+      showTooltip={false}
+      displayOverlayContent
+      overlayContent={cardBody}
+    />
   )
 }
 

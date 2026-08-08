@@ -219,7 +219,7 @@ const BookingList = () => {
 
   return (
     <Card className="p-4 md:p-6">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-cohere-card-border/60 pb-4">
         <div className="hidden md:grid md:flex-1 gap-3 md:grid-cols-5">
           <Select value={status || 'all'} onValueChange={(v) => setStatus(v === 'all' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="All Status" /></SelectTrigger>
@@ -306,7 +306,7 @@ const BookingList = () => {
       ) : (
         <div className="space-y-4">
           {selectedRows.length > 0 && (
-            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-md border bg-background/95 p-3 backdrop-blur">
+            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/60 p-3 backdrop-blur-md">
               <span className="text-sm font-medium">{selectedRows.length} selected</span>
               <ConfirmAlertDialog
                 title="Cancel selected bookings?"

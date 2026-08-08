@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/useAuth'
 import {
@@ -19,6 +20,7 @@ import type { Booking, BookingReview } from '@/types/api'
 import { getErrorMessage } from '@/lib/errors'
 import { BookingCard } from '@/features/bookings/components/BookingCard'
 import { CreateBookingDialog } from '@/features/bookings/components/CreateBookingDialog'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { user } = useAuth()
@@ -123,20 +125,18 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
   return (
     <div className="space-y-6">
       {!embedded && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Booking Management</h1>
-            <p className="text-muted-foreground">
-              Manage your property bookings and reservations
-            </p>
-          </div>
-          {user.role !== 'admin' && (
-            <CreateBookingDialog onSuccess={() => {
-              void refetchUserBookings()
-              void refetchAllBookings()
-            }} />
-          )}
-        </div>
+        <PageHeader
+          title="Booking Management"
+          description="Manage your property bookings and reservations"
+          actions={
+            user.role !== 'admin' ? (
+              <CreateBookingDialog onSuccess={() => {
+                void refetchUserBookings()
+                void refetchAllBookings()
+              }} />
+            ) : undefined
+          }
+        />
       )}
       {embedded && user.role !== 'admin' && (
         <div className="flex justify-end">
@@ -149,11 +149,13 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
 
       {/* Stats */}
       {isUser && userBookings && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <FadeContent container="#main-content" threshold={0} duration={600} className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="rounded-cohere-sm bg-cohere-action-blue/10 p-2">
+                <CalendarIcon className="h-4 w-4 text-cohere-action-blue" />
+              </span>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{userBookings.items.length}</div>
@@ -162,7 +164,9 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="rounded-cohere-sm bg-cohere-coral/10 p-2">
+                <Clock className="h-4 w-4 text-cohere-coral" />
+              </span>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{userBookings.items.filter((b) => ['pending', 'confirmed'].includes(b.booking_status)).length}</div>
@@ -171,13 +175,15 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <Check className="h-4 w-4 text-muted-foreground" />
+              <span className="rounded-cohere-sm bg-cohere-deep-green/15 p-2">
+                <Check className="h-4 w-4 text-cohere-deep-green" />
+              </span>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{userBookings.items.filter((b) => b.booking_status === 'completed').length}</div>
             </CardContent>
           </Card>
-        </div>
+        </FadeContent>
       )}
 
       {/* Filters */}
@@ -211,7 +217,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
       </Card>
 
       {/* Booking List */}
-      <div className="space-y-4">
+      <FadeContent container="#main-content" threshold={0} duration={600} delay={120} className="space-y-4">
         {isUser ? (
           userBookingsLoading ? (
             <LoadingState type="cards" />
@@ -265,7 +271,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
             ))
           )
         )}
-      </div>
+      </FadeContent>
     </div>
   )
 }
