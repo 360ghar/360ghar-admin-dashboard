@@ -162,7 +162,7 @@ The project uses a centralized API setup:
 
 #### ReactBits & Motion
 - Motion components live in `src/components/reactbits/` (vendored from reactbits.dev, MIT) — import only from `@/components/reactbits/<Name>`; never remove the MIT attribution header.
-- House vocabulary: `FadeContent` (page/list reveals), `CountUp` (KPIs — pass `format` from `@/lib/format`), `SplitText` (page titles), `TiltedCard` (list cards), `GlitchText` (error pages), `ambient-background` (auth + dashboard hero only, lazy).
+- House vocabulary: `FadeContent` (page/list reveals), `CountUp` (KPIs — pass `format` from `@/lib/format`), `SplitText` (page titles), `TiltedCard` (list cards), `GlitchText` (error pages), `ambient-background` (auth screens only, lazy).
 - **Every animation must render its final state under `prefers-reduced-motion`** (CountUp/FadeContent/TiltedCard/GlitchText/ambient-background handle this internally).
 - `SplitText`/`BlurText` must receive `aria-label={text}`; scroll-triggered effects resolve the app scroller (`document.getElementById('main-content')`), not `window`.
 - WebGL canvases (`ambient-background`) require a capability probe with a static-gradient fallback.

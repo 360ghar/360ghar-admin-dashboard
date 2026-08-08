@@ -18,6 +18,23 @@ interface CountUpProps {
   onEnd?: () => void;
 }
 
+/** Number of non-zero fractional digits in `num` (1.50 → 2, 1.00 → 0, 12 → 0). */
+export function getDecimalPlaces(num: number): number {
+  const str = num.toString();
+  if (str.includes('.')) {
+    const decimals = str.split('.')[1];
+    if (parseInt(decimals) !== 0) {
+      return decimals.length;
+    }
+  }
+  return 0;
+}
+
+/** Round `value` to `decimals` places (0 → nearest integer). */
+export function roundToPrecision(value: number, decimals: number): number {
+  return decimals > 0 ? Number(value.toFixed(decimals)) : Math.round(value);
+}
+
 export default function CountUp({
   to,
   from = 0,
@@ -46,22 +63,16 @@ export default function CountUp({
 
   const isInView = useInView(ref, { once: true, margin: '0px' });
 
-  const getDecimalPlaces = (num: number): number => {
-    const str = num.toString();
-    if (str.includes('.')) {
-      const decimals = str.split('.')[1];
-      if (parseInt(decimals) !== 0) {
-        return decimals.length;
-      }
-    }
-    return 0;
-  };
-
   const maxDecimals = Math.max(getDecimalPlaces(from), getDecimalPlaces(to));
 
   const formatValue = useCallback(
     (latest: number) => {
-      if (format) return format(latest);
+      // Round the live spring value to the precision of the target so integer
+      // counts never flash decimals mid-animation (e.g. 12.34 → 12), while
+      // genuine fractional values (scores, percentages) keep their decimals.
+      const rounded = roundToPrecision(latest, maxDecimals);
+
+      if (format) return format(rounded);
 
       const hasDecimals = maxDecimals > 0;
 
@@ -71,7 +82,7 @@ export default function CountUp({
         maximumFractionDigits: hasDecimals ? maxDecimals : 0
       };
 
-      const formattedNumber = Intl.NumberFormat('en-US', options).format(latest);
+      const formattedNumber = Intl.NumberFormat('en-US', options).format(rounded);
 
       return separator ? formattedNumber.replace(/,/g, separator) : formattedNumber;
     },

@@ -124,8 +124,8 @@ flash of the wrong theme).
 Visual personality: *measured enterprise, subtly futuristic*. Depth comes from surface
 alternation and glass, not heavy shadows. Motion is deliberate and informative: scroll
 reveals (FadeContent), animated KPI counts (CountUp), split-text headlines (SplitText),
-3D tilt cards (TiltedCard), and a WebGL particle ambient background on the auth screens and
-dashboard hero. **Every animation degrades gracefully under `prefers-reduced-motion`** — the
+3D tilt cards (TiltedCard), and a WebGL particle ambient background on the auth screens.
+**Every animation degrades gracefully under `prefers-reduced-motion`** — the
 final state renders instantly and no canvases mount.
 
 ## Colors
@@ -250,7 +250,7 @@ only from `@/components/reactbits/<Name>`.
 | `TiltedCard` (4) | `BookingCard`, `VisitCard`, `ModerationListingCard`, `PropertyDetail` | Subtle 3D tilt on hover; mouse handlers gated by reduced motion |
 | `ShinyText` (3) | `AuthBrandingPanel`, `AuthCardLayout`, `EmptyState` | Shimmering accent label |
 | `GlitchText` (2) | `AccessDeniedPage`, `NotFoundPage` | Glitch headline; static fallback under reduced motion |
-| `ambient-background` (2) | `AuthBrandingPanel`, `DashboardPage` | Lazy WebGL particle canvas; probes WebGL2/WebGL support and falls back to a static gradient (no canvas, no rAF) when unsupported or reduced motion |
+| `ambient-background` (1) | `AuthBrandingPanel` | Lazy WebGL particle canvas; probes WebGL2/WebGL support and falls back to a static gradient (no canvas, no rAF) when unsupported or reduced motion |
 | `BlurText` (1) | `SwipeCard` | Blur-in text with `aria-label` |
 | `Magnet` (1) | `QuickActions` | Magnetic hover on quick-action tiles |
 | `GradientText` (1) | `SidebarContent` | Brand wordmark gradient |
@@ -283,7 +283,7 @@ animations; if a new one is needed, vendor it from reactbits.dev and keep the MI
 |---|---|
 | Auth (login/signup/forgot) | Glass panels + ambient background + SplitText/ShinyText branding |
 | Shell (TopBar/Sidebar/BottomNav) | Glass TopBar, GradientText wordmark, ⌘K palette |
-| Dashboard | ambient hero + CountUp KPIs (`StatCard`) + FadeContent quick actions |
+| Dashboard | Compact one-row header (SplitText title + quick actions) + CountUp KPIs (`StatCard`) |
 | Agents, Users, Blog, Bookings, Visits, Properties, Flatmates, Swipes | FadeContent page reveals; CountUp stats; TiltedCard list cards; BlurText swipe cards; SplitText detail titles |
 | PM portal | FadeContent on dashboards; CountUp on money/stats pages (currency-formatted) |
 | Error pages | GlitchText headlines on glass panels |

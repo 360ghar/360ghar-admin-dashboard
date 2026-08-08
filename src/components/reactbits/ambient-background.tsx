@@ -6,7 +6,7 @@ export type AmbientVariant = 'aurora' | 'beams' | 'threads' | 'particles' | 'orb
 
 /**
  * ReactBits canvas backgrounds, loaded lazily so the WebGL/three.js payload
- * only ships to the few surfaces that use them (auth screens, dashboard hero).
+ * only ships to the few surfaces that use them (auth screens).
  * Reduced-motion users get a static gradient instead of a running canvas.
  */
 const componentMap: Record<AmbientVariant, ComponentType> = {
