@@ -3,26 +3,26 @@ version: alpha
 name: 360Ghar Command Center
 description: Dark-first command-center UI for the 360Ghar Admin + Agent Portal. Built on shadcn/ui tokens (CSS custom properties) with a retained light variant, glass surfaces, and ReactBits motion. Dark is the default surface; light remains available via the theme toggle.
 colors:
-  background: "#08080d"
-  foreground: "#eaeaef"
-  card: "#101013"
-  popover: "#121216"
-  primary: "#f4f4f8"
-  primary-foreground: "#0d0d12"
+  background: "#09090c"
+  foreground: "#ebebef"
+  card: "#101014"
+  popover: "#121217"
+  primary: "#f4f4f6"
+  primary-foreground: "#0d0d11"
   secondary: "#1c1c22"
   muted: "#19191f"
-  muted-foreground: "#9797a6"
+  muted-foreground: "#9696a6"
   accent: "#202027"
-  destructive: "#f2514c"
-  border: "#25252c"
-  ring: "#4f8df5"
-  glass-bg: "#17171c"
+  destructive: "#f75745"
+  border: "#25252d"
+  ring: "#538ae9"
+  glass-bg: "#16161d"
   glass-border: "#2e2e38"
-  coral: "#ff7a5c"
-  action-blue: "#4f8df5"
-  deep-green: "#14453d"
-  dark-navy: "#102333"
-  form-focus: "#a477bc"
+  coral: "#ff7a52"
+  action-blue: "#538ae9"
+  deep-green: "#145245"
+  dark-navy: "#102841"
+  form-focus: "#af77c5"
   light-background: "#ffffff"
   light-foreground: "#212121"
   light-primary: "#17171c"
@@ -60,8 +60,8 @@ typography:
     fontWeight: 400
     lineHeight: 1.4
 rounded:
-  sm: 6px
-  md: 8px
+  sm: 4px
+  md: 6px
   lg: 8px
   cohere-xs: 4px
   cohere-sm: 8px
@@ -138,23 +138,23 @@ blue links, deep green/navy reserved for brand moments).
 
 | Token | Value | Role |
 |---|---|---|
-| `--background` | `hsl(240 14% 4%)` `#08080d` | Page canvas — deep space |
-| `--foreground` | `hsl(240 12% 93%)` `#eaeaef` | Off-white primary ink |
-| `--card` | `hsl(240 12% 7%)` `#101013` | Card surface (glass base) |
-| `--popover` | `hsl(240 12% 8%)` `#121216` | Menus, dropdowns, dialogs |
-| `--primary` | `hsl(240 12% 96%)` `#f4f4f8` | White pill CTA fill |
-| `--primary-foreground` | `hsl(240 14% 6%)` `#0d0d12` | Near-black text on white CTA |
+| `--background` | `hsl(240 14% 4%)` `#09090c` | Page canvas — deep space |
+| `--foreground` | `hsl(240 12% 93%)` `#ebebef` | Off-white primary ink |
+| `--card` | `hsl(240 12% 7%)` `#101014` | Card surface (glass base) |
+| `--popover` | `hsl(240 12% 8%)` `#121217` | Menus, dropdowns, dialogs |
+| `--primary` | `hsl(240 12% 96%)` `#f4f4f6` | White pill CTA fill |
+| `--primary-foreground` | `hsl(240 14% 6%)` `#0d0d11` | Near-black text on white CTA |
 | `--secondary` / `--muted` | `hsl(240 10% 12%)` / `hsl(240 10% 11%)` | Raised/inset neutral surfaces |
-| `--muted-foreground` | `hsl(240 8% 62%)` `#9797a6` | Metadata, captions, placeholders |
+| `--muted-foreground` | `hsl(240 8% 62%)` `#9696a6` | Metadata, captions, placeholders |
 | `--accent` | `hsl(240 10% 14%)` | Hover/selected surface |
-| `--destructive` | `hsl(6 92% 62%)` `#f2514c` | Destructive actions (bright on dark) |
-| `--border` / `--input` | `hsl(240 10% 16%)` | Hairlines, input outlines |
-| `--ring` | `hsl(218 77% 62%)` `#4f8df5` | Focus ring (action blue) |
-| `--glass-bg` | `hsl(240 12% 10%)` `#17171c` | Glass panel fill |
+| `--destructive` | `hsl(6 92% 62%)` `#f75745` | Destructive actions (bright on dark) |
+| `--border` / `--input` | `hsl(240 10% 16%)` `#25252d` | Hairlines, input outlines |
+| `--ring` | `hsl(218 77% 62%)` `#538ae9` | Focus ring (action blue) |
+| `--glass-bg` | `hsl(240 12% 10%)` `#16161d` | Glass panel fill |
 | `--glass-border` | `hsl(240 10% 20%)` `#2e2e38` | Glass panel edge |
 
-Cohere semantic accents (dark): `--cohere-coral` `#ff7a5c`, `--cohere-action-blue` `#4f8df5`,
-`--cohere-deep-green` `#14453d`, `--cohere-dark-navy` `#102333`, `--cohere-form-focus` `#a477bc`,
+Cohere semantic accents (dark): `--cohere-coral` `#ff7a52`, `--cohere-action-blue` `#538ae9`,
+`--cohere-deep-green` `#145245`, `--cohere-dark-navy` `#102841`, `--cohere-form-focus` `#af77c5`,
 `--cohere-hairline` `hsl(240 8% 20%)`.
 
 ### Light (retained variant)
@@ -167,14 +167,17 @@ CSS variables, so the variant switch is automatic (`:root` vs `.dark` in `src/in
 
 ## Typography
 
-Two-family split: **Space Grotesk** for display/headlines (technical, geometric, slightly
-monospaced in spirit), **Inter** for body and UI copy. Loaded via Google Fonts in
-`src/index.css` (`Inter` 100–900, `Space Grotesk` 400–700).
+**Inter is the only font family currently applied** (Tailwind `sans` — the body default
+inherits it everywhere). The config defines a **Space Grotesk display token** (loaded via
+Google Fonts in `src/index.css`, `Inter` 100–900 + `Space Grotesk` 400–700) for
+display/headline moments — apply it with `font-display` on KPIs and page titles; it is
+**not yet used in any component**, so new display moments should adopt it per the tokens
+below rather than staying on Inter.
 
 | Role | Font | Size | Weight | Line height | Notes |
 |---|---|---:|---:|---:|---|
-| Display (KPIs, hero numbers) | Space Grotesk | 24–30px | 600 | 1.2 | CountUp-animated stats |
-| Heading (page titles) | Space Grotesk | 24px | 600 | 1.3 | PageHeader titles (SplitText on some pages) |
+| Display (KPIs, hero numbers) | Inter (Space Grotesk token intended) | 24–30px | 600 | 1.2 | CountUp-animated stats (`text-2xl md:text-3xl`) |
+| Heading (page titles) | Inter (Space Grotesk token intended) | 24px (30px on md+) | 600 | 1.3 | PageHeader titles (SplitText on some pages) |
 | Body | Inter | 16px | 400 | 1.5 | Default copy |
 | Body small | Inter | 14px | 400 | 1.4 | Table cells, forms |
 | Button | Inter | 14px | 500 | 1.71 | Pill CTAs |
@@ -188,7 +191,7 @@ monospaced in spirit), **Inter** for body and UI copy. Loaded via Google Fonts i
   container for scroll-triggered animations** (SplitText/FadeContent resolve it).
 - **Grid**: 8px spacing rhythm (`xs 6 / sm 8 / md 12 / lg 16 / xl 24 / xxl 32`), content
   container `max-width: 1400px` centered with 2rem padding. KPI rows use responsive grids
-  (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`).
+  (`grid gap-4 sm:grid-cols-2 lg:grid-cols-4`).
 - **Lists**: `<ResponsiveDataTable>` renders a real table on desktop and **card view on
   mobile** — every list page must pass `mobileCardRender` (or the default card renderer
   handles all-but-actions cells) so action buttons survive the mobile breakpoint.
@@ -235,13 +238,14 @@ motion usage import from **`motion/react`** (motion.dev), never `framer-motion`.
 ### ReactBits motion catalog
 
 Vendored from [reactbits.dev](https://reactbits.dev) (MIT, `DavidHDev/react-bits`) into
-`src/components/reactbits/` — **every file carries the MIT attribution header; never remove
-it.** Import only from `@/components/reactbits/<Name>`.
+`src/components/reactbits/` — **every vendored file carries the MIT attribution header;
+never remove it** (`ambient-background` is our in-house wrapper and carries none). Import
+only from `@/components/reactbits/<Name>`.
 
 | Component | Usage sites | Treatment |
 |---|---|---|
 | `FadeContent` (21) | Most list/detail pages (blogs, bookings, visits, properties, users, PM dashboard/audit, swipes, flatmates, forms) | Scroll-triggered fade/slide reveal; reduced-motion → render final state immediately |
-| `CountUp` (8) | `StatCard`, `AgentStats`, `AgentProfilePage`, `PropertyQuickStats`, `UsersPage`, `PmExpensesPage`, `PmReportsPage`, `PmOwnerDetailPage`, `PmRentLedgerPage`, `PmPropertyDetailPage` | KPI count-up; pass `format` for `formatCurrency`/`formatNumber`; reduced-motion → final value, no recount |
+| `CountUp` (10) | `StatCard`, `AgentStats`, `AgentProfilePage`, `PropertyQuickStats`, `UsersPage`, `PmExpensesPage`, `PmReportsPage`, `PmOwnerDetailPage`, `PmRentLedgerPage`, `PmPropertyDetailPage` | KPI count-up; pass `format` for `formatCurrency`/`formatNumber`; reduced-motion → final value, no recount |
 | `SplitText` (4) | `PageHeader` (top-of-page titles), `BlogDetail`, `AuthBrandingPanel`, `AuthCardLayout` | Word-split headline animation; resolves the `#main-content` scroller; carries `aria-label={text}` |
 | `TiltedCard` (4) | `BookingCard`, `VisitCard`, `ModerationListingCard`, `PropertyDetail` | Subtle 3D tilt on hover; mouse handlers gated by reduced motion |
 | `ShinyText` (3) | `AuthBrandingPanel`, `AuthCardLayout`, `EmptyState` | Shimmering accent label |
@@ -251,7 +255,7 @@ it.** Import only from `@/components/reactbits/<Name>`.
 | `Magnet` (1) | `QuickActions` | Magnetic hover on quick-action tiles |
 | `GradientText` (1) | `SidebarContent` | Brand wordmark gradient |
 
-The remaining ~25 vendored files (`Aurora`, `Beams`, `AnimatedList`, `Carousel`, `Dock`,
+The remaining 26 vendored files (`Aurora`, `Beams`, `AnimatedList`, `Carousel`, `Dock`,
 `MagicBento`, `Orb`, `Particles`, `Threads`, `Topography`, `ProfileCard`, `Stepper`,
 `BounceCards`, `CardSwap`, `GlareHover`, `TextLoop`, `RotatingText`, `MaskedHeading`,
 `DecryptedText`, `SpotlightCard`, `AnimatedContent`, `Counter`, `Noise`, `ClickSpark`,

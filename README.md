@@ -39,7 +39,7 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
    # VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
    ```
 
-3. **Install Cohere Design Specification**:
+3. **(Optional) Regenerate the legacy Cohere design spec** (the repo's `DESIGN.md` is now the project's own "Command Center" design doc):
    ```bash
    npx getdesign@latest add cohere
    ```
@@ -174,7 +174,8 @@ variant remains available via the theme toggle in the top bar).
   `--accent`/`--destructive`/`--border`/`--ring` (per-variant), Cohere accents
   (`cohere-coral`, `cohere-action-blue`, ...), and command-center glass tokens
   (`--glass-bg`, `--glass-border`, `.card-glow`).
-- **Typography**: Space Grotesk (display) + Inter (body), loaded via Google Fonts.
+- **Typography**: Inter everywhere (Tailwind `sans`); Space Grotesk is configured as the
+  `display` token and loaded via Google Fonts for display moments (apply via `font-display`).
 - **Motion**: ReactBits components vendored into `src/components/reactbits/` (MIT
   attribution headers; ~10 used across pages: FadeContent, CountUp, SplitText, TiltedCard,
   ShinyText, GlitchText, ambient-background, BlurText, Magnet, GradientText). All animation
