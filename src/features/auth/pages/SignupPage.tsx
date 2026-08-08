@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff, Shield, Building2, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 import { supabase } from '@/lib/supabase'
@@ -18,8 +18,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AuthBrandingPanel } from '@/components/auth/AuthBrandingPanel'
+import { AuthCardLayout } from '@/components/auth/AuthCardLayout'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -226,57 +226,36 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex-col justify-center items-center p-12 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative z-10 text-center">
-          <div className="flex justify-center mb-8">
-            <div className="p-4 bg-primary-foreground/10 rounded-full backdrop-blur-sm">
-              <Building2 className="h-16 w-16" />
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold mb-4">Become a 360Ghar Agent</h1>
-          <p className="text-xl mb-8 opacity-90">Join the agent portal</p>
-          <div className="space-y-4 text-sm opacity-75">
-            <p>✓ Manage assigned users and properties</p>
-            <p>✓ Seamless coordination with admins</p>
-            <p>✓ Real-time bookings and visits</p>
-          </div>
-        </div>
-        <div className="absolute bottom-8 left-8">
-          <Shield className="h-8 w-8 opacity-50" />
-        </div>
-      </div>
+      <AuthBrandingPanel
+        title="Become a 360Ghar Agent"
+        subtitle="Join the agent portal"
+        features={[
+          'Manage assigned users and properties',
+          'Seamless coordination with admins',
+          'Real-time bookings and visits',
+        ]}
+      />
 
-      {/* Right Side - Signup Flow */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
-        <Card className="w-full max-w-md border bg-card/80 backdrop-blur-sm">
-          <CardHeader className="space-y-1 text-center pb-8">
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Shield className="h-8 w-8 text-primary" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">
-              {step === 'form' ? 'Agent Sign Up' : step === 'otp' ? 'Verify Your Email' : 'Set Password'}
-            </CardTitle>
-            <p className="text-muted-foreground">
-              {step === 'form' && 'Create your agent account'}
-              {step === 'otp' && 'Enter the 6-digit code sent to your email'}
-              {step === 'setPassword' && 'Choose a strong password for your account'}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {errorMessage && (
-              <Alert variant="destructive">
-                <AlertDescription>{errorMessage}</AlertDescription>
-              </Alert>
-            )}
-            {successMessage && (
-              <Alert>
-                <AlertDescription>{successMessage}</AlertDescription>
-              </Alert>
-            )}
+      <AuthCardLayout
+        title={step === 'form' ? 'Agent Sign Up' : step === 'otp' ? 'Verify Your Email' : 'Set Password'}
+        subtitle={
+          step === 'form'
+            ? 'Create your agent account'
+            : step === 'otp'
+              ? 'Enter the 6-digit code sent to your email'
+              : 'Choose a strong password for your account'
+        }
+        errorMessage={errorMessage}
+        infoMessage={successMessage}
+        footer={
+          <div className="text-center pt-2 text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        }
+      >
 
             {/* Step 1: Registration form */}
             {step === 'form' && (
@@ -562,15 +541,7 @@ export default function SignupPage() {
               </Form>
             )}
 
-            <div className="text-center pt-2 text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link to="/login" className="text-primary hover:underline">
-                Sign in
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </AuthCardLayout>
     </div>
   )
 }

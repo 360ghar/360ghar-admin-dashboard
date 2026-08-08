@@ -24,6 +24,7 @@ import { useAppDispatch } from '@/hooks/redux'
 import { clearCredentials } from '@/features/auth/slices/authSlice'
 import { maskIdentifier } from '@/lib/lastAuthMethod'
 import { useResendTimer } from '@/hooks/useResendTimer'
+import { AuthBrandingPanel } from '@/components/auth/AuthBrandingPanel'
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout'
 import {
   forgotPasswordSchema,
@@ -214,7 +215,12 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen flex">
+      <AuthBrandingPanel
+        title="Reset Password"
+        subtitle="Secure account recovery"
+        features={['Email or phone verification', '6-digit OTP code', 'Set a new password']}
+      />
       <AuthCardLayout
         title="Reset Password"
         subtitle={

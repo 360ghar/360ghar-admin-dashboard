@@ -1,3 +1,4 @@
+// Vendored from reactbits.dev (https://reactbits.dev), MIT license — https://github.com/DavidHDev/react-bits
 import { FC, CSSProperties } from 'react';
 
 interface GlitchTextProps {

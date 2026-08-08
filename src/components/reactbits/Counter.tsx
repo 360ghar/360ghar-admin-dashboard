@@ -1,3 +1,4 @@
+// Vendored from reactbits.dev (https://reactbits.dev), MIT license — https://github.com/DavidHDev/react-bits
 import { MotionValue, motion, useSpring, useTransform } from 'motion/react';
 import type React from 'react';
 import { useEffect } from 'react';

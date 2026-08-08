@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { useForm } from 'react-hook-form'
@@ -27,7 +28,7 @@ const AdminPrivilegesCard = () => (
     <CardContent>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {[{ icon: User, title: 'User Management', desc: 'Full access to manage all users and their accounts' }, { icon: User, title: 'Agent Oversight', desc: 'Manage agents and their property assignments' }, { icon: MapPin, title: 'Property Control', desc: 'Complete control over all properties in the system' }, { icon: Calendar, title: 'Visit Management', desc: 'Oversee all scheduled visits and bookings' }, { icon: CheckCircle, title: 'Booking System', desc: 'Manage all property bookings and confirmations' }, { icon: Shield, title: 'Analytics Access', desc: 'View comprehensive system analytics and reports' }].map(({ icon: Icon, title, desc }) => (
-          <div key={title} className="p-4 rounded-lg border bg-muted/30">
+          <div key={title} className="p-4 rounded-cohere-md border border-cohere-card-border bg-card/60 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-2"><div className="p-2 bg-primary/10 rounded-full"><Icon className="h-4 w-4 text-primary" /></div><h4 className="font-medium">{title}</h4></div>
             <p className="text-sm text-muted-foreground">{desc}</p>
           </div>
@@ -89,7 +90,7 @@ const ProfilePage = () => {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2"><h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Profile</h1><p className="text-muted-foreground">Manage your account information, security settings, and preferences.</p></div>
+      <PageHeader title="My Profile" description="Manage your account information, security settings, and preferences." />
       <div className="grid gap-8 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader className="pb-4"><CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Profile Overview</CardTitle></CardHeader>
@@ -105,7 +106,7 @@ const ProfilePage = () => {
                   type="button"
                   variant="default"
                   size="icon"
-                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg"
+                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full ring-2 ring-background"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingAvatar || uploadState.isLoading}
                   aria-label="Change avatar"
@@ -121,7 +122,7 @@ const ProfilePage = () => {
             <div className="space-y-4"><h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Contact Information</h4>
               <div className="space-y-3">
                 {[{ icon: Mail, label: 'Email', value: me?.email || 'Not provided' }, { icon: Phone, label: 'Phone', value: me?.phone || 'Not provided' }, { icon: Calendar, label: 'User ID', value: `#${me?.id}`, mono: true }, ...(role === 'agent' ? [{ icon: MapPin, label: 'Agent ID', value: `#${me?.agent_id}`, mono: true }] : [])].map(({ icon: Icon, label, value, mono }) => (
-                  <div key={label} className="flex items-center space-x-3 p-3 rounded-lg bg-muted/30">
+                  <div key={label} className="flex items-center space-x-3 p-3 rounded-cohere-md border border-cohere-card-border bg-card/60 backdrop-blur-md">
                     <div className="p-2 bg-primary/10 rounded-full"><Icon className="h-4 w-4 text-primary" /></div>
                     <div className="flex-1 min-w-0"><p className="text-xs text-muted-foreground">{label}</p><p className={`text-sm font-medium ${mono ? 'font-mono' : 'truncate'}`}>{value}</p></div>
                   </div>

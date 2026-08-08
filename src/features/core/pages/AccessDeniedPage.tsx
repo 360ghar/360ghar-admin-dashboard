@@ -7,6 +7,8 @@ import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useUserRole } from '@/hooks/useUserRole'
 import { clearCredentials } from '@/features/auth/slices/authSlice'
 import { supabase } from '@/lib/supabase'
+import GlitchText from '@/components/reactbits/GlitchText'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 type DeniedCondition =
   | 'unauthenticated' // no user, no token
@@ -97,18 +99,23 @@ const useDeniedContent = (): DeniedContent => {
 
 const AccessDeniedPage = () => {
   const content = useDeniedContent()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const PrimaryIcon = content.primary.icon
   const SecondaryIcon = content.secondary?.icon
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-lg border-0">
+      <Card className="w-full max-w-md rounded-cohere-md border border-cohere-card-border bg-card/60 backdrop-blur-md">
         <CardContent className="p-8 text-center">
           <div className="mb-6">
-            <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
-              <Shield className="w-8 h-8 text-red-600 dark:text-red-400" />
+            <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <Shield className="w-8 h-8 text-destructive" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">{content.title}</h1>
+            {prefersReducedMotion ? (
+              <h1 className="text-2xl font-bold text-foreground mb-2">{content.title}</h1>
+            ) : (
+              <GlitchText className="!text-3xl mb-2">{content.title}</GlitchText>
+            )}
             <p className="text-muted-foreground mb-6">{content.message}</p>
           </div>
 
