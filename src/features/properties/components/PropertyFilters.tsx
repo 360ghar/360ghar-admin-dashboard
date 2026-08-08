@@ -8,13 +8,14 @@ import { Filter, X, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { motion } from 'motion/react'
 import type { Amenity } from '@/types/api'
-import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES } from '../constants'
+import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES, KITCHEN_TYPE_OPTIONS, VENTILATION_TYPE_OPTIONS, FURNISHING_LEVEL_OPTIONS } from '../constants'
 import FilterControls from './PropertyFilterControls'
 
 export interface PropertyFiltersState {
   q: string; city: string; locality: string; propertyType: string; purpose: string; status: string
   priceMin: string; priceMax: string; bedroomsMin: string; bedroomsMax: string
   amenities: number[]; radius: string; sortBy: string; showFilters: boolean
+  furnishing: string; kitchenType: string; ventilationType: string; windowsMin: string; hasLift: boolean
 }
 
 export interface PropertyFiltersProps {
@@ -118,6 +119,32 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
           <Input type="number" placeholder="Max Price" value={filters.priceMax} onChange={(e) => setFilters({ priceMax: e.target.value })} />
           <Input type="number" placeholder="Min Bedrooms" value={filters.bedroomsMin} onChange={(e) => setFilters({ bedroomsMin: e.target.value })} />
           <Input type="number" placeholder="Max Bedrooms" value={filters.bedroomsMax} onChange={(e) => setFilters({ bedroomsMax: e.target.value })} />
+          <Select value={filters.furnishing || 'all'} onValueChange={(v) => setFilters({ furnishing: v === 'all' ? '' : v })}>
+            <SelectTrigger><SelectValue placeholder="Furnishing" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any Furnishing</SelectItem>
+              {FURNISHING_LEVEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filters.kitchenType || 'all'} onValueChange={(v) => setFilters({ kitchenType: v === 'all' ? '' : v })}>
+            <SelectTrigger><SelectValue placeholder="Kitchen type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any Kitchen</SelectItem>
+              {KITCHEN_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filters.ventilationType || 'all'} onValueChange={(v) => setFilters({ ventilationType: v === 'all' ? '' : v })}>
+            <SelectTrigger><SelectValue placeholder="Ventilation" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any Ventilation</SelectItem>
+              {VENTILATION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="number" min={0} placeholder="Min Windows" value={filters.windowsMin} onChange={(e) => setFilters({ windowsMin: e.target.value })} />
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={filters.hasLift} onCheckedChange={(v) => setFilters({ hasLift: !!v })} />
+            Has lift
+          </label>
         </div>
       </motion.div>
     )}

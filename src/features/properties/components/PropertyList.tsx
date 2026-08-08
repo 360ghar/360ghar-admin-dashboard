@@ -57,7 +57,12 @@ const PropertyList = () => {
       amenities: [] as number[],
       radius: '',
       sortBy: 'newest',
-      showFilters: false
+      showFilters: false,
+      furnishing: '',
+      kitchenType: '',
+      ventilationType: '',
+      windowsMin: '',
+      hasLift: false
     }
   })
 
@@ -104,6 +109,8 @@ const PropertyList = () => {
       filters.bedroomsMin, filters.bedroomsMax,
       selectedAmenities.join(','), filters.radius,
       filters.sortBy, pageSize,
+      filters.furnishing, filters.kitchenType, filters.ventilationType,
+      filters.windowsMin, String(filters.hasLift),
     ].join('|'),
   )
 
@@ -134,6 +141,12 @@ const PropertyList = () => {
       }
     }
     if (filters.radius !== '' && !Number.isNaN(Number(filters.radius))) base.radius = Number(filters.radius)
+    if (filters.furnishing) base.furnishing = [filters.furnishing]
+    // Backend strips the 'any' kitchen sentinel — the UI "Any Kitchen" filter means omit.
+    if (filters.kitchenType && filters.kitchenType !== 'any') base.kitchen_type = [filters.kitchenType]
+    if (filters.ventilationType) base.ventilation_type = [filters.ventilationType]
+    if (filters.windowsMin !== '' && !Number.isNaN(Number(filters.windowsMin))) base.windows_min = Number(filters.windowsMin)
+    if (filters.hasLift) base.has_lift = true
 
     if (role === 'agent' && user?.agent_id) base.exclude_swiped = false
 
@@ -155,6 +168,11 @@ const PropertyList = () => {
     selectedAmenities,
     amenities,
     filters.radius,
+    filters.furnishing,
+    filters.kitchenType,
+    filters.ventilationType,
+    filters.windowsMin,
+    filters.hasLift,
     role,
     user?.agent_id
   ])
@@ -253,6 +271,11 @@ const PropertyList = () => {
     filters.bedroomsMin,
     filters.bedroomsMax,
     filters.radius,
+    filters.furnishing,
+    filters.kitchenType,
+    filters.ventilationType,
+    filters.windowsMin,
+    filters.hasLift ? 'hasLift' : '',
     selectedAmenities.length > 0 ? 'amenities' : '',
   ].filter(Boolean).length
 

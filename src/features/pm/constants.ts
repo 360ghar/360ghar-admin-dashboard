@@ -31,6 +31,12 @@ export const LEASE_STATUSES: { value: LeaseStatus; label: string }[] = [
   { value: 'renewed', label: 'Renewed' },
 ]
 
+/**
+ * Lease statuses the backend allows terminating. POST /pm/leases/{id}/terminate
+ * returns 400 for any other status (e.g. expired/renewed/draft).
+ */
+export const TERMINATABLE_LEASE_STATUSES: LeaseStatus[] = ['active', 'expiring_soon', 'pending_signature']
+
 // ============================================================================
 // Rent Charge Status
 // ============================================================================

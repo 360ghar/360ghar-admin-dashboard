@@ -13,6 +13,14 @@ export const pmPropertyCreateSchema = z.object({
     .string()
     .min(1, 'Base price is required')
     .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Base price must be a positive number'),
+  daily_rate: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (v) => !v || (!isNaN(Number(v)) && Number(v) >= 0),
+      'Daily rate must be a non-negative number',
+    ),
   city: z.string().optional().or(z.literal('')),
   locality: z.string().optional().or(z.literal('')),
   full_address: z.string().optional().or(z.literal('')),
@@ -196,9 +204,18 @@ export const pmMaintenanceUpdateSchema = z.object({
     ),
   scheduled_for: z.string().optional().or(z.literal('')),
   completion_notes: z.string().optional().or(z.literal('')),
+  vendor_name: z.string().optional().or(z.literal('')),
+  vendor_contact: z.string().optional().or(z.literal('')),
 })
 
 export type PmMaintenanceUpdateForm = z.infer<typeof pmMaintenanceUpdateSchema>
+
+export const pmLeaseTerminateSchema = z.object({
+  termination_date: z.string().optional().or(z.literal('')),
+  reason: z.string().optional().or(z.literal('')),
+})
+
+export type PmLeaseTerminateForm = z.infer<typeof pmLeaseTerminateSchema>
 
 export const pmSettingsSchema = z.object({
   payment_due_day: z

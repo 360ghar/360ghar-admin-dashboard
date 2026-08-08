@@ -59,6 +59,7 @@ export default function PropertyCreateDialog({
       property_type: "apartment",
       purpose: "rent",
       base_price: "",
+      daily_rate: "",
       city: "",
       locality: "",
       full_address: "",
@@ -102,6 +103,7 @@ export default function PropertyCreateDialog({
       property_type: values.property_type,
       purpose: values.purpose,
       base_price: Number(values.base_price),
+      daily_rate: values.daily_rate ? Number(values.daily_rate) : undefined,
       city: values.city || undefined,
       locality: values.locality || undefined,
       full_address: values.full_address || undefined,
@@ -224,6 +226,17 @@ export default function PropertyCreateDialog({
                 <FormItem>
                   <FormLabel>Base price (₹)</FormLabel>
                   <FormControl><Input placeholder="e.g. 25000" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="daily_rate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Daily rate (₹/night, optional)</FormLabel>
+                  <FormControl><Input type="number" min={0} step="0.01" placeholder="e.g. 1500" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

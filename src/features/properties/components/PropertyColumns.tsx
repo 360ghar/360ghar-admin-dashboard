@@ -15,6 +15,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { Property } from '@/features/properties/api/propertiesApi'
 import type { PropertyStatus } from '@/types/pm'
 import { formatCurrency } from '@/lib/format'
+import { deriveNightlyRate } from '@/features/properties/lib/nightlyRate'
 import { SortableHeader } from '@/components/ui/data-table'
 import { PROPERTY_STATUS_OPTIONS, PropertyStatusBadge } from './PropertyStatusBadge'
 
@@ -91,11 +92,19 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
   {
     accessorKey: 'base_price',
     header: ({ column }) => <SortableHeader column={column}>Price</SortableHeader>,
-    cell: ({ row }) => (
-      <div className="font-medium tabular-nums">
-        {row.original.base_price != null ? formatCurrency(row.original.base_price) : '—'}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const nightly = deriveNightlyRate(row.original)
+      return (
+        <div className="font-medium tabular-nums">
+          {row.original.base_price != null ? formatCurrency(row.original.base_price) : '—'}
+          {nightly != null && (
+            <div className="text-xs font-normal text-muted-foreground">
+              ≈ {formatCurrency(nightly)}/night
+            </div>
+          )}
+        </div>
+      )
+    },
   },
   {
     accessorKey: 'status',
@@ -147,7 +156,9 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
 export { PropertyColumns }
 
 // Mobile card renderer for properties
-const renderPropertyCard = (property: Property, setConfirmId: (id: number | null) => void) => (
+const renderPropertyCard = (property: Property, setConfirmId: (id: number | null) => void) => {
+  const nightly = deriveNightlyRate(property)
+  return (
   <Card className="p-4 transition-colors hover:bg-card/80">
     <div className="flex gap-3">
       <div className="w-24 h-24 flex-shrink-0 rounded-cohere-sm overflow-hidden bg-muted">
@@ -189,6 +200,11 @@ const renderPropertyCard = (property: Property, setConfirmId: (id: number | null
 
         <div className="font-semibold text-primary">
           {property.base_price != null ? formatCurrency(property.base_price) : '—'}
+          {nightly != null && (
+            <div className="text-xs font-normal text-muted-foreground">
+              ≈ {formatCurrency(nightly)}/night
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -215,6 +231,7 @@ const renderPropertyCard = (property: Property, setConfirmId: (id: number | null
       </Button>
     </div>
   </Card>
-)
+  )
+}
 
 export { renderPropertyCard }

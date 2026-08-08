@@ -91,8 +91,15 @@ export interface ActivityItem {
 
 // Property status/purpose/type live in `types/api.ts` (single source of truth).
 // Imported here for local use and re-exported so existing PM imports keep working.
-import type { PropertyPurpose, PropertyType, PropertyStatus } from './api'
-export type { PropertyPurpose, PropertyType, PropertyStatus } from './api'
+import type {
+  PropertyPurpose,
+  PropertyType,
+  PropertyStatus,
+  KitchenType,
+  VentilationType,
+  FurnishingLevel,
+} from './api'
+export type { PropertyPurpose, PropertyType, PropertyStatus, KitchenType, VentilationType, FurnishingLevel } from './api'
 
 export interface PmPropertyImage {
   id: number
@@ -136,6 +143,15 @@ export interface PmProperty {
   monthly_rent?: number | null
   security_deposit?: number | null
   maintenance_charges?: number | null
+  daily_rate?: number | null
+  kitchen_type?: KitchenType | null
+  ventilation_type?: VentilationType | null
+  windows_count?: number | null
+  ventilation_shafts?: number | null
+  setup_cost?: number | null
+  other_charges?: number | null
+  other_charges_description?: string | null
+  furnishing_level?: FurnishingLevel | null
 
   area_sqft?: number | null
   bedrooms?: number | null
@@ -189,6 +205,14 @@ export interface PmPropertyCreate {
   price_per_sqft?: number
   monthly_rent?: number
   daily_rate?: number
+  kitchen_type?: KitchenType
+  ventilation_type?: VentilationType
+  windows_count?: number
+  ventilation_shafts?: number
+  setup_cost?: number
+  other_charges?: number
+  other_charges_description?: string
+  furnishing_level?: FurnishingLevel
   security_deposit?: number
   maintenance_charges?: number
   floor_number?: number
@@ -214,6 +238,8 @@ export interface ManagedPropertyUpdate {
   payment_due_day?: number | null
   grace_period_days?: number | null
   late_fee_policy?: Record<string, unknown> | null
+  images?: string[] | null
+  floor_plans?: string[] | null
 }
 
 export interface Lease {
@@ -237,6 +263,8 @@ export interface Lease {
   special_clauses?: string | null
   signed_by_tenant_at?: string | null
   signed_by_owner_at?: string | null
+  termination_date?: string | null
+  termination_reason?: string | null
   lease_document_id?: number | null
   created_at: string
   updated_at?: string | null
@@ -401,6 +429,8 @@ export interface MaintenanceRequest {
   completed_at?: string | null
   closed_at?: string | null
   completion_notes?: string | null
+  vendor_name?: string | null
+  vendor_contact?: string | null
   created_at: string
   updated_at?: string | null
 }
@@ -426,6 +456,8 @@ export interface MaintenanceRequestUpdate {
   completed_at?: string | null
   closed_at?: string | null
   completion_notes?: string | null
+  vendor_name?: string | null
+  vendor_contact?: string | null
 }
 
 export interface Document {

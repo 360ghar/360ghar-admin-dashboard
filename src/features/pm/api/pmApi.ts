@@ -261,18 +261,26 @@ export const pmApi = api.injectEndpoints({
       invalidatesTags: (_res, _e, { lease_id }) => [{ type: 'PmLease', id: lease_id }, { type: 'PmLease', id: 'LIST' }, { type: 'PmProperty', id: 'LIST' }, {type: 'PmDashboard', id: 'LIST'}],
     }),
 
-    terminatePmLease: builder.mutation<Lease, number>({
-      query: (lease_id) => ({
+    terminatePmLease: builder.mutation<
+      Lease,
+      { lease_id: number; body?: { termination_date?: string | null; reason?: string | null } }
+    >({
+      query: ({ lease_id, body }) => ({
         url: `/pm/leases/${lease_id}/terminate`,
         method: 'POST',
+        // Backend accepts an optional `LeaseTerminate | None` body — only attach
+        // it when at least one field is set.
+        ...(body && (body.termination_date || body.reason) ? { body } : {}),
       }),
-      invalidatesTags: (_res, _e, lease_id) => [{ type: 'PmLease', id: lease_id }, { type: 'PmLease', id: 'LIST' }, { type: 'PmProperty', id: 'LIST' }, {type: 'PmDashboard', id: 'LIST'}, {type: 'PmTenant', id: 'LIST'}],
-      onQueryStarted: async (lease_id, { dispatch, queryFulfilled }) => {
+      invalidatesTags: (_res, _e, { lease_id }) => [{ type: 'PmLease', id: lease_id }, { type: 'PmLease', id: 'LIST' }, { type: 'PmProperty', id: 'LIST' }, {type: 'PmDashboard', id: 'LIST'}, {type: 'PmTenant', id: 'LIST'}],
+      onQueryStarted: async ({ lease_id, body }, { dispatch, queryFulfilled }) => {
         // Optimistically reflect termination on the lease detail (keyed by the
         // id we have). The list refreshes via the PmLease LIST invalidation.
         const patchResult = dispatch(
           pmApi.util.updateQueryData('getPmLease', lease_id, (draft) => {
             draft.status = 'terminated'
+            if (body?.termination_date) draft.termination_date = body.termination_date
+            if (body?.reason) draft.termination_reason = body.reason
           })
         )
         try {
@@ -477,6 +485,8 @@ export const pmApi = api.injectEndpoints({
               if (payload.actual_cost !== undefined && payload.actual_cost !== null) typed.actual_cost = payload.actual_cost
               if (payload.scheduled_for !== undefined && payload.scheduled_for !== null) typed.scheduled_for = payload.scheduled_for
               if (payload.completion_notes !== undefined && payload.completion_notes !== null) typed.completion_notes = payload.completion_notes
+              if (payload.vendor_name !== undefined && payload.vendor_name !== null) typed.vendor_name = payload.vendor_name
+              if (payload.vendor_contact !== undefined && payload.vendor_contact !== null) typed.vendor_contact = payload.vendor_contact
             }
           },
         )

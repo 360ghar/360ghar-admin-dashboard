@@ -30,6 +30,12 @@ export interface PropertySearchParams {
   // Amenities
   amenities?: string[]
   features?: string[]
+  // Listing details filters
+  furnishing?: string[]
+  kitchen_type?: string[]
+  ventilation_type?: string[]
+  windows_min?: number
+  has_lift?: boolean
   // Additional
   parking_spaces_min?: number
   floor_number_min?: number

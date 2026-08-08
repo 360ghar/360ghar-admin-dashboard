@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Filter } from 'lucide-react'
-import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES } from '../constants'
+import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES, KITCHEN_TYPE_OPTIONS, VENTILATION_TYPE_OPTIONS, FURNISHING_LEVEL_OPTIONS } from '../constants'
 
 type FilterControlsProps = Omit<import('./PropertyFilters').PropertyFiltersProps, 'pageSize' | 'onPageSizeChange' | 'activeFilterCount'>
 
@@ -100,6 +100,46 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     <div className="mb-4">
       <label className="text-sm font-medium mb-1 block">Search Radius</label>
       <Input type="number" placeholder="Radius (km)" value={filters.radius} onChange={(e) => setFilters({ radius: e.target.value })} />
+    </div>
+    <div className="mb-4">
+      <label className="text-sm font-medium mb-1 block">Furnishing</label>
+      <Select value={filters.furnishing || 'all'} onValueChange={(v) => setFilters({ furnishing: v === 'all' ? '' : v })}>
+        <SelectTrigger><SelectValue placeholder="Any Furnishing" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any Furnishing</SelectItem>
+          {FURNISHING_LEVEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="mb-4">
+      <label className="text-sm font-medium mb-1 block">Kitchen Type</label>
+      <Select value={filters.kitchenType || 'all'} onValueChange={(v) => setFilters({ kitchenType: v === 'all' ? '' : v })}>
+        <SelectTrigger><SelectValue placeholder="Any Kitchen" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any Kitchen</SelectItem>
+          {KITCHEN_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="mb-4">
+      <label className="text-sm font-medium mb-1 block">Ventilation</label>
+      <Select value={filters.ventilationType || 'all'} onValueChange={(v) => setFilters({ ventilationType: v === 'all' ? '' : v })}>
+        <SelectTrigger><SelectValue placeholder="Any Ventilation" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any Ventilation</SelectItem>
+          {VENTILATION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="mb-4">
+      <label className="text-sm font-medium mb-1 block">Min Windows</label>
+      <Input type="number" min={0} placeholder="Min windows" value={filters.windowsMin} onChange={(e) => setFilters({ windowsMin: e.target.value })} />
+    </div>
+    <div className="mb-4">
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <Checkbox checked={filters.hasLift} onCheckedChange={(v) => setFilters({ hasLift: !!v })} />
+        Has lift
+      </label>
     </div>
   </>
 )

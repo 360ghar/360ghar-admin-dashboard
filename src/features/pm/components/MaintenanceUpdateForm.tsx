@@ -47,6 +47,8 @@ export default function MaintenanceUpdateForm({
       actual_cost: request.actual_cost?.toString() || "",
       scheduled_for: serverTimestampToLocalInput(request.scheduled_for),
       completion_notes: request.completion_notes || "",
+      vendor_name: request.vendor_name || "",
+      vendor_contact: request.vendor_contact || "",
     },
   });
 
@@ -60,6 +62,8 @@ export default function MaintenanceUpdateForm({
       actual_cost: values.actual_cost ? Number(values.actual_cost) : undefined,
       scheduled_for: localInputToServerTimestamp(values.scheduled_for) ?? undefined,
       completion_notes: values.completion_notes || undefined,
+      vendor_name: values.vendor_name || undefined,
+      vendor_contact: values.vendor_contact || undefined,
     };
     await onSubmit(payload);
   };
@@ -183,6 +187,28 @@ export default function MaintenanceUpdateForm({
               <FormItem className="md:col-span-2">
                 <FormLabel>Completion notes (optional)</FormLabel>
                 <FormControl><Textarea rows={3} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="vendor_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vendor name (optional)</FormLabel>
+                <FormControl><Input placeholder="e.g. Singh Plumbing Co." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="vendor_contact"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vendor contact (optional)</FormLabel>
+                <FormControl><Input placeholder="e.g. +91 98XXX XXXXX" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}

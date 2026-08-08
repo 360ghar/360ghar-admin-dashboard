@@ -1,4 +1,4 @@
-import { AlertCircle, Clock, Edit2 } from 'lucide-react'
+import { AlertCircle, Clock, Edit2, Image as ImageIcon, TrendingUp } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,14 @@ import TiltedCard from '@/components/reactbits/TiltedCard'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import { parseServerTimestamp } from '@/lib/dateTime'
 import type { FlatmatesListing } from '../types'
-import { getPrescreenFlags, getPrescreenReason, getPrescreenResult } from './moderationUtils'
+import {
+  getAiPrescreenPhotoCount,
+  getAutoPauseReason,
+  getPrescreenFlags,
+  getPrescreenReason,
+  getPrescreenResult,
+  isApprovalBoostActive,
+} from './moderationUtils'
 
 interface ModerationListingCardProps {
   listing: FlatmatesListing
@@ -51,6 +58,9 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
   const prescreenFlags = getPrescreenFlags(listing)
   const prescreenReason = getPrescreenReason(listing)
   const isFlagged = getPrescreenResult(listing) === 'flagged'
+  const isBoosted = isApprovalBoostActive(listing)
+  const autoPauseReason = getAutoPauseReason(listing)
+  const photoCount = getAiPrescreenPhotoCount(listing)
 
   return (
     <Card
@@ -70,6 +80,15 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
                   <AlertCircle className="h-3 w-3" />
                   AI FLAG
                 </Badge>
+              )}
+              {isBoosted && (
+                <Badge variant="default" className="flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  BOOSTED
+                </Badge>
+              )}
+              {autoPauseReason === 'stale_listing' && (
+                <Badge variant="outline">STALE — 60D INACTIVE</Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground">
@@ -145,6 +164,25 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
                 </span>
                 {listing.bedrooms && <span>{listing.bedrooms} BHK</span>}
                 {listing.area_sqft && <span>{listing.area_sqft} sqft</span>}
+                {listing.is_available !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        listing.is_available ? 'bg-green-500' : 'bg-destructive'
+                      }`}
+                    />
+                    {listing.is_available ? 'Available' : 'Unavailable'}
+                  </span>
+                )}
+                {listing.property_status && listing.property_status !== listing.status && (
+                  <span>• Property: {listing.property_status}</span>
+                )}
+                {photoCount !== null && (
+                  <span className="flex items-center gap-1">
+                    <ImageIcon className="h-3 w-3" />
+                    {photoCount} photos scanned
+                  </span>
+                )}
               </div>
             </div>
           </div>

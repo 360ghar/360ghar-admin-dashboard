@@ -3,6 +3,7 @@ import { Building2, FileText } from 'lucide-react'
 import type { ManagedPropertyStatus } from '@/types/pm'
 import { useGetPmPropertyDetailQuery } from '@/features/pm/api/pmApi'
 import { formatCurrency } from '@/lib/format'
+import { deriveNightlyRate } from '@/features/properties/lib/nightlyRate'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,6 +28,7 @@ export default function PmPropertyDetailPage() {
 
   const prop = detail.data?.property
   const activeLease = detail.data?.active_lease
+  const nightly = prop ? deriveNightlyRate(prop) : null
 
   if (!propertyIdNum || Number.isNaN(propertyIdNum)) {
     return <EmptyState title="Invalid property id" />
@@ -126,6 +128,22 @@ export default function PmPropertyDetailPage() {
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Owner</span>
                   <span className="font-medium">#{prop.owner_id}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Base price</span>
+                  <span className="font-medium tabular-nums">{prop.base_price != null ? formatCurrency(prop.base_price) : '—'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Monthly rent</span>
+                  <span className="font-medium tabular-nums">{prop.monthly_rent != null ? formatCurrency(prop.monthly_rent) : '—'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Daily rate</span>
+                  <span className="font-medium tabular-nums">{prop.daily_rate != null ? formatCurrency(prop.daily_rate) : '—'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Nightly (derived)</span>
+                  <span className="font-medium tabular-nums">{nightly != null ? formatCurrency(nightly) : '—'}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Occupancy</span>

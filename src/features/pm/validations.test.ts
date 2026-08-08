@@ -4,6 +4,7 @@ import {
   pmSettingsSchema,
   pmChargeGenerateSchema,
   pmMaintenanceUpdateSchema,
+  pmLeaseTerminateSchema,
 } from '@/features/pm/validations'
 
 describe('pmPropertyCreateSchema', () => {
@@ -47,6 +48,15 @@ describe('pmPropertyCreateSchema', () => {
 
   it('rejects non-positive base price', () => {
     expect(pmPropertyCreateSchema.safeParse({ ...base, base_price: '0' }).success).toBe(false)
+  })
+
+  it('accepts a valid daily rate and empty value', () => {
+    expect(pmPropertyCreateSchema.safeParse({ ...base, daily_rate: '1500' }).success).toBe(true)
+    expect(pmPropertyCreateSchema.safeParse({ ...base, daily_rate: '' }).success).toBe(true)
+  })
+
+  it('rejects negative daily rate', () => {
+    expect(pmPropertyCreateSchema.safeParse({ ...base, daily_rate: '-1' }).success).toBe(false)
   })
 })
 
@@ -100,6 +110,33 @@ describe('pmMaintenanceUpdateSchema', () => {
     expect(
       pmMaintenanceUpdateSchema.safeParse({
         request_status: 'resolved', assign_to_me: 'yes', estimated_cost: '',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('accepts vendor name and contact', () => {
+    expect(
+      pmMaintenanceUpdateSchema.safeParse({
+        request_status: 'resolved',
+        assign_to_me: 'no',
+        vendor_name: 'ACME Plumbing',
+        vendor_contact: '+91 98765 43210',
+      }).success,
+    ).toBe(true)
+  })
+})
+
+describe('pmLeaseTerminateSchema', () => {
+  it('accepts empty values (backend body is optional)', () => {
+    expect(pmLeaseTerminateSchema.safeParse({ termination_date: '', reason: '' }).success).toBe(true)
+    expect(pmLeaseTerminateSchema.safeParse({}).success).toBe(true)
+  })
+
+  it('accepts a termination date and reason', () => {
+    expect(
+      pmLeaseTerminateSchema.safeParse({
+        termination_date: '2026-08-15',
+        reason: 'Early move-out',
       }).success,
     ).toBe(true)
   })

@@ -18,6 +18,9 @@ export type PropertyType =
   | 'shop'
   | 'warehouse'
 export type PropertyStatus = 'available' | 'sold' | 'rented' | 'under_offer' | 'maintenance'
+export type KitchenType = 'vegetarian' | 'non_vegetarian' | 'eggetarian' | 'any'
+export type VentilationType = 'good' | 'average' | 'poor'
+export type FurnishingLevel = 'furnished' | 'semi_furnished' | 'unfurnished'
 
 export interface ApiResponse<T> {
   data?: T
@@ -67,6 +70,11 @@ export interface User {
   notification_settings?: UserNotificationSettings
   privacy_settings?: UserPrivacySettings
   preferences?: UserPreferences
+  flatmates_smoking?: 'never' | 'occasionally' | 'regularly'
+  flatmates_drinking?: 'never' | 'occasionally' | 'regularly'
+  native_place?: string
+  linkedin_url?: string
+  age_bucket?: string
 }
 
 export interface UserPreferences {
@@ -231,6 +239,16 @@ export interface Property {
   age_of_property?: number
   max_occupancy?: number
   minimum_stay_days?: number
+  monthly_rent?: number
+  daily_rate?: number
+  kitchen_type?: KitchenType
+  ventilation_type?: VentilationType
+  windows_count?: number
+  ventilation_shafts?: number
+  setup_cost?: number
+  other_charges?: number
+  other_charges_description?: string
+  furnishing_level?: FurnishingLevel
   amenities: Amenity[]
   features: string[]
   images: PropertyImage[]
@@ -294,6 +312,15 @@ export interface PropertyCreate {
   owner_name?: string
   owner_contact?: string
   monthly_rent?: number
+  daily_rate?: number
+  kitchen_type?: KitchenType
+  ventilation_type?: VentilationType
+  windows_count?: number
+  ventilation_shafts?: number
+  setup_cost?: number
+  other_charges?: number
+  other_charges_description?: string
+  furnishing_level?: FurnishingLevel
 }
 
 export interface PropertyUpdate extends Partial<PropertyCreate> {
@@ -702,6 +729,8 @@ export interface FlatmatesListing {
   ai_prescreen_result?: 'clear' | 'flagged' | 'pending'
   ai_prescreen_flags?: FlatmatesPrescreenFlag[]
   ai_flag_reason?: string
+  property_status?: string
+  is_available?: boolean
   owner?: User
 }
 

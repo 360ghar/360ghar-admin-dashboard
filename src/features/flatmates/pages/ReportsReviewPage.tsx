@@ -7,9 +7,12 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
 import CursorPager from '@/components/ui/cursor-pager'
+import { Badge } from '@/components/ui/badge'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { ReportActionDialog } from '../components/ReportActionDialog'
 import { ReportCard } from '../components/ReportCard'
+import { groupReportsByReportedUser } from '../components/moderationUtils'
+import { reasonLabels } from '../components/reportLabels'
 import { useGetPendingReportsQuery, useModerateReportMutation } from '../api/flatmatesApi'
 import type { FlatmatesReport, ReportModerationAction } from '../types'
 import FadeContent from '@/components/reactbits/FadeContent'
@@ -82,10 +85,34 @@ export function ReportsReviewPage() {
 
   const reports = data?.items ?? []
 
+  // NOTE: report counts below are page-local — reports are fetched with cursor
+  // pagination (20 per page), so totals reflect only the current page. The >= 3
+  // threshold is a UI hint mirroring the backend auto-pause rule (3 distinct
+  // reporters on a user pauses their listings).
+  const groups = groupReportsByReportedUser(reports)
+
   const reportCards = (
     <div className="grid gap-4">
-      {reports.map((report) => (
-        <ReportCard key={report.id} report={report} onReview={handleModerate} />
+      {groups.map((group) => (
+        <ReportCard
+          key={group.reportedUserId}
+          report={group.reports[0]}
+          onReview={handleModerate}
+          titleBadge={
+            <Badge variant={group.reports.length >= 3 ? 'destructive' : 'secondary'}>
+              {group.reports.length} report{group.reports.length === 1 ? '' : 's'} on this user
+            </Badge>
+          }
+          reportedByMeta={
+            group.reports.length > 1 ? (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {group.distinctReporters} distinct reporter
+                {group.distinctReporters === 1 ? '' : 's'} •{' '}
+                {group.reasons.map((reason) => reasonLabels[reason] || reason).join(', ')}
+              </p>
+            ) : undefined
+          }
+        />
       ))}
     </div>
   )

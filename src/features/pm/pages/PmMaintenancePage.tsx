@@ -105,6 +105,23 @@ export default function PmMaintenancePage() {
         header: "Work order",
         cell: ({ row }) => <Badge variant="secondary">{row.original.work_order_status || "—"}</Badge>},
       {
+        accessorKey: "vendor_name",
+        header: "Vendor",
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            {row.original.vendor_name ? (
+              <>
+                <div className="truncate">{row.original.vendor_name}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {row.original.vendor_contact || ""}
+                </div>
+              </>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </div>
+        )},
+      {
         id: "actions",
         header: "",
         cell: ({ row }) => (
@@ -164,7 +181,7 @@ export default function PmMaintenancePage() {
       <div className="space-y-6">
         <PageHeader
           title="Maintenance"
-          description="Triage requests and manage work orders (no vendors)."
+          description="Triage requests and manage work orders, vendors, and completion details."
           icon={Wrench}
           actions={<CreateRequestDialog ownerId={ownerId} />}
         />

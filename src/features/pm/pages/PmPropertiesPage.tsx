@@ -23,6 +23,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
+import { formatCurrency } from "@/lib/format";
+import { deriveNightlyRate } from "@/features/properties/lib/nightlyRate";
 import { PageHeader } from "@/components/ui/page-header";
 
 const statusBadgeVariant = (status?: ManagedPropertyStatus | null) => {
@@ -95,6 +97,22 @@ export default function PmPropertiesPage() {
             {row.original.management_status || "—"}
           </Badge>
         )},
+      {
+        id: "price",
+        header: "Price",
+        cell: ({ row }) => {
+          const nightly = deriveNightlyRate(row.original);
+          return (
+            <div className="text-sm">
+              <div className="font-medium tabular-nums">{formatCurrency(row.original.base_price)}</div>
+              {nightly != null && (
+                <div className="text-xs text-muted-foreground">
+                  ≈ {formatCurrency(nightly)}/night
+                </div>
+              )}
+            </div>
+          );
+        }},
       {
         accessorKey: "payment_due_day",
         header: "Due Day",

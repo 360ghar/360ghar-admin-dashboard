@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import UploadSignedDialog from "@/features/pm/components/UploadSignedDialog";
 import RenewLeaseDialog from "@/features/pm/components/RenewLeaseDialog";
 import TerminateLeaseDialog from "@/features/pm/components/TerminateLeaseDialog";
+import { TERMINATABLE_LEASE_STATUSES } from "@/features/pm/constants";
 import { useGetPmLeaseQuery } from "@/features/pm/api/pmApi";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ export default function PmLeaseDetailPage() {
 
   const lease = useGetPmLeaseQuery(leaseIdNum, { skip: !leaseIdNum });
 
-  const canTerminate = lease.data?.status !== "terminated";
+  const canTerminate = lease.data ? TERMINATABLE_LEASE_STATUSES.includes(lease.data.status) : false;
 
   if (!leaseIdNum || Number.isNaN(leaseIdNum)) {
     return <EmptyState title="Invalid lease id" />;
@@ -100,6 +101,11 @@ export default function PmLeaseDetailPage() {
               tenantName={lease.data?.tenant_name ?? undefined}
               canTerminate={canTerminate}
             />
+            {lease.data && !canTerminate && lease.data.status !== "terminated" ? (
+              <span className="text-xs text-muted-foreground">
+                Only active, expiring-soon, or pending-signature leases can be terminated.
+              </span>
+            ) : null}
           </div>
         }
       />
@@ -153,6 +159,18 @@ export default function PmLeaseDetailPage() {
                     <span className="text-muted-foreground">Not uploaded</span>
                   )}
                 </div>
+                {lease.data.status === "terminated" ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Terminated on</span>
+                      <span className="font-medium">{formatDate(lease.data.termination_date, "—")}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Termination reason</span>
+                      <span className="font-medium">{lease.data.termination_reason || "—"}</span>
+                    </div>
+                  </>
+                ) : null}
               </>
             ) : (
               <EmptyState title="Lease not found" />

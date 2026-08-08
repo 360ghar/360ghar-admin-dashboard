@@ -17,6 +17,7 @@ import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
+import { deriveNightlyRate } from '@/features/properties/lib/nightlyRate'
 
 const Item = ({ label, value }: { label: string; value?: string | number | boolean | null }) => (
   <div className="text-sm"><span className="text-muted-foreground">{label}: </span>{String(value ?? '-')}</div>
@@ -44,6 +45,8 @@ const PropertyDetail = ({ id }: { id: number }) => {
 
   if (isLoading) return <LoadingState type="card" rows={8} />
   if (error) return <ErrorState title="Failed to load property" error={error} onRetry={() => void refetch()} />
+
+  const nightly = data ? deriveNightlyRate(data) : null
 
   return (
     <div className="space-y-6">
@@ -122,6 +125,17 @@ const PropertyDetail = ({ id }: { id: number }) => {
             <Item label="Next Visit" value={data?.user_next_visit_date ? formatDateTime(data.user_next_visit_date) : '-'} />
           </div>
 
+          {/* Pricing */}
+          <div>
+            <SectionTitle>Pricing</SectionTitle>
+            <div className="grid gap-3 md:grid-cols-4">
+              <Item label="Base Price" value={data?.base_price != null ? formatCurrency(data.base_price) : '-'} />
+              <Item label="Monthly Rent" value={data?.monthly_rent != null ? formatCurrency(data.monthly_rent) : '-'} />
+              <Item label="Daily Rate" value={data?.daily_rate != null ? formatCurrency(data.daily_rate) : '-'} />
+              <Item label="Nightly (derived)" value={nightly != null ? formatCurrency(nightly) : '-'} />
+            </div>
+          </div>
+
           {/* Location */}
           <div>
             <SectionTitle>Location</SectionTitle>
@@ -154,6 +168,21 @@ const PropertyDetail = ({ id }: { id: number }) => {
               <Item label="Age (years)" value={data?.age_of_property} />
               <Item label="Max Occupancy" value={data?.max_occupancy} />
               <Item label="Min Stay (days)" value={data?.minimum_stay_days} />
+            </div>
+          </div>
+
+          {/* Listing Details */}
+          <div>
+            <SectionTitle>Listing Details</SectionTitle>
+            <div className="grid gap-3 md:grid-cols-4">
+              <Item label="Kitchen Type" value={data?.kitchen_type ? data.kitchen_type.replaceAll('_', ' ') : '-'} />
+              <Item label="Ventilation" value={data?.ventilation_type ? data.ventilation_type.replaceAll('_', ' ') : '-'} />
+              <Item label="Furnishing" value={data?.furnishing_level ? data.furnishing_level.replaceAll('_', ' ') : '-'} />
+              <Item label="Windows" value={data?.windows_count} />
+              <Item label="Ventilation Shafts" value={data?.ventilation_shafts} />
+              <Item label="Setup Cost" value={data?.setup_cost != null ? formatCurrency(data.setup_cost) : '-'} />
+              <Item label="Other Charges" value={data?.other_charges != null ? formatCurrency(data.other_charges) : '-'} />
+              <Item label="Charges Notes" value={data?.other_charges_description} />
             </div>
           </div>
 

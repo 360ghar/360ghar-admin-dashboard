@@ -44,3 +44,22 @@ export const SORT_OPTIONS = [
   { value: 'distance', label: 'Distance' },
   { value: 'popular', label: 'Most Popular' },
 ] as const
+
+export const KITCHEN_TYPE_OPTIONS = [
+  { value: 'vegetarian', label: 'Vegetarian' },
+  { value: 'non_vegetarian', label: 'Non-Vegetarian' },
+  { value: 'eggetarian', label: 'Eggetarian' },
+  { value: 'any', label: 'Any Kitchen' },
+] as const
+
+export const VENTILATION_TYPE_OPTIONS = [
+  { value: 'good', label: 'Good' },
+  { value: 'average', label: 'Average' },
+  { value: 'poor', label: 'Poor' },
+] as const
+
+export const FURNISHING_LEVEL_OPTIONS = [
+  { value: 'furnished', label: 'Furnished' },
+  { value: 'semi_furnished', label: 'Semi-Furnished' },
+  { value: 'unfurnished', label: 'Unfurnished' },
+] as const

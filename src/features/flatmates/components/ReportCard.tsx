@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { AlertTriangle, Flag, MessageSquare, Shield } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,10 @@ import { reasonLabels, statusLabels } from './reportLabels'
 interface ReportCardProps {
   report: FlatmatesReport
   onReview: (report: FlatmatesReport) => void
+  /** Optional badge rendered in the title row (e.g. per-user report count). */
+  titleBadge?: ReactNode
+  /** Optional muted line rendered under the "Reported by" summary. */
+  reportedByMeta?: ReactNode
 }
 
 const getReasonBadge = (reason: string) => {
@@ -28,7 +33,7 @@ const getReasonBadge = (reason: string) => {
   )
 }
 
-export function ReportCard({ report, onReview }: ReportCardProps) {
+export function ReportCard({ report, onReview, titleBadge, reportedByMeta }: ReportCardProps) {
   return (
     <Card className="transition-colors hover:border-cohere-hairline">
       <CardHeader className="pb-3">
@@ -40,11 +45,13 @@ export function ReportCard({ report, onReview }: ReportCardProps) {
               <Badge variant="outline">
                 {statusLabels[report.status]}
               </Badge>
+              {titleBadge}
             </div>
             <p className="text-sm text-muted-foreground">
               Reported by: {report.reporter?.full_name || 'Anonymous'} •
               Reported: {report.reported_user?.full_name || 'Unknown User'}
             </p>
+            {reportedByMeta}
           </div>
           <div className="flex gap-2">
             <Button

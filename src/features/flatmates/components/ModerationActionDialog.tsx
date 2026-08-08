@@ -24,8 +24,10 @@ import { Textarea } from '@/components/ui/textarea'
 import type { FlatmatesListing, ModerationAction } from '../types'
 import {
   getListingImageUrls,
+  getOwnerLifestyle,
   getPrescreenFlags,
   getPrescreenReason,
+  isApprovalBoostActive,
   maskPhone,
 } from './moderationUtils'
 
@@ -56,6 +58,14 @@ export function ModerationActionDialog({
 }: ModerationActionDialogProps) {
   const prescreenReason = selectedListing ? getPrescreenReason(selectedListing) : null
   const imageUrls = selectedListing ? getListingImageUrls(selectedListing) : []
+  const lifestyle = selectedListing ? getOwnerLifestyle(selectedListing.owner) : null
+  const isBoosted = selectedListing ? isApprovalBoostActive(selectedListing) : false
+
+  const lifestyleChips: { key: string; label: string }[] = []
+  if (lifestyle?.smoking) lifestyleChips.push({ key: 'smoking', label: `Smoking: ${lifestyle.smoking}` })
+  if (lifestyle?.drinking) lifestyleChips.push({ key: 'drinking', label: `Drinking: ${lifestyle.drinking}` })
+  if (lifestyle?.ageBucket) lifestyleChips.push({ key: 'age', label: `Age: ${lifestyle.ageBucket}` })
+  if (lifestyle?.nativePlace) lifestyleChips.push({ key: 'native', label: `From: ${lifestyle.nativePlace}` })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,6 +101,20 @@ export function ModerationActionDialog({
                   <p>Owner: {selectedListing.owner?.full_name || 'Unknown'}</p>
                   <p>Email: {selectedListing.owner?.email || 'N/A'}</p>
                   <p>Phone: {maskPhone(selectedListing.owner?.phone)}</p>
+                  {lifestyleChips.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {lifestyleChips.map((chip) => (
+                        <Badge key={chip.key} variant="outline" className="text-xs">
+                          {chip.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {isBoosted && (
+                    <Badge variant="outline" className="text-xs mt-1.5">
+                      BOOSTED
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>

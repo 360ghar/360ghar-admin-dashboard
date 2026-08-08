@@ -6,7 +6,7 @@ import AddressAutocomplete from './parts/AddressAutocomplete'
 import MapPreview from './parts/MapPreview'
 import LocationPicker from '@/components/common/map/LocationPicker'
 import ImageUpload from '@/components/common/media/ImageUpload'
-import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES, PROPERTY_FEATURES } from '@/features/properties/constants'
+import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES, PROPERTY_FEATURES, KITCHEN_TYPE_OPTIONS, VENTILATION_TYPE_OPTIONS, FURNISHING_LEVEL_OPTIONS } from '@/features/properties/constants'
 import { Badge } from '@/components/ui/badge'
 import type { UseFormReturn } from 'react-hook-form'
 import type { PropertyFormValues } from '@/features/properties/validations'
@@ -114,6 +114,65 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
           )} />
         )}
       </div>
+
+      {purpose !== 'buy' && (
+        <>
+          <div className="md:col-span-2 text-sm font-medium text-muted-foreground mt-2">Pricing &amp; Listing Details</div>
+          <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+            <FormField control={form.control} name="monthly_rent" render={({ field }) => (
+              <FormItem><FormLabel>Monthly Rent (₹)</FormLabel><FormControl><Input type="number" min={0} step="0.01" placeholder="e.g. 45000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="daily_rate" render={({ field }) => (
+              <FormItem><FormLabel>Daily Rate (₹/night)</FormLabel><FormControl><Input type="number" min={0} step="0.01" placeholder="e.g. 1500" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="kitchen_type" render={({ field }) => (
+              <FormItem><FormLabel>Kitchen Type</FormLabel>
+                <Select value={field.value ?? 'none'} onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Not specified</SelectItem>
+                    {KITCHEN_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="ventilation_type" render={({ field }) => (
+              <FormItem><FormLabel>Ventilation</FormLabel>
+                <Select value={field.value ?? 'none'} onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Not specified</SelectItem>
+                    {VENTILATION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="furnishing_level" render={({ field }) => (
+              <FormItem><FormLabel>Furnishing</FormLabel>
+                <Select value={field.value ?? 'none'} onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Not specified</SelectItem>
+                    {FURNISHING_LEVEL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="setup_cost" render={({ field }) => (
+              <FormItem><FormLabel>Setup Cost (₹)</FormLabel><FormControl><Input type="number" min={0} step="0.01" placeholder="e.g. 5000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="other_charges" render={({ field }) => (
+              <FormItem><FormLabel>Other Charges (₹)</FormLabel><FormControl><Input type="number" min={0} step="0.01" placeholder="e.g. 2000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="windows_count" render={({ field }) => (
+              <FormItem><FormLabel>Windows</FormLabel><FormControl><Input type="number" min={0} max={100} placeholder="e.g. 4" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="ventilation_shafts" render={({ field }) => (
+              <FormItem><FormLabel>Ventilation Shafts</FormLabel><FormControl><Input type="number" min={0} max={50} placeholder="e.g. 2" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="other_charges_description" render={({ field }) => (
+              <FormItem className="md:col-span-2"><FormLabel>Other Charges Description</FormLabel><FormControl><Textarea rows={2} maxLength={300} placeholder="What do the other charges cover?" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+            )} />
+          </div>
+        </>
+      )}
 
       <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
         <FormField control={form.control} name="owner_name" render={({ field }) => (

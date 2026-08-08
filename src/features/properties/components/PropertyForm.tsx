@@ -47,6 +47,10 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
       pincode: '', area_sqft: undefined, bedrooms: 0, bathrooms: 0, balconies: 0,
       parking_spaces: 0, floor_number: 0, total_floors: 1, age_of_property: 0,
       max_occupancy: 1, minimum_stay_days: 1, features: [], owner_name: '', owner_contact: '',
+      monthly_rent: undefined, daily_rate: undefined, kitchen_type: undefined,
+      ventilation_type: undefined, furnishing_level: undefined, windows_count: undefined,
+      ventilation_shafts: undefined, setup_cost: undefined, other_charges: undefined,
+      other_charges_description: '',
     }
   })
   const { reset } = form
@@ -86,6 +90,16 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
         features: data.features || [],
         owner_name: data.owner_name ?? '',
         owner_contact: data.owner_contact ?? '',
+        monthly_rent: data.monthly_rent,
+        daily_rate: data.daily_rate,
+        kitchen_type: data.kitchen_type,
+        ventilation_type: data.ventilation_type,
+        furnishing_level: data.furnishing_level,
+        windows_count: data.windows_count,
+        ventilation_shafts: data.ventilation_shafts,
+        setup_cost: data.setup_cost,
+        other_charges: data.other_charges,
+        other_charges_description: data.other_charges_description ?? '',
         latitude: data.latitude,
         longitude: data.longitude,
         address: '',
@@ -123,6 +137,16 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
         main_image_url: primaryImage || images[0] || '',
         owner_name: values.owner_name,
         owner_contact: values.owner_contact,
+        monthly_rent: values.monthly_rent,
+        daily_rate: values.daily_rate,
+        kitchen_type: values.kitchen_type,
+        ventilation_type: values.ventilation_type,
+        furnishing_level: values.furnishing_level,
+        windows_count: values.windows_count,
+        ventilation_shafts: values.ventilation_shafts,
+        setup_cost: values.setup_cost,
+        other_charges: values.other_charges,
+        other_charges_description: values.other_charges_description,
       }
       if (isEdit && id) {
         const res = await updateProperty({
