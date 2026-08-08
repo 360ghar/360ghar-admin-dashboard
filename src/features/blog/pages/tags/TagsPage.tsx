@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { toast } from '@/hooks/use-toast'
 import { useGetBlogTagsQuery, useDeleteBlogTagMutation } from '@/features/blog/api/blogsApi'
 import { Plus, Edit2, Trash2, Tag, FileText } from 'lucide-react'
@@ -33,17 +33,26 @@ const TagsPage = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Tag className="h-6 w-6 text-primary" /></div>Blog Tags</h1>
-          <p className="text-muted-foreground">Manage blog tags for content labeling and organization</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" asChild><Link to="/blogs"><FileText className="h-4 w-4 mr-2" />Blog Posts</Link></Button>
-          <Badge variant="secondary" className="px-3 py-1">Admin View</Badge>
-          <Button className="gap-2" onClick={() => setIsCreateDialogOpen(true)}><Plus className="h-4 w-4" />New Tag</Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Blog Tags"
+        description="Manage blog tags for content labeling and organization"
+        icon={Tag}
+        badge="Admin View"
+        actions={
+          <div className="flex items-center gap-3">
+            <Button variant="outline" asChild>
+              <Link to="/blogs">
+                <FileText className="h-4 w-4 mr-2" />
+                Blog Posts
+              </Link>
+            </Button>
+            <Button className="gap-2" onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Tag
+            </Button>
+          </div>
+        }
+      />
       <Card className="p-6">
         {isFetching ? <LoadingState type="card" rows={5} /> : error ? (
           <ErrorState title="Failed to load tags" error={error} onRetry={() => { void refetch() }} />
@@ -57,7 +66,7 @@ const TagsPage = () => {
               <TableBody>{tagsData.items.map((tag: BlogTag) => (
                 <TableRow key={tag.id}>
                   <TableCell className="font-medium">{tag.name}</TableCell>
-                  <TableCell><code className="px-2 py-1 bg-muted rounded text-sm">{tag.slug}</code></TableCell>
+                  <TableCell><code className="rounded-cohere-xs border border-cohere-card-border bg-card/40 px-2 py-1 text-sm backdrop-blur-md">{tag.slug}</code></TableCell>
                   <TableCell>{formatDate(tag.created_at)}</TableCell>
                   <TableCell className="text-right"><div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => openEditDialog(tag)}><Edit2 className="h-4 w-4" /></Button>

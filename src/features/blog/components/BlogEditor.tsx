@@ -122,7 +122,9 @@ const BlogEditor = ({ onSuccess }: { onSuccess?: (slug: string) => void }) => {
                     <FormItem>
                       <FormLabel>Content (HTML or Markdown)</FormLabel>
                       <FormControl>
-                        <RichTextEditor value={field.value} onChange={field.onChange} />
+                        <div className="overflow-hidden rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md">
+                          <RichTextEditor value={field.value} onChange={field.onChange} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

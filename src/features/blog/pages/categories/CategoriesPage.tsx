@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { toast } from '@/hooks/use-toast'
 import { useGetBlogCategoriesQuery, useDeleteBlogCategoryMutation } from '@/features/blog/api/blogsApi'
 import { Plus, Edit2, Trash2, Folder, FileText } from 'lucide-react'
@@ -33,17 +33,26 @@ const CategoriesPage = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Folder className="h-6 w-6 text-primary" /></div>Blog Categories</h1>
-          <p className="text-muted-foreground">Manage blog categories for organizing content</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" asChild><Link to="/blogs"><FileText className="h-4 w-4 mr-2" />Blog Posts</Link></Button>
-          <Badge variant="secondary" className="px-3 py-1">Admin View</Badge>
-          <Button className="gap-2" onClick={() => setIsCreateDialogOpen(true)}><Plus className="h-4 w-4" />New Category</Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Blog Categories"
+        description="Manage blog categories for organizing content"
+        icon={Folder}
+        badge="Admin View"
+        actions={
+          <div className="flex items-center gap-3">
+            <Button variant="outline" asChild>
+              <Link to="/blogs">
+                <FileText className="h-4 w-4 mr-2" />
+                Blog Posts
+              </Link>
+            </Button>
+            <Button className="gap-2" onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Category
+            </Button>
+          </div>
+        }
+      />
       <Card className="p-6">
         {isFetching ? <LoadingState type="card" rows={5} /> : error ? (
           <ErrorState title="Failed to load categories" error={error} onRetry={() => { void refetch() }} />
@@ -57,7 +66,7 @@ const CategoriesPage = () => {
               <TableBody>{categoriesData.items.map((category: BlogCategory) => (
                 <TableRow key={category.id}>
                   <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell><code className="px-2 py-1 bg-muted rounded text-sm">{category.slug}</code></TableCell>
+                  <TableCell><code className="rounded-cohere-xs border border-cohere-card-border bg-card/40 px-2 py-1 text-sm backdrop-blur-md">{category.slug}</code></TableCell>
                   <TableCell className="max-w-xs truncate">{category.description || <span className="text-muted-foreground">No description</span>}</TableCell>
                   <TableCell>{formatDate(category.created_at)}</TableCell>
                   <TableCell className="text-right"><div className="flex justify-end gap-2">

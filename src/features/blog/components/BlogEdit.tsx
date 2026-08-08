@@ -28,7 +28,7 @@ import type { BlogPostStatus } from '@/types/blog'
 const BlogPostContentForm: React.FC<{ form: ReturnType<typeof useForm<BlogPostForm>> }> = ({ form }) => (
   <>
     <div className="md:col-span-2"><FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Finding Your Dream Home in Mumbai" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
-    <div className="md:col-span-2"><FormField control={form.control} name="content" render={({ field }) => (<FormItem><FormLabel>Content (HTML or Markdown)</FormLabel><FormControl><RichTextEditor value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} /></div>
+    <div className="md:col-span-2"><FormField control={form.control} name="content" render={({ field }) => (<FormItem><FormLabel>Content (HTML or Markdown)</FormLabel><FormControl><div className="overflow-hidden rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md"><RichTextEditor value={field.value} onChange={field.onChange} /></div></FormControl><FormMessage /></FormItem>)} /></div>
     <div className="md:col-span-2"><FormField control={form.control} name="excerpt" render={({ field }) => (<FormItem><FormLabel>Excerpt</FormLabel><FormControl><Textarea rows={3} placeholder="Short summary (optional)" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
   </>
 )

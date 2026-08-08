@@ -109,7 +109,7 @@ const BlogGenerateDialog = ({ open, onOpenChange }: BlogGenerateDialogProps) => 
 
         <form onSubmit={(e) => { void handleSubmit(e) }} className="space-y-6">
           <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex rounded-md bg-muted p-1 text-xs">
+            <div className="inline-flex rounded-cohere-pill border border-cohere-card-border bg-card/40 p-1 text-xs backdrop-blur-md">
               <Button
                 type="button"
                 size="sm"

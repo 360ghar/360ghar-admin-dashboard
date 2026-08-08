@@ -168,7 +168,7 @@ const BlogList = () => {
       header: ({ column }) => <SortableHeader column={column}>Title</SortableHeader>,
       cell: ({ row }) => (
         <div className="space-y-1">
-          <Link to={`/blogs/${row.original.slug}`} className="font-medium hover:underline">
+          <Link to={`/blogs/${row.original.slug}`} className="font-medium text-foreground hover:text-cohere-action-blue transition-colors">
             {row.original.title}
           </Link>
           <div className="text-xs text-muted-foreground">{formatDateTime(row.original.created_at)}</div>

@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
+import SplitText from '@/components/reactbits/SplitText'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { useToast } from '@/hooks/use-toast'
 import { useDeleteBlogPostMutation, useGetBlogPostQuery, useUpdateBlogPostMutation } from '@/features/blog/api/blogsApi'
 import { getErrorMessage, isApiError } from '@/lib/errors'
@@ -44,6 +46,7 @@ const estimateReadingTimeMinutes = (content: string) => {
 
 const BlogDetail = ({ identifier }: { identifier: string }) => {
   const navigate = useNavigate()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { toast } = useToast()
   const { data: post, isFetching, error, refetch } = useGetBlogPostQuery(identifier)
   const [updateBlogPost, { isLoading: isTogglingStatus }] = useUpdateBlogPostMutation()
@@ -223,6 +226,21 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
 
       <Card>
         <CardHeader>
+          {prefersReducedMotion ? (
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{post.title}</h1>
+          ) : (
+            <SplitText
+              text={post.title}
+              tag="h1"
+              splitType="words, chars"
+              threshold={0}
+              rootMargin="0px"
+              delay={14}
+              duration={0.8}
+              textAlign="left"
+              className="text-3xl font-semibold tracking-tight md:text-4xl"
+            />
+          )}
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span>Created {formatDateTime(post.created_at)}</span>
             {post.updated_at && (
