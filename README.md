@@ -9,7 +9,9 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
 
 **Framework**: React 18+ (using Vite for faster setup)
 **UI Library**: Shadcn/ui (built on Radix UI and Tailwind CSS)
-**Design System**: Cohere design tokens mapped via CSS custom properties
+**Design System**: "Command Center" theme — dark-first glass UI, CSS custom property tokens (`src/index.css`), light variant retained
+**Motion & Effects**: ReactBits (vendored from reactbits.dev, MIT) — FadeContent, CountUp, SplitText, TiltedCard, ambient background, etc.
+**Theming**: next-themes (`class` strategy) with a pre-paint `public/theme.js` — dark by default, no flash-of-wrong-theme
 **State Management**: Redux Toolkit (RTK) with RTK Query for efficient data fetching, caching, and state management
 **Routing**: React Router DOM v6+
 **Styling**: Tailwind CSS for utility-first, responsive design
@@ -161,14 +163,28 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
 
 ## Design System
 
-The project uses the **Cohere design system** specification (installed via `npx getdesign@latest add cohere`). Key tokens are mapped in `src/index.css`:
+The portal uses the **"Command Center"** design system — a dark-first, glassy operations
+console look implemented with shadcn/ui tokens mapped to CSS custom properties in
+`src/index.css` (Cohere-inspired accents; dark is the **default** surface, a full light
+variant remains available via the theme toggle in the top bar).
 
-- **Colors**: `cohere-coral`, `cohere-action-blue`, `cohere-deep-green`, `cohere-dark-navy`, `cohere-form-focus`
-- **Radius**: `rounded-cohere-xs` (4px) through `rounded-cohere-pill` (32px)
-- **Typography**: Display uses `Space Grotesk`, body uses `Inter`
-- **Philosophy**: White canvas backgrounds, near-black pill CTAs, flat surfaces with thin borders, no heavy shadows
+- **Theme**: next-themes `class` strategy; `public/theme.js` applies the saved/preferred
+  theme before React mounts (external file so the production CSP stays `script-src 'self'`).
+- **Tokens**: `--background`/`--foreground`/`--card`/`--popover`/`--primary`/`--muted`/
+  `--accent`/`--destructive`/`--border`/`--ring` (per-variant), Cohere accents
+  (`cohere-coral`, `cohere-action-blue`, ...), and command-center glass tokens
+  (`--glass-bg`, `--glass-border`, `.card-glow`).
+- **Typography**: Space Grotesk (display) + Inter (body), loaded via Google Fonts.
+- **Motion**: ReactBits components vendored into `src/components/reactbits/` (MIT
+  attribution headers; ~10 used across pages: FadeContent, CountUp, SplitText, TiltedCard,
+  ShinyText, GlitchText, ambient-background, BlurText, Magnet, GradientText). All animation
+  respects `prefers-reduced-motion` (final state renders instantly; no WebGL canvas under
+  reduced motion or without WebGL support).
+- **A11y**: SplitText/BlurText carry `aria-label`; scroll-triggered effects target the
+  `#main-content` scroller; motion imports use `motion/react` (no `framer-motion`).
 
-See `DESIGN.md` for the full specification.
+See `DESIGN.md` for the full specification (tokens, component catalog, per-page treatment
+map, do's and don'ts).
 
 ## Development Notes
 - All API calls use RTK Query (no axios or direct fetch except in `lib/auth.ts`)

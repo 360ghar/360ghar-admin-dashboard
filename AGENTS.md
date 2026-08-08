@@ -19,7 +19,7 @@
 - `npm run preview` – preview the production build locally.
 - `npm run typecheck` – project-wide TypeScript type checking.
 - `npm run lint` / `npm run lint:fix` – run ESLint / apply auto-fixes.
-- `npx getdesign@latest add cohere` – install Cohere design specification (DESIGN.md).
+- `npx getdesign@latest add cohere` – regenerate the legacy Cohere spec (repo `DESIGN.md` is now the project's own "Command Center" design doc)
 
 ## Coding Style & Naming Conventions
 - Use TypeScript everywhere; prefer functional React components (`.tsx`) with explicit prop types.
@@ -42,14 +42,15 @@
 - **Components over 300 lines should be split** into focused sub-components (`*Table`, `*Filters`, `*DetailDialog`, `*FormDialog`).
 - **Use `<EmptyState>`** from `@/components/ui/empty-state` for all "no data" patterns — no inline "no X found" divs.
 - **Use `<LoadingState>`** from `@/components/ui/loading-state` for all loading patterns — no raw `<Loader2>` spinners.
-- **Use `<ResponsiveDataTable>`** for lists that need mobile card views. Use `<DataTable>` for desktop-only tables.
+- **Use `<ResponsiveDataTable>`** for lists that need mobile card views (pass `mobileCardRender` so actions survive the mobile breakpoint). Use `<DataTable>` for desktop-only tables.
+- **ReactBits motion**: import from `@/components/reactbits/<Name>` only (FadeContent, CountUp, SplitText, TiltedCard, GlitchText, ambient-background, ...). Keep MIT headers, honor `prefers-reduced-motion` (final state must render), give `SplitText`/`BlurText` an `aria-label`, and never import `framer-motion` (use `motion/react`).
 
 ## Design System
-- **Cohere design tokens** are mapped in `src/index.css` as CSS custom properties.
-- Available Cohere colors: `cohere-coral`, `cohere-action-blue`, `cohere-deep-green`, `cohere-dark-navy`, `cohere-form-focus`.
+- **"Command Center"**: dark-first glass UI; all tokens are CSS custom properties in `src/index.css` (dark is the shipped default via `public/theme.js` + next-themes; light variant retained via the toggle).
+- Available Cohere accents: `cohere-coral`, `cohere-action-blue`, `cohere-deep-green`, `cohere-dark-navy`, `cohere-form-focus`; glass tokens: `--glass-bg`, `--glass-border`, `.card-glow`.
 - Available Cohere radius: `rounded-cohere-xs` (4px) through `rounded-cohere-pill` (32px).
-- Primary CTAs use pill shape, near-black on light surfaces. UI surfaces stay flat.
-- See `DESIGN.md` for full Cohere design specification.
+- Primary CTAs use pill shape; UI surfaces stay flat (thin borders + `.card-glow`, no heavy shadows).
+- See `DESIGN.md` for the full "Command Center" specification (tokens, ReactBits catalog, motion/a11y rules, per-page treatment map).
 
 ## Error Handling
 - `src/lib/errors.ts` provides `getErrorMessage()` and `isApiError()` covering HTTP 400-504.

@@ -27,7 +27,7 @@ npm run test:watch       # Watch mode
 # Setup
 npm install              # Install dependencies
 cp .env.example .env     # Copy environment variables
-npx getdesign@latest add cohere  # Install Cohere design specification
+npx getdesign@latest add cohere  # Regenerates the legacy Cohere spec (DESIGN.md is now the project's own design doc)
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck, test typecheck, lint, tests and the
@@ -42,7 +42,9 @@ build injects a CSP meta tag (`script-src 'self'`) — keep bootstrap/theme scri
 - **Redux Toolkit** + **RTK Query** for state management and API calls
 - **React Router v6** for client-side routing
 - **Tailwind CSS** for styling with **Shadcn UI** component library (fully implemented)
-- **Cohere Design System** tokens mapped via CSS custom properties in `src/index.css`
+- **"Command Center" design system** tokens mapped via CSS custom properties in `src/index.css` (dark-first glass UI; Cohere-inspired accents; light variant retained). See `DESIGN.md` — the authoritative design doc for humans and agents.
+- **ReactBits** motion components vendored into `src/components/reactbits/` (MIT-attributed) — FadeContent, CountUp, SplitText, TiltedCard, GlitchText, ambient-background, etc.
+- **Theming**: next-themes (`class` strategy) + `public/theme.js` pre-paint script (dark default, no flash)
 - **Zod** + **React Hook Form** for form validation (schemas centralized per feature in `validations.ts` files)
 - **Recharts** for data visualization
 - **Leaflet** for map integration
@@ -152,17 +154,26 @@ The project uses a centralized API setup:
 - Toast notifications implemented using custom hook pattern
 
 #### Design System
-- Cohere design tokens mapped to CSS custom properties in `src/index.css`
-- Cohere semantic colors available: `cohere-coral`, `cohere-action-blue`, `cohere-deep-green`, `cohere-dark-navy`, `cohere-form-focus`
-- Cohere border radius tokens: `rounded-cohere-xs` (4px) through `rounded-cohere-pill` (32px)
-- Primary CTAs use pill shape (`rounded-cohere-pill`), near-black on light surfaces
-- UI surfaces stay flat — no heavy drop shadows. Depth from surface alternation and thin borders.
+- **Dark-first "Command Center"**: dark is the default surface (`:root` is light, `.dark` is the shipped default via `public/theme.js` + next-themes). Verify every change in both variants with the theme toggle.
+- All tokens are CSS custom properties in `src/index.css`: shadcn base (`--background`, `--foreground`, `--card`, `--popover`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`) plus Cohere accents (`cohere-coral`, `cohere-action-blue`, `cohere-deep-green`, `cohere-dark-navy`, `cohere-form-focus`) and glass tokens (`--glass-bg`, `--glass-border`).
+- Radius: shadcn `--radius: 0.5rem` plus Cohere scale `rounded-cohere-xs` (4px) through `rounded-cohere-pill` (32px).
+- Primary CTAs use pill shape (`rounded-cohere-pill`); on dark surfaces the pill is white (`--primary`), on light it is near-black.
+- UI surfaces stay flat — no heavy drop shadows. Depth from surface alternation, thin borders, `.card-glow` (single shared elevation) and glass panels.
+
+#### ReactBits & Motion
+- Motion components live in `src/components/reactbits/` (vendored from reactbits.dev, MIT) — import only from `@/components/reactbits/<Name>`; never remove the MIT attribution header.
+- House vocabulary: `FadeContent` (page/list reveals), `CountUp` (KPIs — pass `format` from `@/lib/format`), `SplitText` (page titles), `TiltedCard` (list cards), `GlitchText` (error pages), `ambient-background` (auth + dashboard hero only, lazy).
+- **Every animation must render its final state under `prefers-reduced-motion`** (CountUp/FadeContent/TiltedCard/GlitchText/ambient-background handle this internally).
+- `SplitText`/`BlurText` must receive `aria-label={text}`; scroll-triggered effects resolve the app scroller (`document.getElementById('main-content')`), not `window`.
+- WebGL canvases (`ambient-background`) require a capability probe with a static-gradient fallback.
+- No `framer-motion` imports anywhere — use `motion/react` (motion.dev) for shadcn-level motion.
 
 ## Key Conventions
 
 ### Component Development
 - Feature-based organization: pages contain their own components in subdirectories
 - Shadcn UI components are fully integrated and ready to use
+- Use `<ResponsiveDataTable>` for lists that need mobile card views (pass `mobileCardRender` so actions survive the mobile breakpoint); `<DataTable>` for desktop-only tables
 - Follow established patterns for lists, forms, and detail views
 - Components >300 lines should be split into focused sub-components
 
