@@ -301,13 +301,6 @@ export interface PropertyUpdate extends Partial<PropertyCreate> {
   is_available?: boolean
 }
 
-export interface UnifiedPropertyResponse {
-  items: Property[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
-
 // Visit Types — wire values match backend VisitStatus enum
 export type VisitStatus =
   | 'requested'
@@ -739,19 +732,9 @@ export interface ReportModerationAction {
   notes?: string
 }
 
-export interface ModerationQueueResponse {
-  items: FlatmatesListing[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
+export type ModerationQueueResponse = PaginatedResponse<FlatmatesListing>
 
-export interface ReportsQueueResponse {
-  items: FlatmatesReport[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
+export type ReportsQueueResponse = PaginatedResponse<FlatmatesReport>
 
 // Swipe Types
 export interface Swipe {
@@ -763,9 +746,4 @@ export interface Swipe {
   property?: Property
 }
 
-export interface SwipeListResponse {
-  items: Swipe[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
+export type SwipeListResponse = PaginatedResponse<Swipe>

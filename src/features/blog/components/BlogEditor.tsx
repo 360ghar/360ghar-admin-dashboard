@@ -2,14 +2,9 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import RichTextEditor from '@/components/ui/rich-text-editor'
+import { Form } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import MultiSelect from '@/components/ui/multi-select'
-import ImageUpload from '@/components/common/media/ImageUpload'
+import { BlogPostContentForm, BlogPostMetaForm } from '@/features/blog/components/BlogPostFormFields'
 import { useCreateBlogPostMutation, useGetBlogCategoriesQuery, useGetBlogTagsQuery } from '@/features/blog/api/blogsApi'
 import { useToast } from '@/hooks/use-toast'
 import { blogPostSchema, type BlogPostForm } from '@/lib/blogValidation'
@@ -99,164 +94,8 @@ const BlogEditor = ({ onSuccess }: { onSuccess?: (slug: string) => void }) => {
               <div className="md:col-span-2">
                 <FormRootError form={form} />
               </div>
-              <div className="md:col-span-2">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Finding Your Dream Home in Mumbai" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <FormField
-                  control={form.control}
-                  name="content"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Content (HTML or Markdown)</FormLabel>
-                      <FormControl>
-                        <div className="overflow-hidden rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md">
-                          <RichTextEditor value={field.value} onChange={field.onChange} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <FormField
-                  control={form.control}
-                  name="excerpt"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Excerpt</FormLabel>
-                      <FormControl>
-                        <Textarea rows={3} placeholder="Short summary (optional)" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <FormLabel>Cover Image</FormLabel>
-                <ImageUpload value={images} onChange={setImages} multiple={false} primary={images[0] || null} onPrimaryChange={(u) => { setImages(prev => { const filtered = prev.filter(i => i !== u); return u ? [u, ...filtered] : prev }) }} />
-                <div className="mt-2">
-                  <FormField
-                    control={form.control}
-                    name="cover_image_url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs text-muted-foreground">Cover Image URL</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-              <div>
-                <FormField
-                  control={form.control}
-                  name="categories"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categories</FormLabel>
-                      <FormControl>
-                        <MultiSelect
-                          options={categoryOptions}
-                          selected={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Select categories..."
-                          emptyMessage="No categories found. Create some first!"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div>
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value)
-                          if (value !== 'scheduled') form.setValue('scheduled_at', '')
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="published">Published</SelectItem>
-                          <SelectItem value="archived">Archived</SelectItem>
-                          <SelectItem value="scheduled">Scheduled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="scheduled_at"
-                render={({ field }) => (
-                  <FormItem className={form.watch('status') === 'scheduled' ? '' : 'hidden'}>
-                    <FormLabel>Scheduled Publish Date &amp; Time</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="datetime-local"
-                        placeholder="Pick a future date and time"
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value)}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">Required when status is Scheduled.</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div>
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags</FormLabel>
-                      <FormControl>
-                        <MultiSelect
-                          options={tagOptions}
-                          selected={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Select tags..."
-                          emptyMessage="No tags found. Create some first!"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <BlogPostContentForm form={form} />
+              <BlogPostMetaForm form={form} images={images} setImages={setImages} categoryOptions={categoryOptions} tagOptions={tagOptions} />
               <div className="md:col-span-2 flex justify-end">
                 <Button type="submit" disabled={createState.isLoading}>
                   {createState.isLoading ? 'Creating…' : 'Create Post'}

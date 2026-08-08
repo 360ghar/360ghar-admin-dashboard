@@ -12,6 +12,7 @@ import { CommandPalette } from '@/components/common/CommandPalette'
 import NotificationCenter from '@/features/core/components/notifications/NotificationCenter'
 import { HealthIndicator } from '@/components/common/HealthIndicator'
 import { supabase } from '@/lib/supabase'
+import { getInitials } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 
 const TopBar = () => {
@@ -84,7 +85,7 @@ const TopBar = () => {
             <Button variant="ghost" className="flex items-center gap-3 rounded-full px-3 py-2 h-auto hover:bg-accent">
               <Avatar className="h-9 w-9 ring-2 ring-primary/10">
                 <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
-                  {user?.full_name ? user.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'U'}
+                  {getInitials(user?.full_name)}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">

@@ -51,9 +51,10 @@ export default function GenerateChargesDialog({
   const [open, setOpen] = useState(false);
   const [generateCharges, generateState] = useGenerateRentChargesMutation();
 
+  // Defer the 200-row lease fetch until the dialog is open.
   const leases = useListPmLeasesQuery(
     { owner_id: ownerId, status: "active", limit: 200 },
-    { skip: role === "agent" && !ownerId },
+    { skip: !open || (role === "agent" && !ownerId) },
   );
 
   const form = useForm<PmChargeGenerateForm>({

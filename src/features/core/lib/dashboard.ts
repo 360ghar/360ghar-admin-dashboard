@@ -129,6 +129,43 @@ export function mergeActivity(entries: ActivityEntry[], limit = 8): ActivityEntr
     .slice(0, limit)
 }
 
+export interface BusinessMetricsData {
+  /** Sum of total_amount across the fetched booking sample. */
+  revenue: number
+  /** bookings / visits ratio over the fetched sample (0..1). */
+  visitToBooking: number
+  /** revenue / bookings over the fetched sample. */
+  avgBookingValue: number
+  bookingTotal: number
+  visitTotal: number
+}
+
+/**
+ * Business KPIs (revenue, conversion, average booking value) derived from the
+ * shared visits/bookings list samples. Pure so it can be unit-tested and so
+ * the dashboard subscribes to each endpoint exactly once.
+ */
+export function computeBusinessMetrics(
+  visits: ReadonlyArray<unknown> | null | undefined,
+  bookings: ReadonlyArray<{ total_amount?: number | null }> | null | undefined,
+): BusinessMetricsData {
+  const bookingList = bookings ?? []
+  const visitTotal = visits?.length ?? 0
+  const bookingTotal = bookingList.length
+
+  // Revenue: sum of total_amount across fetched bookings (best-effort sample).
+  const revenue = bookingList.reduce((sum, b) => sum + (b.total_amount ?? 0), 0)
+
+  // Conversion rates use the sampled array lengths (no `total` field is
+  // returned by the cursor-paginated list endpoints).
+  const visitToBooking = visitTotal > 0 ? bookingTotal / visitTotal : 0
+
+  // Average booking value from the sampled bookings.
+  const avgBookingValue = bookingList.length > 0 ? revenue / bookingList.length : 0
+
+  return { revenue, visitToBooking, avgBookingValue, bookingTotal, visitTotal }
+}
+
 interface VisitRow {
   id: number
   created_at?: string | null

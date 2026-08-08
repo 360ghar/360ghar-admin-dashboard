@@ -19,7 +19,7 @@ export function QuickActions({ role }: { role?: string | null }) {
         </Button>
       ) : (
         <Magnet padding={40} magnetStrength={4} wrapperClassName="rounded-cohere-pill">
-          <Button asChild className="rounded-cohere-pill shadow-[0_4px_24px_-6px_hsl(var(--cohere-action-blue)/0.5)]">
+          <Button asChild className="rounded-cohere-pill">
             <Link to="/properties/new">
               <Plus className="h-4 w-4" />
               New Property

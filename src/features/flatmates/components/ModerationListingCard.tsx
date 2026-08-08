@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import TiltedCard from '@/components/reactbits/TiltedCard'
 
 import { formatCurrency, formatDateTime } from '@/lib/format'
+import { parseServerTimestamp } from '@/lib/dateTime'
 import type { FlatmatesListing } from '../types'
 import { getPrescreenFlags, getPrescreenReason, getPrescreenResult } from './moderationUtils'
 
@@ -30,7 +31,8 @@ const getStatusBadge = (status: string) => {
 }
 
 const getOverdueBadge = (createdAt: string) => {
-  const created = new Date(createdAt)
+  const created = parseServerTimestamp(createdAt)
+  if (!created) return null
   const now = new Date()
   const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60)
 

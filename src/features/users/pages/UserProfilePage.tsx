@@ -27,13 +27,14 @@ import FadeContent from '@/components/reactbits/FadeContent'
 import ProfileTab from '@/features/users/components/ProfileTab'
 import PreferencesTab from '@/features/users/components/PreferencesTab'
 import LocationTab from '@/features/users/components/LocationTab'
+import { PROPERTY_PURPOSES } from '@/features/properties/constants'
 
 const UserProfilePage: React.FC = () => {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'location'>('profile')
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<string[]>([])
-  const allowedPurposes = ['buy', 'rent', 'short_stay'] as const
+  const allowedPurposes = PROPERTY_PURPOSES.map((p) => p.value)
   const isPurpose = (value: string): value is UserPreferencesFormValues['purpose'] =>
     allowedPurposes.includes(value as UserPreferencesFormValues['purpose'])
 

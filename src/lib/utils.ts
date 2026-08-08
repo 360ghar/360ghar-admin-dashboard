@@ -26,3 +26,10 @@ export function handleAsyncEvent<E>(fn: (event: E) => Promise<void>): (event: E)
   return (event: E) => { void fn(event) }
 }
 
+/** Initials from a display name (e.g. "Jane Doe" -> "JD"), for avatar fallbacks. */
+export function getInitials(fullName: string | null | undefined, fallback = 'U'): string {
+  if (!fullName) return fallback
+  const initials = fullName.split(' ').map((n) => n[0]).join('').toUpperCase()
+  return initials || fallback
+}
+

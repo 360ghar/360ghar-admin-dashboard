@@ -110,9 +110,13 @@ const baseQueryWithRetries = retry(baseQueryNoRetryOnAuth, {
  * cursor strings) so page-1 requests omit the param entirely.
  */
 export function sanitizeFetchArgs(args: string | FetchArgs): string | FetchArgs {
-  if (typeof args === 'string' || !args.params || typeof args.params !== 'object' || Array.isArray(args.params)) {
-    return args
-  }
+  if (typeof args === 'string' || !args.params) return args
+  // URLSearchParams inputs (e.g. the properties `toSearchParams` builder)
+  // must pass through untouched: Object.entries() sees no own enumerable keys
+  // on a URLSearchParams instance, so the plain-object path below would
+  // silently strip every query param (breaking status/cursor/sort filters).
+  if (args.params instanceof URLSearchParams) return args
+  if (typeof args.params !== 'object' || Array.isArray(args.params)) return args
   const cleaned: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(args.params as Record<string, unknown>)) {
     if (value === null || value === undefined) continue

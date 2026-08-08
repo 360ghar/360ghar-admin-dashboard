@@ -1,63 +1,37 @@
-import { useMemo } from 'react'
-import { IndianRupee, TrendingUp, Target, Percent } from 'lucide-react'
-import { useGetAllVisitsQuery } from '@/features/visits/api/visitsApi'
-import { useGetAllBookingsQuery } from '@/features/bookings/api/bookingsApi'
+import { IndianRupee, TrendingUp, Target, CalendarCheck } from 'lucide-react'
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/format'
 import { ErrorState } from '@/components/ui/error-state'
 import { StatCard } from './StatCard'
+import type { BusinessMetricsData } from '@/features/core/lib/dashboard'
+
+interface BusinessMetricsProps {
+  metrics: BusinessMetricsData
+  isLoading: boolean
+  isError: boolean
+  onRetry: () => void
+}
 
 /**
  * Business KPIs for the admin dashboard: monthly revenue, booking conversion,
- * visit-to-booking conversion, and average booking value. Composed from the
- * existing list endpoints (no dedicated aggregate endpoint exists).
+ * visit-to-booking conversion, and average booking value.
+ *
+ * Presentational only — the data comes from the shared dashboard queries
+ * (see `useDashboardData`) so the page subscribes to `/visits/all` and
+ * `/bookings/all` exactly once instead of once per widget.
  */
-export function BusinessMetrics() {
-  const visits = useGetAllVisitsQuery({ limit: 100 })
-  const bookings = useGetAllBookingsQuery({ limit: 100 })
-
-  const isLoading = visits.isLoading || bookings.isLoading
-  // Both sources feed conversion metrics — any failure would silently zero out
-  // rates if we only showed empty samples.
-  const isError = visits.isError || bookings.isError
-
-  const metrics = useMemo(() => {
-    const bookingList = bookings.data?.items ?? []
-    const visitTotal = visits.data?.items?.length ?? 0
-    const bookingTotal = bookingList.length
-
-    // Revenue: sum of total_amount across fetched bookings (best-effort sample).
-    const revenue = bookingList.reduce((sum, b) => sum + (b.total_amount ?? 0), 0)
-
-    // Conversion rates use the sampled array lengths (no `total` field is
-    // returned by the cursor-paginated list endpoints).
-    const visitToBooking = visitTotal > 0 ? (bookingTotal / visitTotal) : 0
-
-    // Average booking value from the sampled bookings.
-    const avgBookingValue = bookingList.length ? revenue / bookingList.length : 0
-
-    return { revenue, visitToBooking, avgBookingValue, bookingTotal, visitTotal }
-  }, [visits.data, bookings.data])
-
+export function BusinessMetrics({ metrics, isLoading, isError, onRetry }: BusinessMetricsProps) {
   if (isError) {
-    return (
-      <ErrorState
-        title="Couldn't load business metrics"
-        onRetry={() => {
-          void visits.refetch()
-          void bookings.refetch()
-        }}
-      />
-    )
+    return <ErrorState title="Couldn't load business metrics" onRetry={onRetry} />
   }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        title="Booking Revenue (sample)"
+        title="Revenue (recent bookings)"
         value={metrics.revenue}
         formatValue={(n) => formatCurrency(n)}
         icon={IndianRupee}
-        hint={`Across ${formatNumber(metrics.bookingTotal)} bookings`}
+        hint={`Across ${formatNumber(metrics.bookingTotal)} recent bookings`}
         isLoading={isLoading}
       />
       <StatCard
@@ -72,14 +46,14 @@ export function BusinessMetrics() {
         value={metrics.visitToBooking * 100}
         formatValue={(n) => formatPercent(n)}
         icon={Target}
-        hint={`${formatNumber(metrics.bookingTotal)} bookings / ${formatNumber(metrics.visitTotal)} visits`}
+        hint={`Recent sample: ${formatNumber(metrics.bookingTotal)} bookings / ${formatNumber(metrics.visitTotal)} visits`}
         isLoading={isLoading}
       />
       <StatCard
-        title="Total Bookings"
+        title="Recent Bookings"
         value={metrics.bookingTotal}
         formatValue={(n) => formatNumber(n)}
-        icon={Percent}
+        icon={CalendarCheck}
         isLoading={isLoading}
       />
     </div>

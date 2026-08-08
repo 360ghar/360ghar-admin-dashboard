@@ -4,9 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { DocumentType, ExpenseCreate } from "@/types/pm";
 import {
   useCreatePmExpenseMutation,
-  useListPmPropertiesQuery,
   useUploadPmDocumentMutation,
 } from "@/features/pm/api/pmApi";
+import { usePmPropertyOptions } from "@/features/pm/hooks/usePmPropertyOptions";
+import { PmPropertySelectItems } from "@/features/pm/components/PmPropertySelectItems";
 import { EXPENSE_CATEGORIES } from "@/features/pm/constants";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { applyServerValidation } from "@/lib/formErrors";
+import { validateFileSize } from "@/lib/fileValidation";
 import { FormRootError } from "@/components/ui/form-root-error";
 import { pmExpenseCreateSchema, type PmExpenseCreateForm } from "@/features/pm/validations";
 
@@ -51,13 +53,10 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
   const [createExpense, createState] = useCreatePmExpenseMutation();
   const [uploadDoc, uploadDocState] = useUploadPmDocumentMutation();
 
-  const properties = useListPmPropertiesQuery(
-    { owner_id: ownerId, limit: 200 },
-    { skip: role === "agent" && !ownerId },
-  );
-
   const [open, setOpen] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+
+  const properties = usePmPropertyOptions(ownerId, { enabled: open && !(role === "agent" && !ownerId) });
 
   const form = useForm<PmExpenseCreateForm>({
     resolver: zodResolver(pmExpenseCreateSchema),
@@ -150,19 +149,7 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {properties.isLoading ? (
-                        <SelectItem value="loading" disabled>Loading properties…</SelectItem>
-                      ) : properties.isError ? (
-                        <SelectItem value="error" disabled>Failed to load properties</SelectItem>
-                      ) : !properties.data?.items?.length ? (
-                        <SelectItem value="none" disabled>No properties available</SelectItem>
-                      ) : (
-                        (properties.data?.items ?? []).map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            #{p.id} • {p.title}
-                          </SelectItem>
-                        ))
-                      )}
+                      <PmPropertySelectItems properties={properties} />
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -217,8 +204,7 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
               <Label>Receipt (optional)</Label>
               <Input type="file" accept="image/*,.pdf,.doc,.docx" onChange={(e) => {
                 const f = e.target.files?.[0] ?? null;
-                if (f && f.size > 20 * 1024 * 1024) {
-                  toast({ title: "File too large", description: "Maximum file size is 20 MB.", variant: "destructive" });
+                if (!validateFileSize(f, 20)) {
                   e.target.value = "";
                   return;
                 }

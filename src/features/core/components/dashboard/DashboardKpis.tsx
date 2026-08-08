@@ -50,6 +50,9 @@ export function AdminKpis() {
 export function AgentKpis({ agentId }: { agentId?: number | null }) {
   const { data, isLoading, isError, refetch } = useGetAgentStatsQuery(agentId ?? 0, { skip: !agentId })
   const stats = data?.stats
+  // Server may send the rating as a number or a numeric string; normalize once
+  // and fall back to the card's '—' placeholder when it's not a finite value.
+  const rating = Number(stats?.user_satisfaction_rating)
 
   if (isError) {
     return <ErrorState title="Couldn't load your stats" onRetry={() => void refetch()} />
@@ -66,7 +69,7 @@ export function AgentKpis({ agentId }: { agentId?: number | null }) {
       />
       <StatCard
         title="Satisfaction"
-        value={(() => { const r = typeof stats?.user_satisfaction_rating === 'number' ? stats.user_satisfaction_rating : Number(stats?.user_satisfaction_rating); return Number.isNaN(r) ? '—' : r })()}
+        value={Number.isFinite(rating) ? rating : undefined}
         formatValue={(n) => `${n.toFixed(1)}/5`}
         icon={Star}
         isLoading={isLoading}

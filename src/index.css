@@ -120,11 +120,14 @@
 
 /* ---------- Command-center glass surfaces ---------- */
 @layer components {
+  /* Single shared card elevation: a faint top highlight + soft blue-tinted
+   * shadow. No 1px ring here — the Card's own border already provides it,
+   * so the two never stack. */
   .card-glow {
     box-shadow:
-      0 0 0 1px hsl(var(--glass-border) / 0.6),
-      0 8px 40px -12px hsl(218 77% 62% / 0.18),
-      0 2px 12px -4px hsl(0 0% 0% / 0.5);
+      inset 0 1px 0 hsl(0 0% 100% / 0.04),
+      0 12px 32px -16px hsl(218 77% 62% / 0.14),
+      0 4px 16px -8px hsl(0 0% 0% / 0.45);
   }
 }
 

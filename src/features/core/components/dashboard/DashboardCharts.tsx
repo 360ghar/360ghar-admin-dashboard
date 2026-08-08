@@ -1,11 +1,10 @@
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Building2, CalendarRange } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
-import { usePropertyStatusBreakdown } from '@/features/core/hooks/useDashboardData'
+import type { PropertyStatusSlice } from '@/features/core/hooks/useDashboardData'
 import type { TrendBucket } from '@/features/core/lib/dashboard'
 import { formatNumber, formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -15,7 +14,7 @@ const BOOKING_COLOR = 'hsl(218 77% 62%)'
 const GRID_COLOR = 'hsl(var(--border))'
 const TICK_COLOR = 'hsl(var(--muted-foreground))'
 
-const TOOLTIP_STYLE = {
+export const TOOLTIP_STYLE = {
   background: 'hsl(var(--popover) / 0.92)',
   border: '1px solid hsl(var(--border))',
   borderRadius: 12,
@@ -33,8 +32,16 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   )
 }
 
-export function PropertyStatusCard({ className }: { className?: string }) {
-  const { data, total, isLoading, isError, refetch } = usePropertyStatusBreakdown()
+interface PropertyStatusCardProps {
+  data: PropertyStatusSlice[]
+  total: number
+  isLoading: boolean
+  isError: boolean
+  onRetry: () => void
+  className?: string
+}
+
+export function PropertyStatusCard({ data, total, isLoading, isError, onRetry, className }: PropertyStatusCardProps) {
   const slices = data.filter((slice) => slice.count > 0)
 
   return (
@@ -49,7 +56,7 @@ export function PropertyStatusCard({ className }: { className?: string }) {
             <Skeleton className="h-4 w-40" />
           </div>
         ) : isError ? (
-          <ErrorState title="Couldn't load status breakdown" onRetry={() => refetch()} />
+          <ErrorState title="Couldn't load status breakdown" onRetry={onRetry} />
         ) : total === 0 ? (
           <EmptyState
             icon={<Building2 className="h-8 w-8" />}
@@ -58,7 +65,7 @@ export function PropertyStatusCard({ className }: { className?: string }) {
           />
         ) : (
           <div className="space-y-4">
-            <div className="h-48">
+            <div className="relative h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -77,6 +84,10 @@ export function PropertyStatusCard({ className }: { className?: string }) {
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatNumber(total)}</span>
+                <span className="text-xs text-muted-foreground">properties</span>
+              </div>
             </div>
             <ul className="space-y-1.5">
               {slices.map((slice) => (
@@ -115,12 +126,7 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
   return (
     <Card className={cn('rounded-cohere-md border-cohere-card-border card-glow', className)}>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Activity — last 7 days</CardTitle>
-          <Badge variant="outline" className="text-xs">
-            Recent
-          </Badge>
-        </div>
+        <CardTitle className="text-lg">Activity — last 7 days</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (

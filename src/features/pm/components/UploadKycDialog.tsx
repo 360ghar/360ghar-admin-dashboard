@@ -21,6 +21,7 @@ import {
 import { FileUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
+import { validateFileSize } from "@/lib/fileValidation";
 
 interface UploadKycDialogProps {
   ownerUserId: number;
@@ -97,8 +98,7 @@ export default function UploadKycDialog({
             <Label>File</Label>
             <Input type="file" accept="image/*,.pdf,.doc,.docx" onChange={(e) => {
               const f = e.target.files?.[0] ?? null;
-              if (f && f.size > 20 * 1024 * 1024) {
-                toast({ title: "File too large", description: "Maximum file size is 20 MB.", variant: "destructive" });
+              if (!validateFileSize(f, 20)) {
                 e.target.value = "";
                 return;
               }

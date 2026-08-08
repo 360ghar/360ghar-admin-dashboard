@@ -9,10 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import type { RentalApplicationFormCreate } from '@/types/pm'
-import {
-  useCreateApplicationFormMutation,
-  useListPmPropertiesQuery,
-} from '@/features/pm/api/pmApi'
+import { useCreateApplicationFormMutation } from '@/features/pm/api/pmApi'
+import { usePmPropertyOptions } from '@/features/pm/hooks/usePmPropertyOptions'
 import { Plus } from 'lucide-react'
 
 interface CreateApplicationFormDialogProps {
@@ -34,10 +32,7 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
   const [applicationFeeAmount, setApplicationFeeAmount] = useState('')
   const [questionsJson, setQuestionsJson] = useState('{}')
 
-  const properties = useListPmPropertiesQuery(
-    { owner_id: ownerId, limit: 200 },
-    { skip: isAgentWithoutOwner },
-  )
+  const properties = usePmPropertyOptions(ownerId, { enabled: createOpen && !isAgentWithoutOwner })
 
   const [createForm, createState] = useCreateApplicationFormMutation()
 

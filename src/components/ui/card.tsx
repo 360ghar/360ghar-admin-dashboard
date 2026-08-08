@@ -12,7 +12,10 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "rounded-cohere-md border border-cohere-card-border bg-card/60 text-card-foreground shadow-none backdrop-blur-md transition-colors",
+        "rounded-cohere-md border border-cohere-card-border bg-card/60 text-card-foreground backdrop-blur-md transition-colors",
+        // No `shadow-none` here: cards that opt into elevation via the
+        // `.card-glow` component class must not have it overridden by the
+        // `shadow-none` utility (utilities layer wins over components).
         responsive && "p-4 md:p-6",
         className
       )}

@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, Check } from 'lucide-react'
+import { X, Check, ChevronDown } from 'lucide-react'
 import { Badge } from './badge'
 import { Button } from './button'
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from './command'
@@ -84,20 +84,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
             <div className="text-xs text-muted-foreground">
               {selected.length} selected
             </div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-chevron-down h-4 w-4 shrink-0 opacity-50"
-            >
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
           </div>
         </Button>
       </PopoverTrigger>

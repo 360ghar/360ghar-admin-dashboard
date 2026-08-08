@@ -14,17 +14,21 @@ export const passwordStepSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
-// Step 2b: OTP verification (unverified / OTP-first accounts)
-export const otpStepSchema = z.object({
+// 6-digit OTP verification — shared by login (unverified/OTP-first accounts)
+// and the forgot-password phone channel (aliased below as forgotPasswordOtpSchema).
+export const otpSchema = z.object({
   otp: z
     .string()
     .min(6, 'Enter the 6-digit code')
     .max(6, 'Enter the 6-digit code')
     .regex(/^\d{6}$/, 'The code must be 6 digits'),
 })
+export const otpStepSchema = otpSchema
 
-// Step 3 (mandatory): set a password after OTP for accounts with no password yet
-export const setPasswordStepSchema = z
+// New-password entry with complexity rules — shared by the mandatory
+// set-password step after OTP and the reset-password flow (aliased below as
+// resetPasswordSchema).
+export const newPasswordSchema = z
   .object({
     password: z
       .string()
@@ -37,6 +41,7 @@ export const setPasswordStepSchema = z
     message: 'Passwords do not match',
     path: ['confirm_password'],
   })
+export const setPasswordStepSchema = newPasswordSchema
 
 export type IdentifierFormValues = z.infer<typeof identifierSchema>
 export type PasswordStepFormValues = z.infer<typeof passwordStepSchema>
@@ -62,28 +67,10 @@ export const forgotPasswordSchema = z.object({
 })
 
 // Forgot password OTP step (phone channel only)
-export const forgotPasswordOtpSchema = z.object({
-  otp: z
-    .string()
-    .min(6, 'Enter the 6-digit code')
-    .max(6, 'Enter the 6-digit code')
-    .regex(/^\d{6}$/, 'The code must be 6 digits'),
-})
+export const forgotPasswordOtpSchema = otpSchema
 
 // Reset password form validation schema
-export const resetPasswordSchema = z
-  .object({
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
-      .regex(/[0-9]/, 'Password must contain at least 1 number'),
-    confirm_password: z.string().min(1, 'Please confirm your password'),
-  })
-  .refine((d) => d.password === d.confirm_password, {
-    message: 'Passwords do not match',
-    path: ['confirm_password'],
-  })
+export const resetPasswordSchema = newPasswordSchema
 
 // Export inferred types
 export type SignupFormValues = z.infer<typeof signupSchema>

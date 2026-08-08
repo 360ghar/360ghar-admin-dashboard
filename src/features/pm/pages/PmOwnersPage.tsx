@@ -6,7 +6,7 @@ import { useUserRole } from '@/hooks/useUserRole'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAppDispatch } from '@/hooks/redux'
 import { setSelectedOwner } from '@/features/pm/slices/pmSlice'
-import { useGetUsersQuery } from '@/features/users/api/usersApi'
+import { useOwnersSearch } from '@/features/pm/hooks/useOwnersSearch'
 import AssignAgent from '@/features/users/components/assign/AssignAgent'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,7 +32,7 @@ export default function PmOwnersPage() {
   const debouncedQ = useDebounce(q, 300)
   const pager = useCursorPagination(`${debouncedQ}`)
 
-  const users = useGetUsersQuery({ cursor: pager.cursor, limit: 20, q: debouncedQ || undefined })
+  const users = useOwnersSearch(debouncedQ, { cursor: pager.cursor })
 
   const owners = useMemo(() => (users.data?.items || []).filter((u) => u.role === 'user'), [users.data?.items])
 

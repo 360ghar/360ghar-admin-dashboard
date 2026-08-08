@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Activity } from 'lucide-react'
-import { formatCurrency } from '@/lib/format'
 import { formatDateTime } from '@/lib/format'
+import { ActivityRow } from '@/features/pm/components/ActivityRow'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -152,18 +152,17 @@ export default function PmAuditLogPage() {
             <div className="space-y-2">
               {filtered.map((a, idx) => {
                 const row = (
-                  <div className="flex items-center justify-between gap-4 rounded-cohere-md px-2 py-2 text-sm transition-colors hover:bg-muted/40">
-                    <div className="min-w-0">
-                      <span className="font-medium">{a.type}</span>
-                      {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                      {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
-                      {a.property_id ? <span className="text-muted-foreground"> • P#{a.property_id}</span> : null}
-                      {a.lease_id ? <span className="text-muted-foreground"> • L#{a.lease_id}</span> : null}
-                    </div>
-                    <div className="shrink-0 text-xs text-muted-foreground">
-                      {formatDateTime(a.at)}
-                    </div>
-                  </div>
+                  <ActivityRow
+                    activity={a}
+                    timestamp={formatDateTime(a.at)}
+                    className="rounded-cohere-md px-2 py-2 transition-colors hover:bg-muted/40"
+                    extra={
+                      <>
+                        {a.property_id ? <span className="text-muted-foreground"> • P#{a.property_id}</span> : null}
+                        {a.lease_id ? <span className="text-muted-foreground"> • L#{a.lease_id}</span> : null}
+                      </>
+                    }
+                  />
                 )
                 return prefersReducedMotion ? (
                   <div key={`${a.type}-${a.at}-${idx}`}>{row}</div>

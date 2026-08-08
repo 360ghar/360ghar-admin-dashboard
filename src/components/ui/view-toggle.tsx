@@ -2,6 +2,7 @@ import * as React from 'react'
 import { LayoutGrid, List } from 'lucide-react'
 import { Button } from './button'
 import { cn } from '@/lib/utils'
+import { readJSON, writeJSON } from '@/lib/storage'
 
 export type ViewMode = 'table' | 'cards'
 
@@ -41,20 +42,15 @@ export function ViewToggle({ view, onChange, className }: ViewToggleProps) {
  */
 export function useViewMode(key: string, defaultView: ViewMode = 'table'): [ViewMode, (view: ViewMode) => void] {
   const storageKey = `view-mode-${key}`
+  const isViewMode = (value: unknown): value is ViewMode => value === 'table' || value === 'cards'
 
-  // Get initial value from localStorage
-  const getInitialView = (): ViewMode => {
-    if (typeof window === 'undefined') return defaultView
-    const stored = localStorage.getItem(storageKey)
-    if (stored === 'table' || stored === 'cards') return stored
-    return defaultView
-  }
-
-  const [view, setViewState] = React.useState<ViewMode>(getInitialView)
+  const [view, setViewState] = React.useState<ViewMode>(() =>
+    readJSON(storageKey, defaultView, isViewMode),
+  )
 
   const setView = (newView: ViewMode) => {
     setViewState(newView)
-    localStorage.setItem(storageKey, newView)
+    writeJSON(storageKey, newView)
   }
 
   return [view, setView]

@@ -40,4 +40,12 @@ describe('sanitizeFetchArgs', () => {
     const arrParams = { url: '/properties', params: [['q', 'x']] }
     expect(sanitizeFetchArgs(arrParams)).toBe(arrParams)
   })
+
+  it('passes URLSearchParams through untouched (params are not enumerable)', () => {
+    const params = new URLSearchParams({ status: 'available', limit: '1' })
+    const args = { url: '/properties', params }
+    // Regression: Object.entries() sees no own keys on a URLSearchParams
+    // instance, so the plain-object path would strip every query param.
+    expect(sanitizeFetchArgs(args)).toBe(args)
+  })
 })

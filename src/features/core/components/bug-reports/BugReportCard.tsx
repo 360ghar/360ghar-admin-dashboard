@@ -22,8 +22,6 @@ const statusColors: Record<string, string> = {
   closed: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
 }
 
-export { severityColors, statusColors }
-
 interface BugReportCardProps {
   bugReport: BugReport
   onUpdate?: (id: number, data: BugReportUpdate) => void

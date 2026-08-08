@@ -2,7 +2,9 @@ import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { MaintenanceRequestCreate } from "@/types/pm";
-import { useCreateMaintenanceRequestMutation, useListPmPropertiesQuery } from "@/features/pm/api/pmApi";
+import { useCreateMaintenanceRequestMutation } from "@/features/pm/api/pmApi";
+import { usePmPropertyOptions } from "@/features/pm/hooks/usePmPropertyOptions";
+import { PmPropertySelectItems } from "@/features/pm/components/PmPropertySelectItems";
 import { MAINTENANCE_CATEGORIES, MAINTENANCE_URGENCIES } from "@/features/pm/constants";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -46,12 +48,9 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
   const { toast } = useToast();
   const [createRequest, createState] = useCreateMaintenanceRequestMutation();
 
-  const properties = useListPmPropertiesQuery(
-    { owner_id: ownerId, limit: 200 },
-    { skip: role === "agent" && !ownerId },
-  );
-
   const [open, setOpen] = useState(false);
+
+  const properties = usePmPropertyOptions(ownerId, { enabled: open && !(role === "agent" && !ownerId) });
 
   const form = useForm<PmMaintenanceRequestForm>({
     resolver: zodResolver(pmMaintenanceRequestSchema),
@@ -122,19 +121,7 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {properties.isLoading ? (
-                        <SelectItem value="loading" disabled>Loading properties…</SelectItem>
-                      ) : properties.isError ? (
-                        <SelectItem value="error" disabled>Failed to load properties</SelectItem>
-                      ) : !properties.data?.items?.length ? (
-                        <SelectItem value="none" disabled>No properties available</SelectItem>
-                      ) : (
-                        (properties.data?.items ?? []).map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            #{p.id} • {p.title}
-                          </SelectItem>
-                        ))
-                      )}
+                      <PmPropertySelectItems properties={properties} />
                     </SelectContent>
                   </Select>
                   <FormMessage />

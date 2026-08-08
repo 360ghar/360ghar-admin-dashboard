@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable } from '@/components/ui/data-table'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -13,6 +13,7 @@ import { Plus, Edit2, Trash2, Folder, FileText } from 'lucide-react'
 import { getErrorMessage } from '@/lib/errors'
 import { formatDate } from '@/lib/format'
 import type { BlogCategory } from '@/types/blog'
+import type { ColumnDef } from '@tanstack/react-table'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import CategoryFormDialog from '../../components/category/CategoryFormDialog'
 
@@ -24,12 +25,34 @@ const CategoriesPage = () => {
   const { data: categoriesData, isFetching, error, refetch } = useGetBlogCategoriesQuery({ limit: 100 })
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteBlogCategoryMutation()
 
-  const handleDeleteCategory = async (category: BlogCategory) => {
+  const handleDeleteCategory = useCallback(async (category: BlogCategory) => {
     try { await deleteCategory(category.id).unwrap(); toast({ title: 'Success', description: 'Category deleted successfully' }) }
     catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete category'), variant: 'destructive' }) }
-  }
+  }, [deleteCategory])
 
   const openEditDialog = (category: BlogCategory) => { setEditingCategory(category); setIsEditDialogOpen(true) }
+
+  const columns = useMemo<ColumnDef<BlogCategory>[]>(() => [
+    { accessorKey: 'name', header: 'Name', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { accessorKey: 'slug', header: 'Slug', cell: ({ row }) => <code className="rounded-cohere-xs border border-cohere-card-border bg-card/40 px-2 py-1 text-sm backdrop-blur-md">{row.original.slug}</code> },
+    { accessorKey: 'description', header: 'Description', cell: ({ row }) => <span className="max-w-xs truncate">{row.original.description || <span className="text-muted-foreground">No description</span>}</span> },
+    { accessorKey: 'created_at', header: 'Created', cell: ({ row }) => formatDate(row.original.created_at) },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">Actions</div>,
+      cell: ({ row }) => {
+        const category = row.original
+        return (
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => openEditDialog(category)}><Edit2 className="h-4 w-4" /></Button>
+            <ConfirmAlertDialog title="Delete Category" description={`Are you sure you want to delete "${category.name}"? This will remove the category from all posts.`} confirmLabel="Delete" variant="destructive" onConfirm={() => handleDeleteCategory(category)}>
+              {(openDialog) => <Button variant="outline" size="sm" onClick={openDialog} disabled={isDeleting}><Trash2 className="h-4 w-4" /></Button>}
+            </ConfirmAlertDialog>
+          </div>
+        )
+      },
+    },
+  ], [isDeleting, handleDeleteCategory])
 
   return (
     <div className="space-y-8">
@@ -61,23 +84,7 @@ const CategoriesPage = () => {
         ) : (
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">{categoriesData.items.length} categories total</div>
-            <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Description</TableHead><TableHead>Created</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-              <TableBody>{categoriesData.items.map((category: BlogCategory) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell><code className="rounded-cohere-xs border border-cohere-card-border bg-card/40 px-2 py-1 text-sm backdrop-blur-md">{category.slug}</code></TableCell>
-                  <TableCell className="max-w-xs truncate">{category.description || <span className="text-muted-foreground">No description</span>}</TableCell>
-                  <TableCell>{formatDate(category.created_at)}</TableCell>
-                  <TableCell className="text-right"><div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEditDialog(category)}><Edit2 className="h-4 w-4" /></Button>
-                    <ConfirmAlertDialog title="Delete Category" description={`Are you sure you want to delete "${category.name}"? This will remove the category from all posts.`} confirmLabel="Delete" variant="destructive" onConfirm={() => handleDeleteCategory(category)}>
-                      {(openDialog) => <Button variant="outline" size="sm" onClick={openDialog} disabled={isDeleting}><Trash2 className="h-4 w-4" /></Button>}
-                    </ConfirmAlertDialog>
-                  </div></TableCell>
-                </TableRow>
-              ))}</TableBody>
-            </Table>
+            <DataTable columns={columns} data={categoriesData.items} />
           </div>
         )}
       </Card>

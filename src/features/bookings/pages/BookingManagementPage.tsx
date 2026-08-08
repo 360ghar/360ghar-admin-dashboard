@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
-import { useAuth } from '@/hooks/useAuth'
+import { useUserRole } from '@/hooks/useUserRole'
 import {
   useGetUserBookingsQuery,
   useCancelBookingMutation,
@@ -23,12 +23,10 @@ import { CreateBookingDialog } from '@/features/bookings/components/CreateBookin
 import FadeContent from '@/components/reactbits/FadeContent'
 
 const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
-  const { user } = useAuth()
+  const { user, isUser } = useUserRole()
   const { toast } = useToast()
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-
-  const isUser = user?.role === 'user'
 
   // API calls
   const { data: userBookings, isLoading: userBookingsLoading, isError: userBookingsError, refetch: refetchUserBookings } = useGetUserBookingsQuery(

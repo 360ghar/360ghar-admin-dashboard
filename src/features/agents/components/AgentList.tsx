@@ -32,6 +32,13 @@ import { cn } from '@/lib/utils'
 
 type Agent = AgentSummary
 
+const getWorkloadTone = (utilization: number): string =>
+  utilization > 80
+    ? 'text-red-600 dark:text-red-400'
+    : utilization > 60
+      ? 'text-orange-600 dark:text-orange-400'
+      : 'text-green-600 dark:text-green-400'
+
 const AgentList = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -60,11 +67,17 @@ const AgentList = () => {
   const { data, isFetching, isLoading, error, refetch } = useListAgentsQuery({ include_inactive: includeInactive, cursor: pager.cursor, limit: pageSize })
   const { data: workload } = useGetWorkloadQuery()
   const [assignAgent, { isLoading: assigning }] = useAssignAgentMutation()
-  const { data: unassignedUsers } = useGetUsersQuery({ limit: 100 })
 
   // Auto-assign dialog state
   const [autoAssignOpen, setAutoAssignOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+
+  // Unassigned users are only needed while the auto-assign dialog is open —
+  // defer the 100-row fetch until then instead of loading it on every visit.
+  const { data: unassignedUsers, isFetching: unassignedUsersFetching } = useGetUsersQuery(
+    { limit: 100 },
+    { skip: !autoAssignOpen },
+  )
 
   const workloadByAgent = useMemo(() => {
     const map = new Map<number, { utilization: number; currentUsers: number }>()
@@ -134,7 +147,7 @@ const AgentList = () => {
       cell: ({ row }) => {
         const w = workloadByAgent.get(row.original.id)
         if (!w) return <span className="text-muted-foreground">—</span>
-        const tone = w.utilization > 80 ? 'text-red-600 dark:text-red-400' : w.utilization > 60 ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'
+        const tone = getWorkloadTone(w.utilization)
         return (
           <div className="flex flex-col">
             <span className={cn('font-medium', tone)}>{Math.round(w.utilization)}%</span>
@@ -222,13 +235,7 @@ const AgentList = () => {
 
   const renderCard = (agent: Agent) => {
     const w = workloadByAgent.get(agent.id)
-    const tone = w
-      ? w.utilization > 80
-        ? 'text-red-600 dark:text-red-400'
-        : w.utilization > 60
-          ? 'text-orange-600 dark:text-orange-400'
-          : 'text-green-600 dark:text-green-400'
-      : ''
+    const tone = w ? getWorkloadTone(w.utilization) : ''
     return (
       <Card className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
@@ -372,7 +379,10 @@ const AgentList = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {assignableUsers.length === 0 && (
+                {unassignedUsersFetching && (
+                  <p className="text-xs text-muted-foreground">Loading users…</p>
+                )}
+                {!unassignedUsersFetching && assignableUsers.length === 0 && (
                   <p className="text-xs text-muted-foreground">No unassigned active users found in the current sample.</p>
                 )}
               </div>

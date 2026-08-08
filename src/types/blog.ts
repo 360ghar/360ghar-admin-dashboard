@@ -1,3 +1,5 @@
+import type { PaginatedResponse } from './api'
+
 export interface BlogCategory {
   id: number
   name: string
@@ -49,26 +51,11 @@ export interface BlogPost {
 }
 
 // List Response Types — uniform cursor-paginated shape
-export interface BlogPostListResponse {
-  items: BlogPost[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
+export type BlogPostListResponse = PaginatedResponse<BlogPost>
 
-export interface BlogCategoryListResponse {
-  items: BlogCategory[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
+export type BlogCategoryListResponse = PaginatedResponse<BlogCategory>
 
-export interface BlogTagListResponse {
-  items: BlogTag[]
-  next_cursor: string | null
-  has_more: boolean
-  limit: number
-}
+export type BlogTagListResponse = PaginatedResponse<BlogTag>
 
 // Filter Types
 export interface BlogPostFilters {

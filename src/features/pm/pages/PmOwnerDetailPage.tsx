@@ -7,6 +7,7 @@ import { setSelectedOwner } from "@/features/pm/slices/pmSlice";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import KycDocumentsCard from "@/features/pm/components/KycDocumentsCard";
 import UploadKycDialog from "@/features/pm/components/UploadKycDialog";
+import { ActivityRow } from "@/features/pm/components/ActivityRow";
 import {
   useGetPmDashboardActivityQuery,
   useGetPmDashboardOverviewQuery,
@@ -239,16 +240,7 @@ export default function PmOwnerDetailPage() {
               ) : activity.data?.items?.length ? (
                 <div className="space-y-2">
                   {activity.data.items.map((a, idx) => (
-                    <div key={`${a.type}-${a.at}-${idx}`} className="flex items-center justify-between gap-4 text-sm">
-                      <div className="min-w-0">
-                        <span className="font-medium">{a.type}</span>
-                        {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                        {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
-                      </div>
-                      <div className="shrink-0 text-xs text-muted-foreground">
-                        {formatDateTime(a.at)}
-                      </div>
-                    </div>
+                    <ActivityRow key={`${a.type}-${a.at}-${idx}`} activity={a} timestamp={formatDateTime(a.at)} />
                   ))}
                 </div>
               ) : (

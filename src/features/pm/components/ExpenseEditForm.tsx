@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { applyServerValidation } from "@/lib/formErrors";
+import { validateFileSize } from "@/lib/fileValidation";
 import { FormRootError } from "@/components/ui/form-root-error";
 import {
   pmExpenseUpdateSchema,
@@ -143,8 +144,7 @@ export default function ExpenseEditForm({
               <Label>Replace receipt (optional)</Label>
               <Input type="file" accept="image/*,.pdf,.doc,.docx" onChange={(e) => {
                 const f = e.target.files?.[0] ?? null;
-                if (f && f.size > 20 * 1024 * 1024) {
-                  toast({ title: "File too large", description: "Maximum file size is 20 MB.", variant: "destructive" });
+                if (!validateFileSize(f, 20)) {
                   e.target.value = "";
                   return;
                 }

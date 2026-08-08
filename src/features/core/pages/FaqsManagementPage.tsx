@@ -1,16 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { Edit, HelpCircle, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { FormRootError } from '@/components/ui/form-root-error'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -18,27 +11,11 @@ import { LoadingState } from '@/components/ui/loading-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
-import { applyServerValidation } from '@/lib/formErrors'
 import { formatDate } from '@/lib/format'
-import { faqSchema, type FaqFormValues } from '@/features/core/validations'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
-import {
-  useCreateFaqMutation,
-  useDeleteFaqMutation,
-  useGetFaqsQuery,
-  useUpdateFaqMutation,
-  type Faq,
-} from '@/features/core/api/coreApi'
-
-const defaultValues: FaqFormValues = {
-  question: '',
-  answer: '',
-  category: '',
-  tags: '',
-  display_order: 0,
-  is_active: true,
-}
+import { useDeleteFaqMutation, useGetFaqsQuery, type Faq } from '@/features/core/api/coreApi'
+import FaqFormDialog, { defaultFormData, type FaqFormData } from '@/features/core/components/faqs/FaqFormDialog'
 
 const FaqsManagementPage = () => {
   const { toast } = useToast()
@@ -48,15 +25,12 @@ const FaqsManagementPage = () => {
     cursor: pager.cursor,
     limit: 20,
   })
-  const [createFaq] = useCreateFaqMutation()
-  const [updateFaq] = useUpdateFaqMutation()
   const [deleteFaq, { isLoading: isDeleting }] = useDeleteFaqMutation()
 
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<Faq | null>(null)
-
-  const form = useForm<FaqFormValues>({ resolver: zodResolver(faqSchema), defaultValues })
+  const [editingFaq, setEditingFaq] = useState<Faq | null>(null)
+  const [formData, setFormData] = useState<FaqFormData>(defaultFormData)
 
   const faqs = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -71,14 +45,14 @@ const FaqsManagementPage = () => {
   }, [data, search])
 
   const openCreate = () => {
-    setEditing(null)
-    form.reset(defaultValues)
+    setEditingFaq(null)
+    setFormData({ ...defaultFormData })
     setDialogOpen(true)
   }
 
   const openEdit = (faq: Faq) => {
-    setEditing(faq)
-    form.reset({
+    setEditingFaq(faq)
+    setFormData({
       question: faq.question,
       answer: faq.answer,
       category: faq.category ?? '',
@@ -87,33 +61,6 @@ const FaqsManagementPage = () => {
       is_active: faq.is_active,
     })
     setDialogOpen(true)
-  }
-
-  const onSubmit = async (values: FaqFormValues) => {
-    form.clearErrors()
-    const payload = {
-      question: values.question,
-      answer: values.answer,
-      category: values.category?.trim() || null,
-      tags: values.tags
-        ? values.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-        : null,
-      display_order: values.display_order,
-      is_active: values.is_active,
-    }
-    try {
-      if (editing) {
-        await updateFaq({ id: editing.id, data: payload }).unwrap()
-        toast({ title: 'FAQ updated' })
-      } else {
-        await createFaq(payload).unwrap()
-        toast({ title: 'FAQ created' })
-      }
-      setDialogOpen(false)
-    } catch (error) {
-      applyServerValidation(error, form.setError, { knownFields: ['question', 'answer', 'category', 'display_order'] })
-      toast({ title: 'Failed to save FAQ', description: getErrorMessage(error, 'Please try again.'), variant: 'destructive' })
-    }
   }
 
   const handleDelete = async (id: number) => {
@@ -213,110 +160,14 @@ const FaqsManagementPage = () => {
         loading={isLoading}
       />
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit FAQ' : 'New FAQ'}</DialogTitle>
-            <DialogDescription>Questions appear in the apps’ help section.</DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
-              <FormRootError form={form} />
-              <FormField
-                control={form.control}
-                name="question"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Question</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. How do I schedule a visit?" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="answer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Answer</FormLabel>
-                    <FormControl>
-                      <Textarea rows={5} placeholder="Write the answer…" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category (optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. bookings" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="display_order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Display order</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={0} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags (optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Comma-separated, e.g. payments, refunds" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormDescription>Separate multiple tags with commas.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="is_active"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-cohere-sm border border-cohere-card-border p-3">
-                    <div>
-                      <FormLabel>Active</FormLabel>
-                      <FormDescription>Only active FAQs are shown publicly.</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {editing ? 'Save changes' : 'Create FAQ'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <FaqFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editingFaq={editingFaq}
+        formData={formData}
+        setFormData={setFormData}
+        onSuccess={() => setEditingFaq(null)}
+      />
     </div>
   )
 }

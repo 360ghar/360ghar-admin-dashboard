@@ -20,6 +20,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
+import { getInitials } from '@/lib/utils'
 import { profileSchema, type ProfileFormValues } from '@/features/core/validations'
 
 const AdminPrivilegesCard = () => (
@@ -99,7 +100,7 @@ const ProfilePage = () => {
               <div className="relative">
                 <Avatar className="h-24 w-24">
                   {me?.profile_image_url ? <AvatarImage src={me.profile_image_url} alt={me?.full_name ?? 'avatar'} /> : null}
-                  <AvatarFallback className="text-2xl font-semibold bg-primary/10 text-primary">{me?.full_name ? me.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}</AvatarFallback>
+                  <AvatarFallback className="text-2xl font-semibold bg-primary/10 text-primary">{getInitials(me?.full_name)}</AvatarFallback>
                 </Avatar>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => void handleAvatarChange(e)} className="hidden" aria-hidden="true" />
                 <Button

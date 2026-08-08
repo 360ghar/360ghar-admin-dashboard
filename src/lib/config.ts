@@ -1,6 +1,13 @@
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  'http://localhost:3600/api/v1'
+/**
+ * API base URL. In dev, requests go to the same origin (`window.location.origin`),
+ * which Vite proxies to `DEV_API_PROXY_TARGET` (see vite.config.ts) — no CORS,
+ * immune to dev-port drift, and still an absolute URL (fetchBaseQuery's
+ * `new Request(...)` rejects relative URLs). Production builds use the
+ * absolute `VITE_API_BASE_URL` (or the local default below).
+ */
+export const API_BASE_URL = import.meta.env.DEV
+  ? `${window.location.origin}/api/v1`
+  : (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3600/api/v1'
 
 /**
  * Optional realtime endpoint (SSE or WebSocket) for live cache invalidation.

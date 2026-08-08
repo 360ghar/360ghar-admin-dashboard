@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 import { supabase } from '@/lib/supabase'
@@ -16,6 +16,8 @@ import { useResendTimer } from '@/hooks/useResendTimer'
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/auth/PasswordInput'
+import { OtpInput } from '@/components/auth/OtpInput'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AuthBrandingPanel } from '@/components/auth/AuthBrandingPanel'
@@ -389,13 +391,9 @@ export default function SignupPage() {
                       <FormItem>
                         <FormLabel className="text-sm font-medium">6-Digit Code</FormLabel>
                         <FormControl>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
+                          <OtpInput
                             placeholder="Enter the code"
                             className="h-11 text-center text-lg tracking-widest"
-                            maxLength={6}
                             autoFocus
                             {...field}
                             onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -458,23 +456,14 @@ export default function SignupPage() {
                       <FormItem>
                         <FormLabel className="text-sm font-medium">Password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              placeholder="Create a password"
-                              className="h-11 pr-12"
-                              {...field}
-                            />
-                            <button
-                              type="button"
-                              aria-label={showPassword ? 'Hide password' : 'Show password'}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                              onClick={() => setShowPassword((s) => !s)}
-                            >
-                              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </button>
-                          </div>
+                          <PasswordInput
+                            show={showPassword}
+                            onToggleShow={() => setShowPassword((s) => !s)}
+                            autoComplete="new-password"
+                            placeholder="Create a password"
+                            className="h-11"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -488,23 +477,14 @@ export default function SignupPage() {
                       <FormItem>
                         <FormLabel className="text-sm font-medium">Confirm Password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              placeholder="Re-enter password"
-                              className="h-11 pr-12"
-                              {...field}
-                            />
-                            <button
-                              type="button"
-                              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                              onClick={() => setShowConfirmPassword((s) => !s)}
-                            >
-                              {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </button>
-                          </div>
+                          <PasswordInput
+                            show={showConfirmPassword}
+                            onToggleShow={() => setShowConfirmPassword((s) => !s)}
+                            autoComplete="new-password"
+                            placeholder="Re-enter password"
+                            className="h-11"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

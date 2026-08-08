@@ -2,15 +2,18 @@ import { useMemo } from 'react'
 import { useSearchPropertiesQuery } from '@/features/properties/api/propertiesApi'
 import { useGetAllVisitsQuery } from '@/features/visits/api/visitsApi'
 import { useGetAllBookingsQuery } from '@/features/bookings/api/bookingsApi'
+import { useUserRole } from '@/hooks/useUserRole'
 import {
   PROPERTY_STATUS_META,
   buildActivityTrend,
   bookingToActivity,
+  computeBusinessMetrics,
   computeStatusBreakdown,
   mergeActivity,
   propertyToActivity,
   visitToActivity,
   type ActivityEntry,
+  type BusinessMetricsData,
   type TrendBucket,
 } from '@/features/core/lib/dashboard'
 
@@ -58,24 +61,39 @@ export function usePropertyStatusBreakdown(): PropertyStatusBreakdown {
   }
 }
 
-export interface DashboardActivity {
+export interface DashboardData {
   trend: TrendBucket[]
   feed: ActivityEntry[]
+  metrics: BusinessMetricsData
+  statusBreakdown: PropertyStatusBreakdown
+  /** Activity semantics: loading while any source loads and the feed is empty. */
   isLoading: boolean
+  /** Activity semantics: hard error only when every source failed. */
   isError: boolean
-  error: unknown
+  /** Business-metrics semantics: error when visits OR bookings failed. */
+  isMetricsLoading: boolean
+  isMetricsError: boolean
   refetch: () => void
 }
 
 /**
- * Recent activity feed + a short engagement trend, composed from the most
- * recent visits, bookings and new listings (all server-side scoped to the
- * caller's role).
+ * Single source of truth for the dashboard page. Subscribes to each list
+ * endpoint exactly once and derives the activity feed, engagement trend AND
+ * business metrics from the same cached payloads — so widgets share one
+ * network request per endpoint instead of firing per-widget queries with
+ * different page sizes.
+ *
+ * The visits/bookings page size is role-aware: agents have no business-metrics
+ * widget, so 50 rows (the pre-consolidation feed size) is enough, while admins
+ * fetch 100 to preserve the revenue/conversion sample semantics.
  */
-export function useDashboardActivity(): DashboardActivity {
-  const visits = useGetAllVisitsQuery({ limit: 50 })
-  const bookings = useGetAllBookingsQuery({ limit: 50 })
+export function useDashboardData(): DashboardData {
+  const { role } = useUserRole()
+  const listLimit = role === 'agent' ? 50 : 100
+  const visits = useGetAllVisitsQuery({ limit: listLimit })
+  const bookings = useGetAllBookingsQuery({ limit: listLimit })
   const newProperties = useSearchPropertiesQuery({ sort_by: 'newest', limit: 5 })
+  const statusBreakdown = usePropertyStatusBreakdown()
 
   const trend = useMemo(
     () => buildActivityTrend(visits.data?.items ?? [], bookings.data?.items ?? []),
@@ -99,6 +117,11 @@ export function useDashboardActivity(): DashboardActivity {
     return mergeActivity(entries, 8)
   }, [visits.data, bookings.data, newProperties.data])
 
+  const metrics = useMemo(
+    () => computeBusinessMetrics(visits.data?.items, bookings.data?.items),
+    [visits.data, bookings.data],
+  )
+
   const queries = [visits, bookings, newProperties]
   // Keep partial successes: only treat as hard error when every source failed
   // (otherwise one flaky endpoint would hide visits/bookings/listings that did load).
@@ -108,13 +131,19 @@ export function useDashboardActivity(): DashboardActivity {
   return {
     trend,
     feed,
+    metrics,
+    statusBreakdown,
     isLoading: anyLoading && feed.length === 0 && !allFailed,
     isError: allFailed,
-    error: visits.error || bookings.error || newProperties.error,
+    // Business metrics need BOTH sources — a single failed query would
+    // silently zero out conversion rates if we only showed partial samples.
+    isMetricsLoading: visits.isLoading || bookings.isLoading,
+    isMetricsError: visits.isError || bookings.isError,
     refetch: () => {
       void visits.refetch()
       void bookings.refetch()
       void newProperties.refetch()
+      statusBreakdown.refetch()
     },
   }
 }

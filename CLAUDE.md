@@ -185,10 +185,12 @@ The project uses a centralized API setup:
 
 ### Environment Variables
 ```env
-VITE_API_BASE_URL=http://localhost:3600/api/v1
+VITE_API_BASE_URL=http://localhost:3600/api/v1   # Production/preview builds only
 VITE_SUPABASE_URL=                 # Required for direct Supabase auth/session handling
 VITE_SUPABASE_PUBLISHABLE_KEY=     # Required publishable key
+DEV_API_PROXY_TARGET=              # Dev-only: Vite proxy target (default https://api.360ghar.com)
 ```
+In dev, `API_BASE_URL` is the same-origin `/api/v1` and Vite proxies `/api`, `/health`, `/config` to `DEV_API_PROXY_TARGET` (see `vite.config.ts`) — no CORS and no dependency on the dev port. Production builds use the absolute `VITE_API_BASE_URL`.
 
 ### Type Safety
 - Strict TypeScript mode enabled

@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Filter } from 'lucide-react'
+import { PROPERTY_TYPES, PROPERTY_PURPOSES, PROPERTY_STATUSES } from '../constants'
 
 type FilterControlsProps = Omit<import('./PropertyFilters').PropertyFiltersProps, 'pageSize' | 'onPageSizeChange' | 'activeFilterCount'>
 
@@ -37,21 +38,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
         <SelectTrigger><SelectValue placeholder="All Types" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Types</SelectItem>
-          <SelectItem value="house">House</SelectItem>
-          <SelectItem value="apartment">Apartment</SelectItem>
-          <SelectItem value="builder_floor">Builder Floor</SelectItem>
-          <SelectItem value="room">Room</SelectItem>
-          <SelectItem value="villa">Villa</SelectItem>
-          <SelectItem value="plot">Plot</SelectItem>
-          <SelectItem value="condo">Condo</SelectItem>
-          <SelectItem value="penthouse">Penthouse</SelectItem>
-          <SelectItem value="studio">Studio</SelectItem>
-          <SelectItem value="loft">Loft</SelectItem>
-          <SelectItem value="pg">PG</SelectItem>
-          <SelectItem value="flatmate">Flatmate</SelectItem>
-          <SelectItem value="office">Office</SelectItem>
-          <SelectItem value="shop">Shop</SelectItem>
-          <SelectItem value="warehouse">Warehouse</SelectItem>
+          {PROPERTY_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>
@@ -60,8 +47,8 @@ const FilterControls: React.FC<FilterControlsProps> = ({
       <Select value={filters.purpose || 'all'} onValueChange={(v) => setFilters({ purpose: v === 'all' ? '' : v })}>
         <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All</SelectItem><SelectItem value="buy">Buy</SelectItem>
-          <SelectItem value="rent">Rent</SelectItem><SelectItem value="short_stay">Short Stay</SelectItem>
+          <SelectItem value="all">All</SelectItem>
+          {PROPERTY_PURPOSES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>
@@ -71,11 +58,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
         <SelectTrigger><SelectValue placeholder="All Statuses" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Statuses</SelectItem>
-          <SelectItem value="available">Available</SelectItem>
-          <SelectItem value="under_offer">Under Offer</SelectItem>
-          <SelectItem value="rented">Rented</SelectItem>
-          <SelectItem value="sold">Sold</SelectItem>
-          <SelectItem value="maintenance">Maintenance</SelectItem>
+          {PROPERTY_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>

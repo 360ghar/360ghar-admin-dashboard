@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useDeletePropertyMutation, useGetPropertyQuery } from '@/features/properties/api/propertiesApi'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -14,16 +14,7 @@ import MapPreview from './parts/MapPreview'
 import TiltedCard from '@/components/reactbits/TiltedCard'
 import FadeContent from '@/components/reactbits/FadeContent'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 
@@ -37,7 +28,6 @@ const SectionTitle = ({ children }: { children: ReactNode }) => (
 
 const PropertyDetail = ({ id }: { id: number }) => {
   const { data, isLoading, error, refetch } = useGetPropertyQuery(id)
-  const [openDelete, setOpenDelete] = useState(false)
   const [del, delState] = useDeletePropertyMutation()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -46,10 +36,8 @@ const PropertyDetail = ({ id }: { id: number }) => {
   const doDelete = async () => {
     try {
       await del(id).unwrap()
-      setOpenDelete(false)
       navigate('/properties')
     } catch (e) {
-      setOpenDelete(false)
       toast({ title: 'Delete Failed', description: getErrorMessage(e, 'Could not delete property'), variant: 'destructive' })
     }
   }
@@ -73,9 +61,19 @@ const PropertyDetail = ({ id }: { id: number }) => {
             <Button asChild variant="outline" size="sm" className="rounded-cohere-pill">
               <Link to={`/properties/${id}`}>Edit</Link>
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setOpenDelete(true)} disabled={delState.isLoading}>
-              {delState.isLoading ? 'Deleting…' : 'Delete'}
-            </Button>
+            <ConfirmAlertDialog
+              title="Delete property?"
+              description="This action cannot be undone. This will permanently remove the property."
+              confirmLabel="Delete"
+              variant="destructive"
+              onConfirm={() => void doDelete()}
+            >
+              {(openDialog) => (
+                <Button variant="destructive" size="sm" onClick={openDialog} disabled={delState.isLoading}>
+                  {delState.isLoading ? 'Deleting…' : 'Delete'}
+                </Button>
+              )}
+            </ConfirmAlertDialog>
           </div>
         }
       />
@@ -213,23 +211,6 @@ const PropertyDetail = ({ id }: { id: number }) => {
           </CardContent>
         </Card>
       </FadeContent>
-
-      <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete property?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently remove the property.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { void doDelete() }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

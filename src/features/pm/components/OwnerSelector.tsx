@@ -3,7 +3,7 @@ import { Check, ChevronsUpDown, Users } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/hooks/redux'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useGetUsersQuery } from '@/features/users/api/usersApi'
+import { useOwnersSearch } from '@/features/pm/hooks/useOwnersSearch'
 import { setSelectedOwner, selectSelectedOwner } from '@/features/pm/slices/pmSlice'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -21,10 +21,7 @@ export default function OwnerSelector() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 250)
 
-  const usersQuery = useGetUsersQuery(
-    { q: debouncedQuery || undefined, limit: 20 },
-    { skip: !open },
-  )
+  const usersQuery = useOwnersSearch(debouncedQuery, { skip: !open })
 
   const items = useMemo(() => {
     const owners = (usersQuery.data?.items ?? []).filter((u) => u.role === 'user')

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import CountUp from '@/components/reactbits/CountUp'
-import GlareHover from '@/components/reactbits/GlareHover'
 import { cn } from '@/lib/utils'
 
 export interface StatCardProps {
@@ -23,10 +22,10 @@ export interface StatCardProps {
 const VALUE_CLASSES = 'text-2xl font-semibold tracking-tight tabular-nums'
 
 export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to, className, formatValue }: StatCardProps) {
-  const body = (
+  const card = (
     <Card
       className={cn(
-        'h-full rounded-cohere-md border-cohere-card-border transition-colors',
+        'h-full rounded-cohere-md border-cohere-card-border card-glow transition-colors',
         to && 'hover:border-cohere-hairline hover:bg-muted/40',
         className,
       )}
@@ -64,29 +63,15 @@ export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to
     </Card>
   )
 
-  const wrapped = (
-    <GlareHover
-      width="100%"
-      height="100%"
-      background="transparent"
-      borderColor="transparent"
-      borderRadius="16px"
-      glareColor="#ffffff"
-      glareOpacity={0.08}
-      glareSize={180}
-      className="h-full"
-      style={{ cursor: to ? 'pointer' : 'default' }}
-    >
-      {body}
-    </GlareHover>
-  )
-
   if (to && !isLoading) {
     return (
-      <Link to={to} className="block rounded-cohere-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring h-full">
-        {wrapped}
+      <Link
+        to={to}
+        className="block h-full rounded-cohere-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {card}
       </Link>
     )
   }
-  return wrapped
+  return card
 }

@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useUserRole } from '@/hooks/useUserRole'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
 import { useGetUsersQuery } from '@/features/users/api/usersApi'
-import { useListAgentsQuery } from '@/features/agents/api/agentsApi'
 import { useGetSystemStatsQuery } from '@/features/core/api/systemApi'
 import CountUp from '@/components/reactbits/CountUp'
 import FadeContent from '@/components/reactbits/FadeContent'
@@ -18,15 +17,14 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
   const { role } = useUserRole()
 
   // Cursor-paginated endpoints no longer expose a `total` field, so the Total
-  // Users / Agents stat cards are derived from a bounded sample (limit=100).
-  // Active / Phone Verified counts are derived client-side from the same sample
-  // unless the admin system-stats endpoint exposes them directly.
+  // Users stat card is derived from a bounded sample (limit=100). Active /
+  // Phone Verified counts come from the same sample unless the admin
+  // system-stats endpoint exposes them directly. The Agents count uses the
+  // exact `total_agents` from system stats — no separate sample fetch.
   const { data: usersSample, isFetching: usersFetching } = useGetUsersQuery({ limit: 100 })
-  const { data: systemStats } = useGetSystemStatsQuery(undefined, { skip: role !== 'admin' })
-  const { data: agentsData, isFetching: agentsFetching } = useListAgentsQuery(
-    { include_inactive: false, limit: 100 },
-    { skip: role !== 'admin' }
-  )
+  const { data: systemStats, isFetching: systemStatsFetching } = useGetSystemStatsQuery(undefined, {
+    skip: role !== 'admin',
+  })
 
   const totalUsers = usersSample?.items?.length ?? 0
   const activeUsers = useMemo(() => {
@@ -39,8 +37,6 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
   const phoneVerified = useMemo(() => {
     return usersSample?.items?.filter((u) => u.phone_verified).length ?? 0
   }, [usersSample])
-
-  const totalAgents = agentsData?.items?.length ?? 0
 
   if (mode === 'detail') {
     const id = Number(params.id)
@@ -132,12 +128,12 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                     <Shield className="h-4 w-4 text-foreground/70" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground">Agents (up to 100)</p>
-                    {agentsFetching ? (
+                    <p className="text-sm text-muted-foreground">Agents</p>
+                    {systemStatsFetching ? (
                       <p className="text-2xl font-semibold tracking-tight">…</p>
                     ) : (
                       <CountUp
-                        to={totalAgents}
+                        to={systemStats?.total_agents ?? 0}
                         duration={1.1}
                         format={(n) => formatNumber(n)}
                         className="text-2xl font-semibold tracking-tight tabular-nums"

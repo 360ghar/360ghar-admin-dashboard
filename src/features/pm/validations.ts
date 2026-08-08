@@ -42,33 +42,6 @@ export const pmPropertyCreateSchema = z.object({
     .refine((v) => !v || isValidJson(v), 'Late fee policy must be valid JSON'),
 })
 
-export const pmPropertySettingsSchema = z.object({
-  management_status: z.enum(['draft', 'active', 'archived']),
-  payment_due_day: z
-    .string()
-    .min(1, 'Payment due day is required')
-    .refine(
-      (v) => {
-        const n = Number(v)
-        return !isNaN(n) && n >= VALIDATION.PAYMENT_DUE_DAY_MIN && n <= VALIDATION.PAYMENT_DUE_DAY_MAX
-      },
-      `Payment due day must be between ${VALIDATION.PAYMENT_DUE_DAY_MIN} and ${VALIDATION.PAYMENT_DUE_DAY_MAX}`,
-    ),
-  grace_days: z
-    .string()
-    .min(1, 'Grace period is required')
-    .refine(
-      (v) => {
-        const n = Number(v)
-        return !isNaN(n) && n >= 0 && n <= 30
-      },
-      'Grace period must be between 0 and 30 days',
-    ),
-  late_fee_policy_json: z
-    .string()
-    .refine((v) => !v || isValidJson(v), 'Late fee policy must be valid JSON'),
-})
-
 export const pmLeaseCreateSchema = z
   .object({
     property_id: z.string().min(1, 'Property is required'),
@@ -86,19 +59,6 @@ export const pmLeaseCreateSchema = z
       .string()
       .min(1, 'Security deposit is required')
       .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Security deposit must be a positive number'),
-  })
-  .refine((data) => new Date(data.end_date) > new Date(data.start_date), {
-    message: 'End date must be after start date',
-    path: ['end_date'],
-  })
-
-export const pmLeaseRenewSchema = z
-  .object({
-    start_date: z.string().min(1, 'Start date is required'),
-    end_date: z.string().min(1, 'End date is required'),
-    monthly_rent: z.string().optional().or(z.literal('')),
-    security_deposit: z.string().optional().or(z.literal('')),
-    make_active: z.enum(['yes', 'no']),
   })
   .refine((data) => new Date(data.end_date) > new Date(data.start_date), {
     message: 'End date must be after start date',
@@ -187,26 +147,13 @@ export const pmInspectionCreateSchema = z.object({
   overall_notes: z.string().optional().or(z.literal('')),
 })
 
-export const pmApplicationFormSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional().or(z.literal('')),
-  property_id: z.string().optional().or(z.literal('')),
-  application_fee_amount: z.string().optional().or(z.literal('')),
-  questions_json: z
-    .string()
-    .refine((v) => !v || isValidJson(v), 'Questions must be valid JSON'),
-})
-
 export type PmPropertyCreateForm = z.infer<typeof pmPropertyCreateSchema>
-export type PmPropertySettingsForm = z.infer<typeof pmPropertySettingsSchema>
 export type PmLeaseCreateForm = z.infer<typeof pmLeaseCreateSchema>
-export type PmLeaseRenewForm = z.infer<typeof pmLeaseRenewSchema>
 export type PmRentPaymentForm = z.infer<typeof pmRentPaymentSchema>
 export type PmExpenseCreateForm = z.infer<typeof pmExpenseCreateSchema>
 export type PmExpenseUpdateForm = z.infer<typeof pmExpenseUpdateSchema>
 export type PmMaintenanceRequestForm = z.infer<typeof pmMaintenanceRequestSchema>
 export type PmInspectionCreateForm = z.infer<typeof pmInspectionCreateSchema>
-export type PmApplicationFormForm = z.infer<typeof pmApplicationFormSchema>
 
 export const pmChargeGenerateSchema = z.object({
   scope: z.enum(['owner', 'lease']),

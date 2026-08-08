@@ -2,7 +2,9 @@ import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { LeaseCreate } from "@/types/pm";
-import { useCreatePmLeaseMutation, useListPmPropertiesQuery } from "@/features/pm/api/pmApi";
+import { useCreatePmLeaseMutation } from "@/features/pm/api/pmApi";
+import { usePmPropertyOptions } from "@/features/pm/hooks/usePmPropertyOptions";
+import { PmPropertySelectItems } from "@/features/pm/components/PmPropertySelectItems";
 import { LEASE_STATUSES } from "@/features/pm/constants";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -45,12 +47,9 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
   const { toast } = useToast();
   const [createLease, createState] = useCreatePmLeaseMutation();
 
-  const properties = useListPmPropertiesQuery(
-    { owner_id: ownerId, limit: 200 },
-    { skip: role === "agent" && !ownerId },
-  );
-
   const [open, setOpen] = useState(false);
+
+  const properties = usePmPropertyOptions(ownerId, { enabled: open && !(role === "agent" && !ownerId) });
 
   const form = useForm<PmLeaseCreateForm>({
     resolver: zodResolver(pmLeaseCreateSchema),
@@ -130,19 +129,7 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {properties.isLoading ? (
-                        <SelectItem value="loading" disabled>Loading properties…</SelectItem>
-                      ) : properties.isError ? (
-                        <SelectItem value="error" disabled>Failed to load properties</SelectItem>
-                      ) : !properties.data?.items?.length ? (
-                        <SelectItem value="none" disabled>No properties available</SelectItem>
-                      ) : (
-                        properties.data.items.map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            #{p.id} • {p.title}
-                          </SelectItem>
-                        ))
-                      )}
+                      <PmPropertySelectItems properties={properties} />
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -12,7 +12,9 @@ import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-do
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { PasswordInput } from '@/components/auth/PasswordInput'
+import { OtpInput } from '@/components/auth/OtpInput'
+import { ArrowLeft } from 'lucide-react'
 import { GoogleIcon } from '@/components/ui/google-icon'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useEffect, useMemo, useState } from 'react'
@@ -524,24 +526,15 @@ const LoginPage = () => {
                       <FormItem>
                         <FormLabel className="text-sm font-medium">Password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? 'text' : 'password'}
-                              autoComplete="current-password"
-                              placeholder="Enter your password"
-                              className="h-11 pl-4 pr-12 text-base"
-                              autoFocus
-                              {...field}
-                            />
-                            <button
-                              type="button"
-                              aria-label={showPassword ? 'Hide password' : 'Show password'}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </button>
-                          </div>
+                          <PasswordInput
+                            show={showPassword}
+                            onToggleShow={() => setShowPassword(!showPassword)}
+                            autoComplete="current-password"
+                            placeholder="Enter your password"
+                            className="pl-4 h-11 text-base"
+                            autoFocus
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -590,11 +583,7 @@ const LoginPage = () => {
                       <FormItem>
                         <FormLabel className="text-sm font-medium">Verification code</FormLabel>
                         <FormControl>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            maxLength={6}
+                          <OtpInput
                             placeholder="123456"
                             className="h-11 px-4 text-base tracking-[0.5em] text-center"
                             autoFocus
@@ -660,24 +649,15 @@ const LoginPage = () => {
                       <FormItem>
                         <FormLabel className="text-sm font-medium">New password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              placeholder="Create a password"
-                              className="h-11 pl-4 pr-12 text-base"
-                              autoFocus
-                              {...field}
-                            />
-                            <button
-                              type="button"
-                              aria-label={showPassword ? 'Hide password' : 'Show password'}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </button>
-                          </div>
+                          <PasswordInput
+                            show={showPassword}
+                            onToggleShow={() => setShowPassword(!showPassword)}
+                            autoComplete="new-password"
+                            placeholder="Create a password"
+                            className="pl-4 h-11 text-base"
+                            autoFocus
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

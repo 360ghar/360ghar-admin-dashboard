@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, CalendarCheck, Star } from 'lucide-react'
+import { ArrowLeft, CalendarCheck } from 'lucide-react'
 import { useAddReviewMutation, useCancelBookingMutation, useGetBookingQuery, useProcessPaymentMutation } from '@/features/bookings/api/bookingsApi'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -19,6 +18,8 @@ import { getErrorMessage } from '@/lib/errors'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { getBookingStatusColor, getBookingPaymentStatusColor } from '@/lib/statusColors'
 import type { BookingReview } from '@/types/api'
+import { BookingReviewForm } from '@/features/bookings/components/BookingReviewForm'
+import type { BookingReviewFormValues } from '@/features/bookings/validations'
 import FadeContent from '@/components/reactbits/FadeContent'
 
 const BookingDetail = ({ id }: { id: number }) => {
@@ -26,12 +27,10 @@ const BookingDetail = ({ id }: { id: number }) => {
   const booking = useGetBookingQuery(id, { skip: !id || Number.isNaN(id) })
   const [open, setOpen] = useState<'cancel' | 'payment' | 'review' | null>(null)
   const [text, setText] = useState('')
-  const [reviewRating, setReviewRating] = useState(5)
-  const [reviewText, setReviewText] = useState('')
   const [payment, setPayment] = useState({ method: 'upi', txn: '', amount: '' })
   const [cancel, cancelState] = useCancelBookingMutation()
   const [pay, payState] = useProcessPaymentMutation()
-  const [review, reviewState] = useAddReviewMutation()
+  const [review] = useAddReviewMutation()
   const { toast } = useToast()
 
   const data = booking.data
@@ -68,9 +67,9 @@ const BookingDetail = ({ id }: { id: number }) => {
       toast({ title: 'Failed', description: getErrorMessage(e, 'Try again'), variant: 'destructive' })
     }
   }
-  const doReview = async () => {
+  const doReview = async (values: BookingReviewFormValues) => {
     try {
-      const reviewData: BookingReview = { guest_rating: reviewRating, guest_review: reviewText || 'Great stay.' }
+      const reviewData: BookingReview = { guest_rating: values.guest_rating, guest_review: values.guest_review || 'Great stay.' }
       await review({ bookingId: id, reviewData }).unwrap()
       toast({ title: 'Review added', description: 'Thank you' })
       setOpen(null)
@@ -130,62 +129,49 @@ const BookingDetail = ({ id }: { id: number }) => {
           <DialogHeader>
             <DialogTitle className="capitalize">{open}</DialogTitle>
           </DialogHeader>
-          {open === 'payment' ? (
-            <div className="grid gap-2">
-              <Label>Payment Method</Label>
-              <Select value={payment.method} onValueChange={(value) => setPayment({ ...payment, method: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                </SelectContent>
-              </Select>
-              <Label>Transaction ID</Label>
-              <Input value={payment.txn} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayment({ ...payment, txn: e.target.value })} />
-              <Label>Amount</Label>
-              <Input type="number" value={payment.amount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayment({ ...payment, amount: e.target.value })} />
-            </div>
-          ) : open === 'cancel' ? (
-            <Input placeholder="Reason" value={text} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setText(e.target.value)} />
+          {open === 'review' ? (
+            <BookingReviewForm
+              onSubmit={(values) => void doReview(values)}
+              onCancel={() => setOpen(null)}
+            />
           ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Overall Rating</Label>
-                <div className="flex gap-1">
-                  {([1, 2, 3, 4, 5] as const).map((rating) => (
-                    <button key={rating} type="button" onClick={() => setReviewRating(rating)} className="cursor-pointer">
-                      <Star className={`h-6 w-6 ${rating <= reviewRating ? 'text-yellow-400 fill-current' : 'text-muted-foreground opacity-30'}`} />
-                    </button>
-                  ))}
+            <>
+              {open === 'payment' ? (
+                <div className="grid gap-2">
+                  <Label>Payment Method</Label>
+                  <Select value={payment.method} onValueChange={(value) => setPayment({ ...payment, method: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="upi">UPI</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Label>Transaction ID</Label>
+                  <Input value={payment.txn} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayment({ ...payment, txn: e.target.value })} />
+                  <Label>Amount</Label>
+                  <Input type="number" value={payment.amount} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayment({ ...payment, amount: e.target.value })} />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Review (Optional)</Label>
-                <Textarea value={reviewText} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReviewText(e.target.value)} placeholder="Share your experience..." rows={4} />
-              </div>
-            </div>
+              ) : (
+                <Input placeholder="Reason" value={text} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setText(e.target.value)} />
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(null)}>Close</Button>
+                {open === 'cancel' && (
+                  <Button onClick={() => { void doCancel() }} disabled={cancelState.isLoading}>
+                    {cancelState.isLoading ? 'Cancelling…' : 'Cancel Booking'}
+                  </Button>
+                )}
+                {open === 'payment' && (
+                  <Button onClick={() => { void doPay() }} disabled={payState.isLoading || !payment.txn || !payment.amount}>
+                    {payState.isLoading ? 'Processing…' : 'Process'}
+                  </Button>
+                )}
+              </DialogFooter>
+            </>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(null)}>Close</Button>
-            {open === 'cancel' && (
-              <Button onClick={() => { void doCancel() }} disabled={cancelState.isLoading}>
-                {cancelState.isLoading ? 'Cancelling…' : 'Cancel Booking'}
-              </Button>
-            )}
-            {open === 'payment' && (
-              <Button onClick={() => { void doPay() }} disabled={payState.isLoading || !payment.txn || !payment.amount}>
-                {payState.isLoading ? 'Processing…' : 'Process'}
-              </Button>
-            )}
-            {open === 'review' && (
-              <Button onClick={() => { void doReview() }} disabled={reviewState.isLoading}>
-                {reviewState.isLoading ? 'Saving…' : 'Add Review'}
-              </Button>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

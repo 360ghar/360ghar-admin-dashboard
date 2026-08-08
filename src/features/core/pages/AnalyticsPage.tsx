@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { BarChart3, Home, Users } from 'lucide-react'
 import { formatNumber, formatPercent } from '@/lib/format'
 import { StatCard } from '@/features/core/components/dashboard/StatCard'
+import { TOOLTIP_STYLE } from '@/features/core/components/dashboard/DashboardCharts'
 
 const WORKLOAD_COLOR = 'hsl(218 77% 62%)'
 
@@ -34,7 +35,7 @@ const AnalyticsPage = () => {
           {stats.isError ? (
             <ErrorState title="Could not load KPIs" onRetry={() => void stats.refetch()} />
           ) : (
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
             <StatCard title="Active Agents" value={s.active_agents} formatValue={(n) => formatNumber(n)} icon={Home} isLoading={stats.isLoading} />
             <StatCard title="Active Users" value={s.active_users} formatValue={(n) => formatNumber(n)} icon={Users} isLoading={stats.isLoading} />
             <StatCard title="Properties Listed" value={s.properties_listed} formatValue={(n) => formatNumber(n)} icon={Home} isLoading={stats.isLoading} />
@@ -65,14 +66,7 @@ const AnalyticsPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(240 8% 20%)" vertical={false} />
                   <XAxis dataKey="name" hide={false} interval={0} angle={-20} textAnchor="end" height={60} tick={{ fontSize: 12, fill: 'hsl(240 8% 62%)' }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'hsl(240 8% 62%)' }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'hsl(240 12% 8% / 0.9)',
-                      border: '1px solid hsl(240 10% 20%)',
-                      borderRadius: 12,
-                      color: 'hsl(240 12% 93%)',
-                    }}
-                  />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
                   <Legend wrapperStyle={{ color: 'hsl(240 8% 62%)' }} />
                   <Bar dataKey="value" fill={WORKLOAD_COLOR} name="Workload" radius={[6, 6, 0, 0]} />
                 </BarChart>
