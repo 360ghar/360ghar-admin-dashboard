@@ -3,6 +3,7 @@ import { AlertCircle, Clock, Edit2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import TiltedCard from '@/components/reactbits/TiltedCard'
 
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import type { FlatmatesListing } from '../types'
@@ -89,11 +90,20 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
         <div className="grid md:grid-cols-3 gap-4">
           {listing.main_image_url && (
             <div className="md:col-span-1">
-              <img
-                src={listing.main_image_url}
-                alt={listing.title}
-                className="w-full h-48 object-cover rounded-lg"
-              />
+              <div className="h-48 overflow-hidden rounded-cohere-sm md:h-full md:min-h-[12rem]">
+                <TiltedCard
+                  imageSrc={listing.main_image_url}
+                  altText={listing.title}
+                  containerHeight="100%"
+                  containerWidth="100%"
+                  imageHeight="100%"
+                  imageWidth="100%"
+                  rotateAmplitude={2}
+                  scaleOnHover={1.03}
+                  showMobileWarning={false}
+                  showTooltip={false}
+                />
+              </div>
             </div>
           )}
           <div className={listing.main_image_url ? 'md:col-span-2' : 'md:col-span-3'}>
@@ -117,7 +127,7 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
                 </div>
               )}
               {prescreenReason && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                <div className="rounded-cohere-md border border-destructive/30 bg-destructive/10 p-3 backdrop-blur-md">
                   <div className="flex items-start gap-2 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                     <span>

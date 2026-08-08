@@ -74,7 +74,7 @@ export function ModerationActionDialog({
                       key={`${imageUrl}-${index}`}
                       src={imageUrl}
                       alt={`${selectedListing.title} photo ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-lg"
+                      className="w-full h-24 object-cover rounded-cohere-sm border border-cohere-card-border"
                     />
                   ))}
                 </div>
@@ -96,7 +96,7 @@ export function ModerationActionDialog({
             </div>
 
             {prescreenReason && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <div className="rounded-cohere-md border border-destructive/30 bg-destructive/10 p-3 backdrop-blur-md">
                 <div className="flex items-start gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>

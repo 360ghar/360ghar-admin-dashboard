@@ -15,7 +15,6 @@ import {
   useGetRentRollReportQuery,
 } from '@/features/pm/api/pmApi'
 import { formatDate } from '@/lib/format'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -24,6 +23,8 @@ import { LoadingState } from '@/components/ui/loading-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import CountUp from '@/components/reactbits/CountUp'
+import { PageHeader } from '@/components/ui/page-header'
 
 
 export default function PmReportsPage() {
@@ -72,22 +73,20 @@ export default function PmReportsPage() {
   return (
     <OwnerScopeGate allowAllOwners>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reports</h1>
-            <p className="text-sm text-muted-foreground">Generate operational reports and export CSV.</p>
-          </div>
-          <Badge variant="secondary" className="h-fit">
-            <FileBarChart className="mr-1 h-3 w-3" />
-            {role === 'admin'
+        <PageHeader
+          title="Reports"
+          description="Generate operational reports and export CSV."
+          icon={FileBarChart}
+          badge={
+            role === 'admin'
               ? ownerId
                 ? `Owner #${ownerId}`
                 : 'All portfolios'
               : ownerId
                 ? `Owner #${ownerId}`
-                : 'All assigned owners'}
-          </Badge>
-        </div>
+                : 'All assigned owners'
+          }
+        />
 
         <Card>
           <CardHeader>
@@ -118,7 +117,12 @@ export default function PmReportsPage() {
                 <ErrorState title="Failed to load" onRetry={() => void income.refetch()} />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{formatCurrency(income.data?.total_income ?? 0)}</div>
+                  <CountUp
+                    to={income.data?.total_income ?? 0}
+                    duration={1.2}
+                    format={(n) => formatCurrency(n)}
+                    className="text-2xl font-semibold tracking-tight tabular-nums"
+                  />
                   <div className="text-xs text-muted-foreground mt-1">
                     {start || end ? 'Filtered' : 'All time'}
                   </div>
@@ -137,7 +141,12 @@ export default function PmReportsPage() {
                 <ErrorState title="Failed to load" onRetry={() => void expenses.refetch()} />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{formatCurrency(expenses.data?.total_expenses ?? 0)}</div>
+                  <CountUp
+                    to={expenses.data?.total_expenses ?? 0}
+                    duration={1.2}
+                    format={(n) => formatCurrency(n)}
+                    className="text-2xl font-semibold tracking-tight tabular-nums"
+                  />
                   <div className="text-xs text-muted-foreground mt-1">
                     {start || end ? 'Filtered' : 'All time'}
                   </div>
@@ -156,7 +165,12 @@ export default function PmReportsPage() {
                 <ErrorState title="Failed to load" onRetry={() => void pnl.refetch()} />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{formatCurrency(pnl.data?.net_income ?? 0)}</div>
+                  <CountUp
+                    to={pnl.data?.net_income ?? 0}
+                    duration={1.2}
+                    format={(n) => formatCurrency(n)}
+                    className="text-2xl font-semibold tracking-tight tabular-nums"
+                  />
                   <div className="text-xs text-muted-foreground mt-1">
                     Income − Expenses
                   </div>

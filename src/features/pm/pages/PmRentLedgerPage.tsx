@@ -1,6 +1,6 @@
 import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download } from "lucide-react";
+import { Download, IndianRupee } from "lucide-react";
 import { downloadCsv } from "@/features/pm/utils";
 import { formatCurrency } from "@/lib/format"
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import CountUp from "@/components/reactbits/CountUp";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmRentLedgerPage() {
   const { role } = useUserRole();
@@ -54,6 +56,15 @@ export default function PmRentLedgerPage() {
   );
 
   const paymentsDisplayData = payments.data?.items;
+
+  const chargeTotals = useMemo(() => {
+    const items = chargesDisplayData ?? [];
+    return {
+      due: items.reduce((sum, c) => sum + c.amount_due_total, 0),
+      paid: items.reduce((sum, c) => sum + c.amount_paid_total, 0),
+      outstanding: items.reduce((sum, c) => sum + c.outstanding, 0),
+    };
+  }, [chargesDisplayData]);
 
   const chargeColumns = useMemo<ColumnDef<RentChargeWithTotals>[]>(() => {
     return [
@@ -135,26 +146,72 @@ export default function PmRentLedgerPage() {
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Rent Ledger</h1>
-            <p className="text-sm text-muted-foreground">
-              Generate charges and record manual payments + receipts.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <GenerateChargesDialog ownerId={ownerId} />
-          </div>
+        <PageHeader
+          title="Rent Ledger"
+          description="Generate charges and record manual payments + receipts."
+          icon={IndianRupee}
+          actions={<GenerateChargesDialog ownerId={ownerId} />}
+        />
+
+        <div className="inline-flex flex-wrap gap-1 rounded-cohere-md border border-cohere-card-border bg-card/40 p-1 backdrop-blur-md">
+          <button
+            type="button"
+            className={`rounded-cohere-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === "charges"
+                ? "bg-accent/70 text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setTab("charges")}
+          >
+            Charges
+          </button>
+          <button
+            type="button"
+            className={`rounded-cohere-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === "payments"
+                ? "bg-accent/70 text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setTab("payments")}
+          >
+            Payments
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant={tab === "charges" ? "default" : "outline"} size="sm" onClick={() => setTab("charges")}>
-            Charges
-          </Button>
-          <Button variant={tab === "payments" ? "default" : "outline"} size="sm" onClick={() => setTab("payments")}>
-            Payments
-          </Button>
-        </div>
+        {tab === "charges" && chargesDisplayData?.length ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 backdrop-blur-md">
+              <div className="text-xs font-medium text-muted-foreground">Total due</div>
+              <CountUp
+                to={chargeTotals.due}
+                duration={1.2}
+                format={(n) => formatCurrency(n)}
+                className="text-2xl font-semibold tracking-tight tabular-nums"
+              />
+              <div className="mt-0.5 text-xs text-muted-foreground">Current page</div>
+            </div>
+            <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 backdrop-blur-md">
+              <div className="text-xs font-medium text-muted-foreground">Total paid</div>
+              <CountUp
+                to={chargeTotals.paid}
+                duration={1.2}
+                format={(n) => formatCurrency(n)}
+                className="text-2xl font-semibold tracking-tight tabular-nums"
+              />
+              <div className="mt-0.5 text-xs text-muted-foreground">Current page</div>
+            </div>
+            <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 backdrop-blur-md">
+              <div className="text-xs font-medium text-muted-foreground">Outstanding</div>
+              <CountUp
+                to={chargeTotals.outstanding}
+                duration={1.2}
+                format={(n) => formatCurrency(n)}
+                className="text-2xl font-semibold tracking-tight tabular-nums"
+              />
+              <div className="mt-0.5 text-xs text-muted-foreground">Current page</div>
+            </div>
+          </div>
+        ) : null}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

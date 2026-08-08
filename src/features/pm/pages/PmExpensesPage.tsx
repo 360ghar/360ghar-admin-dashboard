@@ -1,6 +1,6 @@
 import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Receipt, Trash2 } from "lucide-react";
 import { EXPENSE_CATEGORIES, PAGE_SIZES } from "@/features/pm/constants";
 import { downloadCsv } from "@/features/pm/utils";
 import { formatCurrency } from "@/lib/format"
@@ -37,6 +37,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue} from "@/components/ui/select";
+import CountUp from "@/components/reactbits/CountUp";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmExpensesPage() {
   const { role } = useUserRole();
@@ -155,38 +157,57 @@ export default function PmExpensesPage() {
     ];
   }, [updateExpense, updateState.isLoading, deleteExpense, deleteState.isLoading, uploadDoc, uploadDocState.isLoading, toast]);
 
-  const expenseItems = expenses.data?.items ?? [];
+  const expenseItems = useMemo(() => expenses.data?.items ?? [], [expenses.data?.items]);
+
+  const totalExpenses = useMemo(
+    () => expenseItems.reduce((sum, e) => sum + e.amount, 0),
+    [expenseItems],
+  );
 
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Expenses</h1>
-            <p className="text-sm text-muted-foreground">Track expenses and attach receipts.</p>
+        <PageHeader
+          title="Expenses"
+          description="Track expenses and attach receipts."
+          icon={Receipt}
+          actions={
+            <div className="flex items-center gap-2">
+              <CreateExpenseDialog ownerId={ownerId} />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const rows = expenseItems.map((e) => ({
+                    id: e.id,
+                    expense_date: e.expense_date,
+                    category: e.category,
+                    amount: e.amount,
+                    property_id: e.property_id,
+                    receipt_document_id: e.receipt_document_id,
+                    description: e.description,
+                    notes: e.notes}));
+                  downloadCsv(`expenses_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+            </div>
+          }
+        />
+
+        {expenseItems.length ? (
+          <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 backdrop-blur-md">
+            <div className="text-xs font-medium text-muted-foreground">Total expenses</div>
+            <CountUp
+              to={totalExpenses}
+              duration={1.2}
+              format={(n) => formatCurrency(n)}
+              className="text-2xl font-semibold tracking-tight tabular-nums"
+            />
+            <div className="mt-0.5 text-xs text-muted-foreground">Current page</div>
           </div>
-          <div className="flex items-center gap-2">
-            <CreateExpenseDialog ownerId={ownerId} />
-            <Button
-              variant="outline"
-              onClick={() => {
-                const rows = expenseItems.map((e) => ({
-                  id: e.id,
-                  expense_date: e.expense_date,
-                  category: e.category,
-                  amount: e.amount,
-                  property_id: e.property_id,
-                  receipt_document_id: e.receipt_document_id,
-                  description: e.description,
-                  notes: e.notes}));
-                downloadCsv(`expenses_${new Date().toISOString().slice(0, 10)}.csv`, rows);
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-          </div>
-        </div>
+        ) : null}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

@@ -19,7 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
-import { Badge } from '@/components/ui/badge'
+import { PageHeader } from '@/components/ui/page-header'
 
 const DEFAULTS: PmSettingsForm = {
   payment_due_day: 1,
@@ -81,18 +81,12 @@ export default function PmSettingsPage() {
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-sm text-muted-foreground">
-              Configure billing defaults, automation, and notification preferences for this portfolio.
-            </p>
-          </div>
-          <Badge variant="secondary" className="h-fit">
-            <Settings className="mr-1 h-3 w-3" />
-            PM
-          </Badge>
-        </div>
+        <PageHeader
+          title="Settings"
+          description="Configure billing defaults, automation, and notification preferences for this portfolio."
+          icon={Settings}
+          badge="PM"
+        />
 
         {settings.isError ? (
           <ErrorState title="Couldn't load settings" error={settings.error} onRetry={() => void settings.refetch()} />

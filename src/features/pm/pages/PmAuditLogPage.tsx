@@ -8,7 +8,6 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { selectSelectedOwnerId } from '@/features/pm/slices/pmSlice'
 import { useGetPmDashboardActivityQuery } from '@/features/pm/api/pmApi'
 import OwnerScopeGate from '@/features/pm/components/OwnerScopeGate'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,10 +15,14 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { PageHeader } from '@/components/ui/page-header'
+import FadeContent from '@/components/reactbits/FadeContent'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 export default function PmAuditLogPage() {
   const { role } = useUserRole()
   const selectedOwnerId = useAppSelector(selectSelectedOwnerId)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   const ownerId = useDebounce(selectedOwnerId, 300)
 
@@ -68,16 +71,12 @@ export default function PmAuditLogPage() {
   return (
     <OwnerScopeGate>
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Audit Log</h1>
-          <p className="text-sm text-muted-foreground">Activity feed (payments, leases, maintenance) with filtering.</p>
-        </div>
-        <Badge variant="secondary" className="h-fit">
-          <Activity className="mr-1 h-3 w-3" />
-          {filtered.length} events
-        </Badge>
-      </div>
+      <PageHeader
+        title="Audit Log"
+        description="Activity feed (payments, leases, maintenance) with filtering."
+        icon={Activity}
+        badge={`${filtered.length} events`}
+      />
 
       <Card>
         <CardHeader>
@@ -151,20 +150,35 @@ export default function PmAuditLogPage() {
             </div>
           ) : filtered.length ? (
             <div className="space-y-2">
-              {filtered.map((a, idx) => (
-                <div key={`${a.type}-${a.at}-${idx}`} className="flex items-center justify-between gap-4 text-sm">
-                  <div className="min-w-0">
-                    <span className="font-medium">{a.type}</span>
-                    {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                    {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
-                    {a.property_id ? <span className="text-muted-foreground"> • P#{a.property_id}</span> : null}
-                    {a.lease_id ? <span className="text-muted-foreground"> • L#{a.lease_id}</span> : null}
+              {filtered.map((a, idx) => {
+                const row = (
+                  <div className="flex items-center justify-between gap-4 rounded-cohere-md px-2 py-2 text-sm transition-colors hover:bg-muted/40">
+                    <div className="min-w-0">
+                      <span className="font-medium">{a.type}</span>
+                      {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
+                      {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
+                      {a.property_id ? <span className="text-muted-foreground"> • P#{a.property_id}</span> : null}
+                      {a.lease_id ? <span className="text-muted-foreground"> • L#{a.lease_id}</span> : null}
+                    </div>
+                    <div className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(a.at)}
+                    </div>
                   </div>
-                  <div className="shrink-0 text-xs text-muted-foreground">
-                    {formatDateTime(a.at)}
-                  </div>
-                </div>
-              ))}
+                )
+                return prefersReducedMotion ? (
+                  <div key={`${a.type}-${a.at}-${idx}`}>{row}</div>
+                ) : (
+                  <FadeContent
+                    key={`${a.type}-${a.at}-${idx}`}
+                    container="#main-content"
+                    threshold={0}
+                    duration={500}
+                    delay={idx > 8 ? 400 : idx * 50}
+                  >
+                    {row}
+                  </FadeContent>
+                )
+              })}
             </div>
           ) : (
             <EmptyState

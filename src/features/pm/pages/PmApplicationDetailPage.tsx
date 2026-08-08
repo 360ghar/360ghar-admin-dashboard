@@ -204,7 +204,7 @@ export default function PmApplicationDetailPage() {
         </CardHeader>
         <CardContent>
           {answersJson ? (
-            <pre className="max-h-[520px] overflow-auto rounded-md bg-muted p-4 text-xs">
+            <pre className="max-h-[520px] overflow-auto rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 text-xs backdrop-blur-md">
               {answersJson}
             </pre>
           ) : (

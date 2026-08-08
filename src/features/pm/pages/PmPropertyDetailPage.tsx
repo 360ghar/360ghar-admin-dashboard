@@ -21,6 +21,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { MANAGED_PROPERTY_STATUSES } from '@/features/pm/constants'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
+import CountUp from '@/components/reactbits/CountUp'
 
 type LateFeeType = 'none' | 'fixed' | 'percentage'
 
@@ -396,7 +397,12 @@ export default function PmPropertyDetailPage() {
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Monthly rent</span>
-                  <span className="font-medium">{formatCurrency(activeLease.monthly_rent)}</span>
+                  <CountUp
+                    to={activeLease.monthly_rent}
+                    duration={1.2}
+                    format={(n) => formatCurrency(n)}
+                    className="font-medium tabular-nums"
+                  />
                 </div>
               </>
             ) : (

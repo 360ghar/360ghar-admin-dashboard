@@ -246,7 +246,7 @@ export default function InboxTab({
         ) : applicationsData?.length ? (
           <>
             {selectedRows.length > 0 && (
-              <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-md border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
                 <span className="text-sm font-medium">
                   {selectedRows.length} selected
                 </span>

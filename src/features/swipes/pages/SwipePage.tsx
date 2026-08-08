@@ -10,9 +10,12 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { AnimatePresence } from 'motion/react'
 import { getErrorMessage } from '@/lib/errors'
+import FadeContent from '@/components/reactbits/FadeContent'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 const SwipePage = () => {
   const { toast } = useToast()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const [currentIndex, setCurrentIndex] = useState(0)
   const { data: recommendations, isLoading, isError, refetch } = useGetRecommendationsQuery({ limit: 10 })
   const [swipeProperty] = useSwipePropertyMutation()
@@ -93,6 +96,50 @@ const SwipePage = () => {
     )
   }
 
+  const deckContent = (
+    <>
+      {!isFinished && remaining > 1 && (
+        <div
+          aria-hidden
+          className="absolute inset-x-2 bottom-0 top-3 rounded-cohere-lg border border-cohere-card-border bg-card/40 backdrop-blur-md md:inset-x-3"
+        />
+      )}
+
+      <AnimatePresence mode="popLayout">
+        {!isFinished && currentProperties[currentIndex] && (
+          <SwipeCard
+            key={currentProperties[currentIndex].id}
+            property={currentProperties[currentIndex]}
+            onSwipe={handleSwipe}
+          />
+        )}
+      </AnimatePresence>
+
+      {isFinished && (
+        <div className="flex h-full w-full items-center justify-center">
+          <EmptyState
+            className="w-full max-w-md"
+            icon={<Heart className="h-12 w-12" />}
+            title={isEmptyQueue ? 'No recommendations yet' : 'No more properties'}
+            description={
+              isEmptyQueue
+                ? "We don't have properties to show right now. Check back later or refresh the queue."
+                : "You've gone through all the recommendations for now."
+            }
+            action={{
+              label: isEmptyQueue ? 'Refresh' : 'Start over',
+              onClick: reset,
+              variant: 'default',
+            }}
+          />
+        </div>
+      )}
+    </>
+  )
+
+  const deckClassName =
+    'relative mx-auto h-[min(560px,calc(100dvh-13rem))] w-full max-w-4xl md:h-[min(480px,calc(100dvh-12rem))]'
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-4 pb-24 md:pb-8">
       <PageHeader
@@ -107,44 +154,13 @@ const SwipePage = () => {
         badge={!isFinished && remaining > 0 ? `${remaining} left` : undefined}
       />
 
-      <div className="relative mx-auto h-[min(560px,calc(100dvh-13rem))] w-full max-w-4xl md:h-[min(480px,calc(100dvh-12rem))]">
-        {!isFinished && remaining > 1 && (
-          <div
-            aria-hidden
-            className="absolute inset-x-2 bottom-0 top-3 rounded-xl border border-cohere-card-border bg-muted/50 md:inset-x-3"
-          />
-        )}
-
-        <AnimatePresence mode="popLayout">
-          {!isFinished && currentProperties[currentIndex] && (
-            <SwipeCard
-              key={currentProperties[currentIndex].id}
-              property={currentProperties[currentIndex]}
-              onSwipe={handleSwipe}
-            />
-          )}
-        </AnimatePresence>
-
-        {isFinished && (
-          <div className="flex h-full w-full items-center justify-center">
-            <EmptyState
-              className="w-full max-w-md"
-              icon={<Heart className="h-12 w-12" />}
-              title={isEmptyQueue ? 'No recommendations yet' : 'No more properties'}
-              description={
-                isEmptyQueue
-                  ? "We don't have properties to show right now. Check back later or refresh the queue."
-                  : "You've gone through all the recommendations for now."
-              }
-              action={{
-                label: isEmptyQueue ? 'Refresh' : 'Start over',
-                onClick: reset,
-                variant: 'default',
-              }}
-            />
-          </div>
-        )}
-      </div>
+      {prefersReducedMotion ? (
+        <div className={deckClassName}>{deckContent}</div>
+      ) : (
+        <FadeContent container="#main-content" threshold={0} duration={600} className={deckClassName}>
+          {deckContent}
+        </FadeContent>
+      )}
     </div>
   )
 }

@@ -33,6 +33,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from '@/lib/format'
+import CountUp from '@/components/reactbits/CountUp'
 
 const kycStatuses = ["unknown", "pending", "verified", "rejected"] as const;
 type KycStatus = (typeof kycStatuses)[number];
@@ -136,7 +137,11 @@ export default function PmOwnerDetailPage() {
               {overview.isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold">{overview.data?.total_properties ?? 0}</div>
+                <CountUp
+                  to={overview.data?.total_properties ?? 0}
+                  duration={1.2}
+                  className="text-2xl font-semibold tracking-tight tabular-nums"
+                />
               )}
               <Button asChild variant="link" className="h-auto p-0 text-xs mt-2">
                 <Link to="/pm/properties">View properties</Link>
@@ -152,7 +157,12 @@ export default function PmOwnerDetailPage() {
               {overview.isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <div className="text-2xl font-bold">{formatCurrency(overview.data?.outstanding_rent_total ?? 0)}</div>
+                <CountUp
+                  to={overview.data?.outstanding_rent_total ?? 0}
+                  duration={1.2}
+                  format={(n) => formatCurrency(n)}
+                  className="text-2xl font-semibold tracking-tight tabular-nums"
+                />
               )}
               <Button asChild variant="link" className="h-auto p-0 text-xs mt-2">
                 <Link to="/pm/rent-ledger">Open rent ledger</Link>
@@ -193,7 +203,11 @@ export default function PmOwnerDetailPage() {
               {maintenance.isLoading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
-                <div className="text-2xl font-bold">{maintenance.data?.items?.length ?? 0}</div>
+                <CountUp
+                  to={maintenance.data?.items?.length ?? 0}
+                  duration={1.2}
+                  className="text-2xl font-semibold tracking-tight tabular-nums"
+                />
               )}
               <p className="text-xs text-muted-foreground mt-1">Recent (last 10)</p>
               <Button asChild variant="link" className="h-auto p-0 text-xs mt-2">

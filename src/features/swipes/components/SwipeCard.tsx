@@ -9,6 +9,8 @@ import { formatCurrency } from '@/lib/format'
 import { getPropertyStatusColor } from '@/lib/statusColors'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import BlurText from '@/components/reactbits/BlurText'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 interface SwipeCardProps {
   property: Property
@@ -25,6 +27,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
   const [exitX, setExitX] = useState(0)
   const [isPending, setIsPending] = useState(false)
   const [imgFailed, setImgFailed] = useState(false)
+  const prefersReducedMotion = usePrefersReducedMotion()
   const x = useMotionValue(0)
   const rotate = useTransform(x, [-220, 220], [-12, 12])
   const likeOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1])
@@ -67,7 +70,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
   }
 
   const mediaBlock = (
-    <div className="relative h-56 w-full shrink-0 bg-muted md:h-auto md:w-[52%] md:min-h-0">
+    <div className="relative h-56 w-full shrink-0 bg-muted/50 md:h-auto md:w-[52%] md:min-h-0">
       {!imgFailed && imageSrc ? (
         <img
           src={imageSrc}
@@ -94,7 +97,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
             {property.status.replace(/_/g, ' ')}
           </Badge>
         )}
-        <Badge variant="secondary" className="capitalize bg-background/90 backdrop-blur-sm shadow-sm">
+        <Badge variant="secondary" className="capitalize bg-card/80 backdrop-blur-sm shadow-sm">
           {[property.property_type, property.purpose].filter(Boolean).join(' · ')}
         </Badge>
       </div>
@@ -102,13 +105,13 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
       {/* Drag feedback stamps — over media */}
       <motion.div
         style={{ opacity: likeOpacity }}
-        className="pointer-events-none absolute top-14 left-4 rotate-[-12deg] rounded-md border-4 border-emerald-400 px-3 py-1 text-lg font-bold tracking-widest text-emerald-400"
+        className="pointer-events-none absolute top-14 left-4 rotate-[-12deg] rounded-md border-4 border-cohere-coral px-3 py-1 text-lg font-bold tracking-widest text-cohere-coral"
       >
         LIKE
       </motion.div>
       <motion.div
         style={{ opacity: passOpacity }}
-        className="pointer-events-none absolute top-14 right-4 rotate-[12deg] rounded-md border-4 border-rose-400 px-3 py-1 text-lg font-bold tracking-widest text-rose-400"
+        className="pointer-events-none absolute top-14 right-4 rotate-[12deg] rounded-md border-4 border-muted-foreground/60 px-3 py-1 text-lg font-bold tracking-widest text-muted-foreground"
       >
         PASS
       </motion.div>
@@ -122,7 +125,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
   )
 
   const actionBar = (
-    <div className="flex shrink-0 items-center justify-center gap-4 border-t border-cohere-card-border bg-card px-4 py-3">
+    <div className="flex shrink-0 items-center justify-center gap-4 border-t border-cohere-card-border bg-card/40 px-4 py-3 backdrop-blur-md">
       <div className="flex flex-col items-center gap-1">
         <Button
           type="button"
@@ -131,8 +134,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
           disabled={isPending}
           className={cn(
             'h-14 w-14 rounded-full border-2',
-            'border-rose-200 text-rose-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300',
-            'dark:border-rose-900/60 dark:text-rose-400 dark:hover:bg-rose-950/40',
+            'border-border/60 text-muted-foreground hover:bg-muted/40 hover:text-foreground hover:border-border',
           )}
           onClick={() => { void performSwipe('left') }}
           aria-label="Pass property"
@@ -149,7 +151,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
           variant="outline"
           className={cn(
             'h-12 w-12 rounded-full border',
-            'border-cohere-hairline text-cohere-action-blue hover:bg-cohere-pale-blue',
+            'border-cohere-action-blue/40 text-cohere-action-blue hover:bg-cohere-action-blue/10',
           )}
           asChild
           aria-label="View property details"
@@ -169,8 +171,9 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
           disabled={isPending}
           className={cn(
             'h-14 w-14 rounded-full border-2',
-            'border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300',
-            'dark:border-emerald-900/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40',
+            'border-cohere-coral/50 bg-cohere-coral/10 text-cohere-coral',
+            'shadow-[0_0_28px_-8px_hsl(var(--cohere-coral)_/_0.55)]',
+            'hover:bg-cohere-coral/20 hover:border-cohere-coral/70',
           )}
           onClick={() => { void performSwipe('right') }}
           aria-label="Like property"
@@ -196,28 +199,43 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
       transition={{ type: 'spring', stiffness: 320, damping: 28 }}
       className="absolute inset-0 w-full cursor-grab active:cursor-grabbing touch-pan-y"
     >
-      <Card className="flex h-full w-full flex-col overflow-hidden border border-cohere-card-border bg-card shadow-none md:flex-row">
+      <Card className="flex h-full w-full flex-col overflow-hidden rounded-cohere-lg shadow-none md:flex-row">
         {mediaBlock}
 
         {/* Right / bottom: details — only this region scrolls */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col md:w-[48%]">
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
-            <div className="space-y-1.5">
-              <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                {property.title || `Property #${property.id}`}
-              </h2>
-              <p className="flex items-center text-sm text-muted-foreground">
-                <MapPin className="mr-1 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <div className="space-y-2">
+              {prefersReducedMotion ? (
+                <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                  {property.title || `Property #${property.id}`}
+                </h2>
+              ) : (
+                <BlurText
+                  text={property.title || `Property #${property.id}`}
+                  className="text-xl font-semibold tracking-tight sm:text-2xl"
+                  animateBy="words"
+                  direction="top"
+                  delay={80}
+                  threshold={0}
+                  rootMargin="0px"
+                />
+              )}
+              <p className="inline-flex w-fit items-center gap-1.5 rounded-cohere-pill border border-cohere-card-border bg-card/40 px-3 py-1 text-sm text-muted-foreground backdrop-blur-md">
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span className="truncate">{locationLabel}</span>
               </p>
             </div>
 
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-2xl font-semibold tracking-tight text-foreground">
-                {formatCurrency(property.base_price)}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-baseline rounded-cohere-pill border border-cohere-card-border bg-card/40 px-4 py-1.5 backdrop-blur-md">
+                <span className="text-2xl font-semibold tracking-tight text-foreground">
+                  {formatCurrency(property.base_price)}
+                </span>
               </span>
               {property.area_sqft != null && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-cohere-pill border border-cohere-card-border bg-card/40 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur-md">
+                  <Square className="h-3.5 w-3.5" aria-hidden />
                   {property.area_sqft} sqft
                 </span>
               )}
@@ -231,7 +249,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
               ].map(({ icon: Icon, label, value }) => (
                 <div
                   key={label}
-                  className="flex flex-col items-center rounded-cohere-sm border border-cohere-card-border bg-muted/40 px-2 py-2.5"
+                  className="flex flex-col items-center rounded-cohere-sm border border-cohere-card-border bg-card/40 px-2 py-2.5 backdrop-blur-md"
                 >
                   <Icon className="mb-1 h-4 w-4 text-muted-foreground" aria-hidden />
                   <span className="text-sm font-medium tabular-nums">{value ?? '—'}</span>

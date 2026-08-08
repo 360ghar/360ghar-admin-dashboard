@@ -32,6 +32,7 @@ import {
   SelectValue} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmDocumentsPage() {
   const { role } = useUserRole();
@@ -147,13 +148,12 @@ export default function PmDocumentsPage() {
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Documents</h1>
-            <p className="text-sm text-muted-foreground">Upload, link, and manage sharing for documents.</p>
-          </div>
-          <UploadDocumentDialog ownerId={ownerId} canUpload={canUpload} />
-        </div>
+        <PageHeader
+          title="Documents"
+          description="Upload, link, and manage sharing for documents."
+          icon={FolderOpen}
+          actions={<UploadDocumentDialog ownerId={ownerId} canUpload={canUpload} />}
+        />
         {role === "admin" && !ownerId ? (
           <div className="text-sm text-muted-foreground">
             Select an owner from the top bar to upload documents into the correct portfolio.

@@ -20,10 +20,13 @@ import { LoadingState } from '@/components/ui/loading-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { useGetPendingReportsQuery, useModerateReportMutation } from '../api/flatmatesApi'
 import type { FlatmatesReport } from '../types'
+import FadeContent from '@/components/reactbits/FadeContent'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 const reasonLabels: Record<string, string> = {
   spam: 'Spam',
@@ -42,6 +45,7 @@ const statusLabels: Record<string, string> = {
 
 export function ReportsReviewPage() {
   const { toast } = useToast()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const [selectedReport, setSelectedReport] = useState<FlatmatesReport | null>(null)
   const [action, setAction] = useState<'dismiss' | 'warn_user' | 'suspend_user' | 'escalate'>('dismiss')
   const [notes, setNotes] = useState('')
@@ -119,19 +123,89 @@ export function ReportsReviewPage() {
 
   const reports = data?.items ?? []
 
+  const reportCards = (
+    <div className="grid gap-4">
+      {reports.map((report) => (
+        <Card key={report.id} className="transition-colors hover:border-cohere-hairline">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-xl font-semibold">Report #{report.id}</h3>
+                  {getReasonBadge(report.reason)}
+                  <Badge variant="outline">
+                    {statusLabels[report.status]}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Reported by: {report.reporter?.full_name || 'Anonymous'} • 
+                  Reported: {report.reported_user?.full_name || 'Unknown User'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleModerate(report)}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Review
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {report.description && (
+                <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
+                  <div className="flex items-start gap-2">
+                    <Flag className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <p className="text-sm">{report.description}</p>
+                  </div>
+                </div>
+              )}
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Reporter:</span>
+                  <p className="font-medium">{report.reporter?.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Reported User:</span>
+                  <p className="font-medium">{report.reported_user?.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Reported:</span>
+                  <p className="font-medium">
+                    {formatDateTime(report.created_at)}
+                  </p>
+                </div>
+              </div>
+              {report.conversation_id && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Conversation ID: {report.conversation_id}</span>
+                </div>
+              )}
+              {report.property_id && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Property ID: {report.property_id}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">User Reports Review</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and take action on user safety reports
-          </p>
-        </div>
-        <Badge variant="secondary" className="text-lg px-4 py-2">
-          {reports.length} Pending
-        </Badge>
-      </div>
+      <PageHeader
+        title="User Reports Review"
+        description="Review and take action on user safety reports"
+        badge={`${reports.length} Pending`}
+      />
 
       {reports.length === 0 ? (
         <EmptyState
@@ -139,80 +213,12 @@ export function ReportsReviewPage() {
           title="All reports reviewed"
           description="All reports have been reviewed."
         />
+      ) : prefersReducedMotion ? (
+        reportCards
       ) : (
-        <div className="grid gap-4">
-          {reports.map((report) => (
-            <Card key={report.id} className="transition-colors hover:border-cohere-hairline">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold">Report #{report.id}</h3>
-                      {getReasonBadge(report.reason)}
-                      <Badge variant="outline">
-                        {statusLabels[report.status]}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Reported by: {report.reporter?.full_name || 'Anonymous'} • 
-                      Reported: {report.reported_user?.full_name || 'Unknown User'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleModerate(report)}
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Review
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {report.description && (
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <Flag className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <p className="text-sm">{report.description}</p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="grid md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Reporter:</span>
-                      <p className="font-medium">{report.reporter?.email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Reported User:</span>
-                      <p className="font-medium">{report.reported_user?.email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Reported:</span>
-                      <p className="font-medium">
-                        {formatDateTime(report.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                  {report.conversation_id && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MessageSquare className="h-4 w-4" />
-                      <span>Conversation ID: {report.conversation_id}</span>
-                    </div>
-                  )}
-                  {report.property_id && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <AlertTriangle className="h-4 w-4" />
-                      <span>Property ID: {report.property_id}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <FadeContent container="#main-content" threshold={0} duration={600}>
+          {reportCards}
+        </FadeContent>
       )}
 
       <CursorPager
@@ -231,7 +237,7 @@ export function ReportsReviewPage() {
           
           {selectedReport && (
             <div className="space-y-4">
-              <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+              <div className="space-y-2 rounded-cohere-md border border-cohere-card-border bg-card/40 p-4 backdrop-blur-md">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Report ID:</span>
                   <span className="font-medium">#{selectedReport.id}</span>

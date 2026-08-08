@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast'
 import { localInputToServerTimestamp } from '@/lib/dateTime'
 import { formatDateTime } from '@/lib/format'
 import { pmInspectionCreateSchema, type PmInspectionCreateForm } from '@/features/pm/validations'
+import { PageHeader } from '@/components/ui/page-header'
 
 export default function PmInspectionsPage() {
   const { role } = useUserRole()
@@ -154,11 +155,11 @@ export default function PmInspectionsPage() {
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Inspections</h1>
-            <p className="text-sm text-muted-foreground">Create and track inspection checklists (JSON-based).</p>
-          </div>
+        <PageHeader
+          title="Inspections"
+          description="Create and track inspection checklists (JSON-based)."
+          icon={ClipboardCheck}
+          actions={
           <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
             <DialogTrigger asChild>
               <Button>
@@ -268,7 +269,8 @@ export default function PmInspectionsPage() {
               </Form>
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
         {inspections.isError ? (
           <ErrorState

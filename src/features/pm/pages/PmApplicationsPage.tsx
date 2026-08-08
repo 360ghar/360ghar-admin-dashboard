@@ -1,4 +1,5 @@
 import {useCallback,  useState} from "react";
+import { ClipboardList } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
@@ -18,13 +19,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import { ApplicationTable } from "@/features/pm/components/ApplicationTable";
 import { CreateApplicationFormDialog } from "@/features/pm/components/CreateApplicationFormDialog";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmApplicationsPage() {
   const { role } = useUserRole();
@@ -124,34 +125,41 @@ export default function PmApplicationsPage() {
   return (
     <OwnerScopeGate>
       <div className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Applications</h1>
-            <p className="text-sm text-muted-foreground">
-              Create forms, share links, and process submissions.
-            </p>
-          </div>
-          <CreateApplicationFormDialog
-            ownerId={ownerId}
-            isAgentWithoutOwner={role === "agent" && !ownerId}
-          />
-        </div>
+        <PageHeader
+          title="Applications"
+          description="Create forms, share links, and process submissions."
+          icon={ClipboardList}
+          actions={
+            <CreateApplicationFormDialog
+              ownerId={ownerId}
+              isAgentWithoutOwner={role === "agent" && !ownerId}
+            />
+          }
+        />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant={tab === "forms" ? "default" : "outline"}
-            size="sm"
+        <div className="inline-flex flex-wrap gap-1 rounded-cohere-md border border-cohere-card-border bg-card/40 p-1 backdrop-blur-md">
+          <button
+            type="button"
+            className={`rounded-cohere-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === "forms"
+                ? "bg-accent/70 text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
             onClick={() => setTab("forms")}
           >
             Forms
-          </Button>
-          <Button
-            variant={tab === "inbox" ? "default" : "outline"}
-            size="sm"
+          </button>
+          <button
+            type="button"
+            className={`rounded-cohere-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === "inbox"
+                ? "bg-accent/70 text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
             onClick={() => setTab("inbox")}
           >
             Inbox
-          </Button>
+          </button>
         </div>
 
         <ApplicationTable
