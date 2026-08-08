@@ -143,7 +143,7 @@ const VisitList = () => {
 
   return (
     <Card className="p-4 md:p-6">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-cohere-card-border/60 pb-4">
         <div className="hidden md:grid md:flex-1 gap-3 md:grid-cols-4">
           <Select value={status || 'all'} onValueChange={(v) => setStatus(v === 'all' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="All Status" /></SelectTrigger>

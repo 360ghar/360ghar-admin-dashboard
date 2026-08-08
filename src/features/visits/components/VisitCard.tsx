@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,8 @@ import { serverTimestampToLocalInput } from '@/lib/dateTime'
 import { formatDateTime } from '@/lib/format'
 import { getVisitStatusColor, getVisitStatusLabel } from '@/lib/statusColors'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
+import TiltedCard from '@/components/reactbits/TiltedCard'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 interface VisitCardProps {
   visit: Visit
@@ -21,6 +23,10 @@ interface VisitCardProps {
   onCancel: (visitId: number) => void
 }
 
+/** 1x1 transparent GIF so the tilt layer stays invisible when no photo exists. */
+const TRANSPARENT_PIXEL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
 const VisitCard = ({
   visit,
   isAdmin: _isAdmin,
@@ -29,10 +35,26 @@ const VisitCard = ({
   onReschedule,
   onCancel,
 }: VisitCardProps) => {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [cardHeight, setCardHeight] = useState(0)
+
+  // TiltedCard needs a definite height; keep it in sync with the card's
+  // content height (changes when special requirements wrap, etc.).
+  useLayoutEffect(() => {
+    const el = cardRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setCardHeight(el.offsetHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   const [rescheduleDate, setRescheduleDate] = useState(serverTimestampToLocalInput(visit.scheduled_date) || '')
 
-  return (
-    <Card>
+  const cardBody = (
+    <Card ref={cardRef} className="w-full">
       <CardContent className="pt-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -59,7 +81,7 @@ const VisitCard = ({
                   </p>
                 )}
                 {visit.special_requirements && (
-                  <p className="text-sm mt-2 p-2 bg-muted rounded">
+                  <p className="text-sm mt-2 p-2 bg-muted/40 border border-cohere-card-border/70 rounded-cohere-sm">
                     <strong>Special Requirements:</strong> {visit.special_requirements}
                   </p>
                 )}
@@ -131,6 +153,25 @@ const VisitCard = ({
         </div>
       </CardContent>
     </Card>
+  )
+
+  if (prefersReducedMotion) return cardBody
+
+  return (
+    <TiltedCard
+      imageSrc={visit.property?.main_image_url || TRANSPARENT_PIXEL}
+      altText={visit.property?.title || 'Property visit'}
+      containerHeight={`${cardHeight}px`}
+      containerWidth="100%"
+      imageHeight={`${cardHeight}px`}
+      imageWidth="100%"
+      rotateAmplitude={2}
+      scaleOnHover={1.01}
+      showMobileWarning={false}
+      showTooltip={false}
+      displayOverlayContent
+      overlayContent={cardBody}
+    />
   )
 }
 

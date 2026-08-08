@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, CalendarDays } from 'lucide-react'
 import { useGetVisitQuery, useRescheduleVisitMutation, useCancelVisitMutation, useCompleteVisitMutation } from '@/features/visits/api/visitsApi'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,11 +10,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { formatDateTime } from '@/lib/format'
 import { localInputToServerTimestamp, serverTimestampToLocalInput } from '@/lib/dateTime'
-import { getVisitStatusLabel } from '@/lib/statusColors'
+import { getVisitStatusColor, getVisitStatusLabel } from '@/lib/statusColors'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const VisitDetail = ({ id }: { id: number }) => {
   const navigate = useNavigate()
@@ -85,37 +87,45 @@ const VisitDetail = ({ id }: { id: number }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Go back">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-        <h1 className="text-xl font-semibold">Visit Details</h1>
-        {data?.status ? <Badge>{getVisitStatusLabel(data.status)}</Badge> : null}
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 text-sm">
-            <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
-            <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
-            <div><span className="text-muted-foreground">Scheduled:</span> {data?.scheduled_date ? formatDateTime(data.scheduled_date) : '-'}</div>
-            <div><span className="text-muted-foreground">Status:</span> {data?.status ? getVisitStatusLabel(data.status) : '-'}</div>
-            {data?.visit_notes ? <div><span className="text-muted-foreground">Notes:</span> {data.visit_notes}</div> : null}
-            {data?.visitor_feedback ? <div><span className="text-muted-foreground">Feedback:</span> {data.visitor_feedback}</div> : null}
-          </div>
-          <div className="mt-4 flex gap-2">
-            {(data?.status === 'requested' || data?.status === 'confirmed' || data?.status === 'reschedule_suggested') && (
-              <>
-                <Button onClick={() => { setDate(serverTimestampToLocalInput(data?.scheduled_date) ?? ''); setText(''); setOpen('reschedule') }}>Reschedule</Button>
-                <Button variant="outline" onClick={() => { setOpen('cancel') }}>Cancel</Button>
-                <Button variant="outline" onClick={() => { setOpen('complete') }}>Mark Completed</Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title="Visit Details"
+        icon={CalendarDays}
+        badge={data?.status ? getVisitStatusLabel(data.status) : undefined}
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Go back">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        }
+      />
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 text-sm">
+              <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
+              <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
+              <div><span className="text-muted-foreground">Scheduled:</span> {data?.scheduled_date ? formatDateTime(data.scheduled_date) : '-'}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Status:</span>
+                {data?.status ? <Badge variant={getVisitStatusColor(data.status)}>{getVisitStatusLabel(data.status)}</Badge> : <span>-</span>}
+              </div>
+              {data?.visit_notes ? <div><span className="text-muted-foreground">Notes:</span> {data.visit_notes}</div> : null}
+              {data?.visitor_feedback ? <div><span className="text-muted-foreground">Feedback:</span> {data.visitor_feedback}</div> : null}
+            </div>
+            <div className="mt-4 flex gap-2">
+              {(data?.status === 'requested' || data?.status === 'confirmed' || data?.status === 'reschedule_suggested') && (
+                <>
+                  <Button onClick={() => { setDate(serverTimestampToLocalInput(data?.scheduled_date) ?? ''); setText(''); setOpen('reschedule') }}>Reschedule</Button>
+                  <Button variant="outline" onClick={() => { setOpen('cancel') }}>Cancel</Button>
+                  <Button variant="outline" onClick={() => { setOpen('complete') }}>Mark Completed</Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </FadeContent>
 
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent>

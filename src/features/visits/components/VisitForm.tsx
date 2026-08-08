@@ -4,6 +4,7 @@ import { useSearchPropertiesQuery } from '@/features/properties/api/propertiesAp
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -15,6 +16,8 @@ import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { localInputToServerTimestamp } from '@/lib/dateTime'
 import { visitFormSchema, type VisitFormValues } from '@/features/visits/validations'
+import { CalendarClock } from 'lucide-react'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const VisitForm = () => {
   const form = useForm<VisitFormValues>({
@@ -55,98 +58,104 @@ const VisitForm = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Schedule Visit</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {errorMessage && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertTitle>Failed to schedule visit</AlertTitle>
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-          )}
-          <Form {...form}>
-            <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
-              <FormRootError form={form} />
-              <FormField
-                control={control}
-                name="user_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>User</FormLabel>
-                    <Select
-                      onValueChange={(v) => field.onChange(Number(v))}
-                      value={field.value ? String(field.value) : undefined}
-                      disabled={users.isFetching}
-                    >
+      <PageHeader
+        title="Schedule Visit"
+        description="Book a visit for a user at a property"
+        icon={CalendarClock}
+      />
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {errorMessage && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Failed to schedule visit</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+            <Form {...form}>
+              <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
+                <FormRootError form={form} />
+                <FormField
+                  control={control}
+                  name="user_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>User</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(Number(v))}
+                        value={field.value ? String(field.value) : undefined}
+                        disabled={users.isFetching}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={users.isFetching ? "Loading users..." : "Select user"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users.data?.items?.map((u) => (
+                            <SelectItem key={u.id} value={String(u.id)}>
+                              {u.full_name || u.phone || `User ${u.id}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name="property_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Property</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(Number(v))}
+                        value={field.value ? String(field.value) : undefined}
+                        disabled={properties.isFetching}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={properties.isFetching ? "Loading properties..." : "Select property"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {properties.data?.items?.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name="scheduled_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date & Time</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={users.isFetching ? "Loading users..." : "Select user"} />
-                        </SelectTrigger>
+                        <Input type="datetime-local" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        {users.data?.items?.map((u) => (
-                          <SelectItem key={u.id} value={String(u.id)}>
-                            {u.full_name || u.phone || `User ${u.id}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name="property_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Property</FormLabel>
-                    <Select
-                      onValueChange={(v) => field.onChange(Number(v))}
-                      value={field.value ? String(field.value) : undefined}
-                      disabled={properties.isFetching}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={properties.isFetching ? "Loading properties..." : "Select property"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {properties.data?.items?.map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name="scheduled_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date & Time</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Status is server-managed for scheduling; removed from form */}
-              <Button type="submit" disabled={createState.isLoading}>
-                {createState.isLoading ? 'Scheduling...' : 'Schedule Visit'}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {/* Status is server-managed for scheduling; removed from form */}
+                <Button type="submit" disabled={createState.isLoading}>
+                  {createState.isLoading ? 'Scheduling...' : 'Schedule Visit'}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </FadeContent>
     </div>
   )
 }

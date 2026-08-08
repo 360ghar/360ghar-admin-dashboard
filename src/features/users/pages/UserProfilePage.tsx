@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Mail, Phone } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
@@ -12,20 +13,20 @@ import {
   useUpdatePrivacySettingsMutation,
 } from '@/features/users/api/usersApi'
 import { useGetAssignedAgentQuery } from '@/features/agents/api/agentsApi'
-import { Mail, Phone } from 'lucide-react'
 import {
   userProfileSchema,
   userPreferencesSchema,
   type UserProfileFormValues,
   type UserPreferencesFormValues,
 } from '@/features/users/validations'
-import ProfileTab from '@/features/users/components/ProfileTab'
-import PreferencesTab from '@/features/users/components/PreferencesTab'
-import LocationTab from '@/features/users/components/LocationTab'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
+import FadeContent from '@/components/reactbits/FadeContent'
+import ProfileTab from '@/features/users/components/ProfileTab'
+import PreferencesTab from '@/features/users/components/PreferencesTab'
+import LocationTab from '@/features/users/components/LocationTab'
 
 const UserProfilePage: React.FC = () => {
   const { toast } = useToast()
@@ -238,10 +239,12 @@ const UserProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">User Profile</h1>
-        <p className="text-muted-foreground">Manage your account settings and preferences</p>
-      </div>
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">User Profile</h1>
+          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+        </div>
+      </FadeContent>
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center space-x-4">
@@ -275,7 +278,10 @@ const UserProfilePage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      <div className="flex space-x-1 border-b" role="tablist">
+      <div
+        role="tablist"
+        className="inline-flex rounded-cohere-md border border-cohere-card-border bg-card/40 p-1 backdrop-blur-md gap-1"
+      >
         {(['profile', 'preferences', 'location'] as const).map((tab) => (
           <button
             key={tab}
@@ -284,9 +290,9 @@ const UserProfilePage: React.FC = () => {
             aria-selected={activeTab === tab}
             aria-controls={`${tab}-panel`}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors rounded-cohere-sm ${
               activeTab === tab
-                ? 'border-b-2 border-primary text-primary'
+                ? 'bg-accent/70 text-accent-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >

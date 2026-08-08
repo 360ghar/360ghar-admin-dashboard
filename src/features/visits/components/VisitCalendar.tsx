@@ -32,18 +32,21 @@ const VisitCalendar: React.FC<VisitCalendarProps> = ({ visits = [], onDateSelect
 
   return (
     <div className="space-y-4">
-      <Calendar
-        mode="single"
-        selected={selectedDate}
-        onSelect={(date) => date && onDateSelect(date)}
-        className="rounded-md border"
-        modifiers={{
-          hasVisit: (date) => hasVisitOnDate(date)
-        }}
-        modifiersClassNames={{
-          hasVisit: 'bg-primary text-primary-foreground',
-        }}
-      />
+      <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(date) => date && onDateSelect(date)}
+          className="rounded-md"
+          modifiers={{
+            hasVisit: (date) => hasVisitOnDate(date)
+          }}
+          modifiersClassNames={{
+            hasVisit:
+              'relative bg-primary/10 font-semibold after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-cohere-coral after:content-[""]',
+          }}
+        />
+      </div>
       {selectedDate && (
         <Card>
           <CardHeader>
@@ -57,7 +60,7 @@ const VisitCalendar: React.FC<VisitCalendarProps> = ({ visits = [], onDateSelect
             ) : (
               <div className="space-y-2">
                 {getVisitsForDate(selectedDate).map((visit) => (
-                  <div key={visit.id} className="flex items-center justify-between p-2 border rounded">
+                  <div key={visit.id} className="flex items-center justify-between p-2 border border-cohere-card-border/70 rounded-cohere-sm">
                     <div>
                       <p className="text-sm font-medium">{visit.property?.title || `Property #${visit.property_id}`}</p>
                       <p className="text-xs text-muted-foreground">

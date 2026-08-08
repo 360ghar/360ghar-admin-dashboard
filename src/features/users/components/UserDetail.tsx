@@ -329,7 +329,7 @@ const UserDetail = ({ id }: { id: number }) => {
                 {notifItems.map((n) => (
                   <div
                     key={n.id}
-                    className="rounded-md border bg-muted/40 px-3 py-2 text-sm"
+                    className="rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md px-3 py-2 text-sm"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-medium">{n.title ?? '—'}</div>

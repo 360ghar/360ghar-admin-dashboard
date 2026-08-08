@@ -6,6 +6,7 @@ import VisitManagementPage from './VisitManagementPage'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
 import { Calendar, Plus } from 'lucide-react'
+import FadeContent from '@/components/reactbits/FadeContent'
 import { cn } from '@/lib/utils'
 
 const VisitsPage = ({ mode }: { mode?: 'create' | 'detail' }) => {
@@ -32,38 +33,40 @@ const VisitsPage = ({ mode }: { mode?: 'create' | 'detail' }) => {
         description="Track, schedule, and manage property visits"
         icon={Calendar}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-cohere-pill border p-0.5 bg-muted/40">
-              <button
-                type="button"
-                onClick={() => setView('list')}
-                className={cn(
-                  'rounded-cohere-pill px-3 py-1.5 text-sm font-medium transition-colors',
-                  view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground',
-                )}
-              >
-                List
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('manage')}
-                className={cn(
-                  'rounded-cohere-pill px-3 py-1.5 text-sm font-medium transition-colors',
-                  view === 'manage' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground',
-                )}
-              >
-                Manage
-              </button>
+          <FadeContent container="#main-content" threshold={0} duration={600}>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-cohere-pill border border-cohere-card-border p-0.5 bg-card/40 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => setView('list')}
+                  className={cn(
+                    'rounded-cohere-pill px-3 py-1.5 text-sm font-medium transition-colors',
+                    view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground',
+                  )}
+                >
+                  List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView('manage')}
+                  className={cn(
+                    'rounded-cohere-pill px-3 py-1.5 text-sm font-medium transition-colors',
+                    view === 'manage' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground',
+                  )}
+                >
+                  Manage
+                </button>
+              </div>
+              {view === 'list' && (
+                <Button asChild className="gap-2 rounded-cohere-pill">
+                  <Link to="/visits/new">
+                    <Plus className="h-4 w-4" />
+                    Schedule Visit
+                  </Link>
+                </Button>
+              )}
             </div>
-            {view === 'list' && (
-              <Button asChild className="gap-2 rounded-cohere-pill">
-                <Link to="/visits/new">
-                  <Plus className="h-4 w-4" />
-                  Schedule Visit
-                </Link>
-              </Button>
-            )}
-          </div>
+          </FadeContent>
         }
       />
       {view === 'manage' ? <VisitManagementPage embedded /> : <VisitList />}

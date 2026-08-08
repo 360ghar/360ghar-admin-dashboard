@@ -32,7 +32,7 @@ const LocationTab: React.FC<LocationTabProps> = ({ profile, updatingLocation, ha
     </CardHeader>
     <CardContent className="space-y-6">
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border rounded-lg">
+        <div className="flex items-center justify-between p-4 rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md gap-3">
           <div>
             <h3 className="font-medium">Current Location</h3>
             <p className="text-sm text-muted-foreground">

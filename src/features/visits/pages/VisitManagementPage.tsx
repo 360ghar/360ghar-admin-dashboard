@@ -23,6 +23,7 @@ import { VisitFilters } from '@/features/visits/components/VisitFilters'
 import { VisitCard } from '@/features/visits/components/VisitCard'
 import { ScheduleVisitDialog } from '@/features/visits/components/ScheduleVisitDialog'
 import { CompleteVisitDialog } from '@/features/visits/components/CompleteVisitDialog'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const VISITS_PAGE_SIZE = 20
 
@@ -150,32 +151,44 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
 
       {/* Stats */}
       {user.role === 'user' && userVisitsStats && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <FadeContent container="#main-content" threshold={0} duration={600} className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Visits</CardTitle>
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="rounded-cohere-sm bg-cohere-action-blue/10 p-2">
+                <CalendarIcon className="h-4 w-4 text-cohere-action-blue" />
+              </span>
             </CardHeader>
             <CardContent><div className="text-2xl font-bold">{userVisitsStats.total ?? userVisitsStats.items.length}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="rounded-cohere-sm bg-cohere-coral/10 p-2">
+                <Clock className="h-4 w-4 text-cohere-coral" />
+              </span>
             </CardHeader>
             <CardContent><div className="text-2xl font-bold">{userVisitsStats.items.filter((v) => ['requested', 'confirmed', 'reschedule_suggested'].includes(v.status)).length}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <Check className="h-4 w-4 text-muted-foreground" />
+              <span className="rounded-cohere-sm bg-cohere-deep-green/15 p-2">
+                <Check className="h-4 w-4 text-cohere-deep-green" />
+              </span>
             </CardHeader>
             <CardContent><div className="text-2xl font-bold">{userVisitsStats.items.filter((v) => v.status === 'completed').length}</div></CardContent>
           </Card>
-        </div>
+        </FadeContent>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-4">
+      <FadeContent
+        container="#main-content"
+        threshold={0}
+        duration={600}
+        delay={120}
+        className="grid gap-6 lg:grid-cols-4"
+      >
         <div className="lg:col-span-1">
           <VisitCalendar visits={visits} onDateSelect={setSelectedDate} selectedDate={selectedDate} />
         </div>
@@ -227,7 +240,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
             )}
           </div>
         </div>
-      </div>
+      </FadeContent>
 
       {/* Schedule Visit Dialog */}
       {user.role !== 'admin' && (
