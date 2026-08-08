@@ -24,7 +24,7 @@ const LocationFilters: React.FC<LocationFiltersProps> = ({ form, selectedLocatio
     <div>
       <Label className="text-base">Search on Map</Label>
       <p className="text-sm text-muted-foreground mb-2">Click on the map to search around a specific location</p>
-      <div className="h-64 border rounded-lg overflow-hidden">
+      <div className="h-64 overflow-hidden rounded-cohere-md border border-cohere-card-border">
         <LocationPicker
           value={selectedLocation ? { lat: selectedLocation.latitude, lng: selectedLocation.longitude } : null}
           onChange={(location) => { setSelectedLocation({ latitude: location.lat, longitude: location.lng }); form.setValue('lat', location.lat); form.setValue('lng', location.lng) }}

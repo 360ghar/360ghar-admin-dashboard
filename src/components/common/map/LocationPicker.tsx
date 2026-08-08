@@ -37,7 +37,7 @@ const LocationPicker = ({ value, onChange, height = 300 }: Props) => {
   }
 
   return (
-    <div className="overflow-hidden rounded-md border" style={{ height }}>
+    <div className="overflow-hidden rounded-cohere-md border border-cohere-card-border" style={{ height }}>
       <MapContainer center={[center.lat, center.lng]} zoom={12} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
         <ClickHandler onSelect={onSelect} />

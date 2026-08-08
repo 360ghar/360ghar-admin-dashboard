@@ -148,7 +148,7 @@ export { PropertyColumns }
 
 // Mobile card renderer for properties
 const renderPropertyCard = (property: Property, setConfirmId: (id: number | null) => void) => (
-  <Card className="p-4 hover:bg-muted/50 transition-colors">
+  <Card className="p-4 transition-colors hover:bg-card/80">
     <div className="flex gap-3">
       <div className="w-24 h-24 flex-shrink-0 rounded-cohere-sm overflow-hidden bg-muted">
         {property.main_image_url ? (

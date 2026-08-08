@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from 'react'
 import { useDeletePropertyMutation, useGetPropertyQuery } from '@/features/properties/api/propertiesApi'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -10,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Link, useNavigate } from 'react-router-dom'
 import { Building2 } from 'lucide-react'
 import MapPreview from './parts/MapPreview'
+import TiltedCard from '@/components/reactbits/TiltedCard'
+import FadeContent from '@/components/reactbits/FadeContent'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useState, type ReactNode } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 
@@ -38,6 +41,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
   const [del, delState] = useDeletePropertyMutation()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   const doDelete = async () => {
     try {
@@ -54,7 +58,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
   if (error) return <ErrorState title="Failed to load property" error={error} onRetry={() => void refetch()} />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
         title={data?.title || 'Property Details'}
         description="View complete information"
@@ -76,14 +80,40 @@ const PropertyDetail = ({ id }: { id: number }) => {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3">
-            <span>{data?.title || 'Property'}</span>
-            {data?.status && <PropertyStatusBadge status={data.status} />}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <span>{data?.title || 'Property'}</span>
+              {data?.status && <PropertyStatusBadge status={data.status} />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Hero */}
+            {data?.main_image_url && (
+              <div className="mx-auto max-w-xl">
+                {prefersReducedMotion ? (
+                  <img
+                    src={data.main_image_url}
+                    alt={data.title || 'Property'}
+                    className="h-80 w-full rounded-cohere-md object-cover"
+                  />
+                ) : (
+                  <TiltedCard
+                    imageSrc={data.main_image_url}
+                    altText={data.title || 'Property'}
+                    imageHeight="320px"
+                    imageWidth="100%"
+                    containerHeight="320px"
+                    containerWidth="100%"
+                    rotateAmplitude={3}
+                    scaleOnHover={1.02}
+                    showMobileWarning={false}
+                    showTooltip={false}
+                  />
+                )}
+              </div>
+            )}
           {/* Overview */}
           <div className="grid gap-3 md:grid-cols-3">
             <Item label="Type" value={data?.property_type} />
@@ -175,13 +205,14 @@ const PropertyDetail = ({ id }: { id: number }) => {
               <SectionTitle>Media</SectionTitle>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 {data.images.map((image) => (
-                  <img key={image.id} src={image.image_url} alt={image.caption || `Property image ${image.id}`} loading="lazy" className="h-28 w-full rounded-md object-cover" />
+                  <img key={image.id} src={image.image_url} alt={image.caption || `Property image ${image.id}`} loading="lazy" className="h-28 w-full rounded-cohere-sm object-cover" />
                 ))}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </FadeContent>
 
       <AlertDialog open={openDelete} onOpenChange={setOpenDelete}>
         <AlertDialogContent>

@@ -90,7 +90,7 @@ const AddressAutocomplete = ({ value = '', onSelect }: { value?: string; onSelec
           </Command>
         </PopoverContent>
       </Popover>
-      {fetchError && <p className="text-xs text-red-500 mt-1">{fetchError}</p>}
+      {fetchError && <p className="text-xs text-destructive mt-1">{fetchError}</p>}
     </>
   )
 }

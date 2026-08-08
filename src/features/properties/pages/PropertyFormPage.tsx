@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Building2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useGetPropertyQuery, useCreatePropertyMutation, useUpdatePropertyMutation } from '@/features/properties/api/propertiesApi'
 import { useGetAmenitiesQuery } from '@/features/core/api/amenitiesApi'
@@ -12,6 +13,8 @@ import { applyServerValidation } from '@/lib/formErrors'
 import { getErrorMessage } from '@/lib/errors'
 import { FormRootError } from '@/components/ui/form-root-error'
 import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 const propertySchema = propertyFormPageSchema
 
@@ -221,20 +224,18 @@ const PropertyFormPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            {isEditing ? 'Edit Property' : 'Create New Property'}
-          </h1>
-          <p className="text-muted-foreground">
-            {isEditing
-              ? 'Update property information and details'
-              : 'Add a new property to the platform'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={isEditing ? 'Edit Property' : 'Create New Property'}
+        description={
+          isEditing
+            ? 'Update property information and details'
+            : 'Add a new property to the platform'
+        }
+        icon={Building2}
+      />
 
-      <form onSubmit={(e) => {
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <form onSubmit={(e) => {
         if (!location) {
           toast({
             title: 'Location Required',
@@ -266,7 +267,8 @@ const PropertyFormPage: React.FC = () => {
           isPurpose={isPurpose}
           onCancel={() => navigate('/properties')}
         />
-      </form>
+        </form>
+      </FadeContent>
     </div>
   )
 }

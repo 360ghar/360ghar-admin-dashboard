@@ -1,16 +1,18 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { UserRound } from 'lucide-react'
 import { useCreateAgentMutation, useGetAgentQuery, useUpdateAgentMutation } from '@/features/agents/api/agentsApi'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useToast } from '@/hooks/use-toast'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { FormRootError } from '@/components/ui/form-root-error'
+import { PageHeader } from '@/components/ui/page-header'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { agentFormSchema, type AgentFormValues } from '@/features/agents/validations'
@@ -144,7 +146,11 @@ const AgentForm = ({ id }: { id?: number }) => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{isEdit ? 'Edit Agent' : 'Create Agent'}</h1>
+      <PageHeader
+        title={isEdit ? 'Edit Agent' : 'Create Agent'}
+        description={isEdit ? 'Update agent details and availability.' : 'Add a new agent to the system.'}
+        icon={UserRound}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Details</CardTitle>

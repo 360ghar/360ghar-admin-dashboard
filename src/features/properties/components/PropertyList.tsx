@@ -28,7 +28,6 @@ import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
-import { motion } from 'motion/react'
 import { getErrorMessage } from '@/lib/errors'
 import { PropertyColumns, renderPropertyCard } from '@/features/properties/components/PropertyColumns'
 import { PropertyFilters, type PropertyFiltersState } from '@/features/properties/components/PropertyFilters'
@@ -286,13 +285,8 @@ const PropertyList = () => {
       </Card>
 
       {/* Results */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Card className="p-4 md:p-6">
-          {isFetching ? (
+      <Card className="p-4 md:p-6">
+        {isFetching ? (
             <LoadingState type={isMobile ? 'cards' : 'card'} rows={5} />
           ) : error ? (
             <ErrorState
@@ -317,7 +311,7 @@ const PropertyList = () => {
           ) : (
             <div className="space-y-4">
               {selectedRows.length > 0 && (
-                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-md border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/60 p-3 backdrop-blur-md">
                   <span className="text-sm font-medium">
                     {selectedRows.length} selected
                   </span>
@@ -367,7 +361,6 @@ const PropertyList = () => {
             </div>
           )}
         </Card>
-      </motion.div>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!confirmId} onOpenChange={() => setConfirmId(null)}>

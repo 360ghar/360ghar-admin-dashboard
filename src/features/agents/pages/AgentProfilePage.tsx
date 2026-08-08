@@ -1,11 +1,13 @@
+import { Phone, Users, TrendingUp, Star, UserRound } from 'lucide-react'
 import { useGetAgentProfileQuery, useGetAgentStatsQuery } from '@/features/agents/api/agentsApi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Phone, Users, TrendingUp, Star } from 'lucide-react'
-import { formatDate } from '@/lib/format'
+import { PageHeader } from '@/components/ui/page-header'
+import { formatDate, formatNumber } from '@/lib/format'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import CountUp from '@/components/reactbits/CountUp'
 
 const AgentProfilePage = () => {
   const {
@@ -45,12 +47,11 @@ const AgentProfilePage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
-        <p className="text-muted-foreground">
-          View your agent profile and interaction metrics.
-        </p>
-      </div>
+      <PageHeader
+        title="My Profile"
+        description="View your agent profile and interaction metrics."
+        icon={UserRound}
+      />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
@@ -133,9 +134,12 @@ const AgentProfilePage = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
-                {stats?.efficiency_score ?? 0}
-              </div>
+              <CountUp
+                to={stats?.efficiency_score ?? 0}
+                duration={1.1}
+                format={(n) => formatNumber(n)}
+                className="text-2xl font-bold text-primary tabular-nums"
+              />
               <p className="text-sm text-muted-foreground">Efficiency Score</p>
             </div>
 

@@ -49,7 +49,7 @@ const PropertyBasicInfoFields: React.FC<{ form: UseFormReturn<PropertyFormPageVa
         <div className="space-y-2">
           <Label htmlFor="title">Property Title</Label>
           <Input id="title" {...form.register('title')} placeholder="Modern 3BHK Apartment" />
-          {form.formState.errors.title && <p className="text-sm text-red-500">{String(form.formState.errors.title.message)}</p>}
+          {form.formState.errors.title && <p className="text-sm text-destructive">{String(form.formState.errors.title.message)}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="property_type">Property Type</Label>
@@ -86,13 +86,13 @@ const PropertyBasicInfoFields: React.FC<{ form: UseFormReturn<PropertyFormPageVa
         <div className="space-y-2">
           <Label htmlFor="base_price">Base Price (₹)</Label>
           <Input id="base_price" type="number" {...form.register('base_price', { valueAsNumber: true })} placeholder="25000" />
-          {form.formState.errors.base_price && <p className="text-sm text-red-500">{String(form.formState.errors.base_price.message)}</p>}
+          {form.formState.errors.base_price && <p className="text-sm text-destructive">{String(form.formState.errors.base_price.message)}</p>}
         </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <Textarea id="description" {...form.register('description')} placeholder="Describe the property..." rows={4} />
-        {form.formState.errors.description && <p className="text-sm text-red-500">{String(form.formState.errors.description.message)}</p>}
+        {form.formState.errors.description && <p className="text-sm text-destructive">{String(form.formState.errors.description.message)}</p>}
       </div>
     </CardContent>
   </Card>
@@ -106,23 +106,23 @@ const PropertyLocationFields: React.FC<{ form: UseFormReturn<PropertyFormPageVal
         <div className="space-y-2">
           <Label htmlFor="city">City</Label>
           <Input id="city" {...form.register('city')} placeholder="Mumbai" />
-          {form.formState.errors.city && <p className="text-sm text-red-500">{String(form.formState.errors.city.message)}</p>}
+          {form.formState.errors.city && <p className="text-sm text-destructive">{String(form.formState.errors.city.message)}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="locality">Locality</Label>
           <Input id="locality" {...form.register('locality')} placeholder="Andheri" />
-          {form.formState.errors.locality && <p className="text-sm text-red-500">{String(form.formState.errors.locality.message)}</p>}
+          {form.formState.errors.locality && <p className="text-sm text-destructive">{String(form.formState.errors.locality.message)}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="pincode">Pincode</Label>
           <Input id="pincode" {...form.register('pincode')} placeholder="400053" />
-          {form.formState.errors.pincode && <p className="text-sm text-red-500">{String(form.formState.errors.pincode.message)}</p>}
+          {form.formState.errors.pincode && <p className="text-sm text-destructive">{String(form.formState.errors.pincode.message)}</p>}
         </div>
       </div>
       <div>
         <Label className="text-base">Select Location on Map</Label>
         <p className="text-sm text-muted-foreground mb-2">Click on the map to set the property location</p>
-        <div className="h-96 border rounded-lg overflow-hidden">
+        <div className="h-96 overflow-hidden rounded-cohere-md border border-cohere-card-border">
           <LocationPicker value={location ? { lat: location.latitude, lng: location.longitude } : null}
             onChange={(loc) => setLocation({ latitude: loc.lat, longitude: loc.lng })} />
         </div>
@@ -210,7 +210,7 @@ const PropertySidebar: React.FC<{ form: UseFormReturn<PropertyFormPageValues>; u
             <Label>Uploaded Images</Label>
             <div className="grid gap-2">
               {uploadedImages.map((image, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 border rounded">
+                <div key={index} className="flex items-center gap-2 rounded-cohere-sm border border-cohere-card-border p-2">
                   <img src={image} alt={`Property ${index + 1}`} className="w-16 h-16 object-cover rounded" />
                   <span className="text-sm flex-1 truncate">Image {index + 1}</span>
                   <Button type="button" variant="ghost" size="sm" onClick={() => removeImage(index)}><X className="h-4 w-4" /></Button>

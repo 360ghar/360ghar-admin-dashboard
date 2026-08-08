@@ -14,7 +14,7 @@ export default function MapPreview({ lat, lng, height = 180 }: { lat: number; ln
 
   if (tileError) {
     return (
-      <div className="overflow-hidden rounded-md border flex items-center justify-center bg-muted" style={{ height }}>
+      <div className="flex items-center justify-center overflow-hidden rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md" style={{ height }}>
         <div className="text-center text-sm text-muted-foreground">
           <AlertTriangle className="h-5 w-5 mx-auto mb-1" />
           Map unavailable
@@ -24,7 +24,7 @@ export default function MapPreview({ lat, lng, height = 180 }: { lat: number; ln
   }
 
   return (
-    <div className="overflow-hidden rounded-md border" style={{ height }}>
+    <div className="overflow-hidden rounded-cohere-md border border-cohere-card-border" style={{ height }}>
       <MapContainer center={[lat, lng]} zoom={14} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false} dragging={false} doubleClickZoom={false}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useCreatePropertyMutation, useGetPropertyQuery, useUpdatePropertyMutation, PropertyCreate, type Property } from '@/features/properties/api/propertiesApi'
@@ -14,6 +15,8 @@ import { FormRootError } from '@/components/ui/form-root-error'
 import { Form } from '@/components/ui/form'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { PageHeader } from '@/components/ui/page-header'
+import FadeContent from '@/components/reactbits/FadeContent'
 import { useDebounce } from '@/hooks/useDebounce'
 import { propertyFormSchema, type PropertyFormValues } from '@/features/properties/validations'
 import type { PropertyStatus } from '@/types/pm'
@@ -159,9 +162,18 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{isEdit ? 'Edit Property' : 'Create Property'}</h1>
-      <Card>
+    <div className="space-y-6">
+      <PageHeader
+        title={isEdit ? 'Edit Property' : 'Create Property'}
+        description={
+          isEdit
+            ? 'Update property information and details'
+            : 'Add a new property to the platform'
+        }
+        icon={Building2}
+      />
+      <FadeContent container="#main-content" threshold={0} duration={600}>
+        <Card>
         <CardHeader><CardTitle>Basic Information</CardTitle></CardHeader>
         <CardContent>
           <Form {...form}>
@@ -178,7 +190,8 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
             </form>
           </Form>
         </CardContent>
-      </Card>
+        </Card>
+      </FadeContent>
     </div>
   )
 }
