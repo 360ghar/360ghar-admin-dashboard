@@ -120,54 +120,11 @@
 
 /* ---------- Command-center glass surfaces ---------- */
 @layer components {
-  .glass-card {
-    background-color: hsl(var(--glass-bg) / 0.55);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    backdrop-filter: blur(16px) saturate(140%);
-    border: 1px solid hsl(var(--glass-border) / 0.7);
-  }
-
-  .glass-panel {
-    background-color: hsl(var(--glass-bg) / 0.4);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
-    backdrop-filter: blur(20px) saturate(150%);
-    border: 1px solid hsl(var(--glass-border) / 0.5);
-  }
-
-  .glass-strong {
-    background-color: hsl(var(--glass-bg) / 0.8);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid hsl(var(--glass-border) / 0.8);
-  }
-
-  .text-glow {
-    text-shadow: 0 0 24px hsl(var(--cohere-action-blue) / 0.45);
-  }
-
-  .text-glow-coral {
-    text-shadow: 0 0 24px hsl(var(--cohere-coral) / 0.45);
-  }
-
   .card-glow {
     box-shadow:
       0 0 0 1px hsl(var(--glass-border) / 0.6),
       0 8px 40px -12px hsl(218 77% 62% / 0.18),
       0 2px 12px -4px hsl(0 0% 0% / 0.5);
-  }
-
-  .card-glow-coral {
-    box-shadow:
-      0 0 0 1px hsl(var(--glass-border) / 0.6),
-      0 8px 40px -12px hsl(var(--cohere-coral) / 0.22),
-      0 2px 12px -4px hsl(0 0% 0% / 0.5);
-  }
-
-  .hairline-t {
-    border-top: 1px solid hsl(var(--border));
-  }
-  .hairline-b {
-    border-bottom: 1px solid hsl(var(--border));
   }
 }
 

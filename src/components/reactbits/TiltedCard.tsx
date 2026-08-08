@@ -1,6 +1,8 @@
+// Vendored from reactbits.dev (https://reactbits.dev), MIT license — https://github.com/DavidHDev/react-bits
 import type { SpringOptions } from 'motion/react';
 import { useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring } from 'motion/react';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 interface TiltedCardProps {
   imageSrc: React.ComponentProps<'img'>['src'];
@@ -40,6 +42,7 @@ export default function TiltedCard({
   displayOverlayContent = false
 }: TiltedCardProps) {
   const ref = useRef<HTMLElement>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotateX = useSpring(useMotionValue(0), springValues);
@@ -55,6 +58,7 @@ export default function TiltedCard({
   const [lastY, setLastY] = useState(0);
 
   function handleMouse(e: React.MouseEvent<HTMLElement>) {
+    if (prefersReducedMotion) return;
     if (!ref.current) return;
 
     const rect = ref.current.getBoundingClientRect();
@@ -76,11 +80,13 @@ export default function TiltedCard({
   }
 
   function handleMouseEnter() {
+    if (prefersReducedMotion) return;
     scale.set(scaleOnHover);
     opacity.set(1);
   }
 
   function handleMouseLeave() {
+    if (prefersReducedMotion) return;
     opacity.set(0);
     scale.set(1);
     rotateX.set(0);

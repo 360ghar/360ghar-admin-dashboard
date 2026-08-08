@@ -58,6 +58,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <User className="h-4 w-4" />
             Profile
           </CommandItem>
+          <CommandItem onSelect={() => go('/users/profile')}>
+            <User className="h-4 w-4" />
+            My Profile
+          </CommandItem>
           <CommandItem onSelect={() => go('/users/preferences')}>
             <Sliders className="h-4 w-4" />
             Preferences

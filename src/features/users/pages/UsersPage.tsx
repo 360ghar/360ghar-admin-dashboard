@@ -23,7 +23,7 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
   // unless the admin system-stats endpoint exposes them directly.
   const { data: usersSample, isFetching: usersFetching } = useGetUsersQuery({ limit: 100 })
   const { data: systemStats } = useGetSystemStatsQuery(undefined, { skip: role !== 'admin' })
-  const { data: agentsData } = useListAgentsQuery(
+  const { data: agentsData, isFetching: agentsFetching } = useListAgentsQuery(
     { include_inactive: false, limit: 100 },
     { skip: role !== 'admin' }
   )
@@ -133,12 +133,16 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">Agents (up to 100)</p>
-                    <CountUp
-                      to={totalAgents}
-                      duration={1.1}
-                      format={(n) => formatNumber(n)}
-                      className="text-2xl font-semibold tracking-tight tabular-nums"
-                    />
+                    {agentsFetching ? (
+                      <p className="text-2xl font-semibold tracking-tight">…</p>
+                    ) : (
+                      <CountUp
+                        to={totalAgents}
+                        duration={1.1}
+                        format={(n) => formatNumber(n)}
+                        className="text-2xl font-semibold tracking-tight tabular-nums"
+                      />
+                    )}
                   </div>
                 </div>
               )}

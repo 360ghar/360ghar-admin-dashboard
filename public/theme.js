@@ -5,9 +5,8 @@
   try {
     var stored = localStorage.getItem('theme')
     var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-    if (stored === 'dark' || (!stored && prefersDark)) {
-      document.documentElement.classList.add('dark')
-    }
+    var useDark = stored === 'system' ? prefersDark : stored !== 'light'
+    if (useDark) document.documentElement.classList.add('dark')
   } catch (_) {
     /* noop */
   }

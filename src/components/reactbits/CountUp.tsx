@@ -1,5 +1,7 @@
+// Vendored from reactbits.dev (https://reactbits.dev), MIT license — https://github.com/DavidHDev/react-bits
 import { useInView, useMotionValue, useSpring } from 'motion/react';
 import { useCallback, useEffect, useRef } from 'react';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 interface CountUpProps {
   to: number;
@@ -30,6 +32,8 @@ export default function CountUp({
   onEnd
 }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
+  const hasAnimatedRef = useRef(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const motionValue = useMotionValue(direction === 'down' ? to : from);
 
   const damping = 20 + 40 * (1 / duration);
@@ -81,12 +85,23 @@ export default function CountUp({
   }, [from, to, direction, formatValue]);
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      if (ref.current) ref.current.textContent = formatValue(direction === 'down' ? from : to);
+      return;
+    }
+
     if (isInView && startWhen) {
+      if (hasAnimatedRef.current) {
+        if (ref.current) ref.current.textContent = formatValue(to);
+        return;
+      }
+
       if (typeof onStart === 'function') {
         onStart();
       }
 
       const timeoutId = setTimeout(() => {
+        hasAnimatedRef.current = true;
         motionValue.set(direction === 'down' ? from : to);
       }, delay * 1000);
 
@@ -104,7 +119,7 @@ export default function CountUp({
         clearTimeout(durationTimeoutId);
       };
     }
-  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration]);
+  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration, prefersReducedMotion]);
 
   useEffect(() => {
     const unsubscribe = springValue.on('change', (latest: number) => {

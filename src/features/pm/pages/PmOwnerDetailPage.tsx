@@ -32,7 +32,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatNumber } from '@/lib/format'
 import CountUp from '@/components/reactbits/CountUp'
 
 const kycStatuses = ["unknown", "pending", "verified", "rejected"] as const;
@@ -140,6 +140,7 @@ export default function PmOwnerDetailPage() {
                 <CountUp
                   to={overview.data?.total_properties ?? 0}
                   duration={1.2}
+                  format={(n) => formatNumber(n)}
                   className="text-2xl font-semibold tracking-tight tabular-nums"
                 />
               )}
@@ -206,6 +207,7 @@ export default function PmOwnerDetailPage() {
                 <CountUp
                   to={maintenance.data?.items?.length ?? 0}
                   duration={1.2}
+                  format={(n) => formatNumber(n)}
                   className="text-2xl font-semibold tracking-tight tabular-nums"
                 />
               )}

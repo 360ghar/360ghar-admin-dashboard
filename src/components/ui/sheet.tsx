@@ -1,7 +1,7 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion"
+import { motion, useMotionValue, useTransform, PanInfo } from "motion/react"
 import { cn } from "@/lib/utils"
 import { Cross2Icon } from "@radix-ui/react-icons"
 

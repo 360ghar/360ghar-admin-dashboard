@@ -227,11 +227,11 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
       <Card>
         <CardHeader>
           {prefersReducedMotion ? (
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{post.title}</h1>
+            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">{post.title}</h2>
           ) : (
             <SplitText
               text={post.title}
-              tag="h1"
+              tag="h2"
               splitType="words, chars"
               threshold={0}
               rootMargin="0px"

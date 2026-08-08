@@ -1,3 +1,4 @@
+// Vendored from reactbits.dev (https://reactbits.dev), MIT license — https://github.com/DavidHDev/react-bits
 import React, { useRef, useEffect, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -65,6 +66,8 @@ const SplitText: React.FC<SplitTextProps> = ({
       const el = ref.current as HTMLElement & {
         _rbsplitInstance?: GSAPSplitText;
       };
+      const scrollerTarget =
+        typeof document !== 'undefined' ? document.getElementById('main-content') || undefined : undefined;
 
       if (el._rbsplitInstance) {
         try {
@@ -117,7 +120,8 @@ const SplitText: React.FC<SplitTextProps> = ({
                 start,
                 once: true,
                 fastScrollEnd: true,
-                anticipatePin: 0.4
+                anticipatePin: 0.4,
+                scroller: scrollerTarget
               },
               onComplete: () => {
                 animationCompletedRef.current = true;
@@ -169,7 +173,7 @@ const SplitText: React.FC<SplitTextProps> = ({
     const Tag = (tag || 'p') as React.ElementType;
 
     return (
-      <Tag ref={ref} style={style} className={classes}>
+      <Tag ref={ref} style={style} className={classes} aria-label={text}>
         {text}
       </Tag>
     );

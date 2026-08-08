@@ -1,7 +1,9 @@
+// Vendored from reactbits.dev (https://reactbits.dev), MIT license — https://github.com/DavidHDev/react-bits
 import * as React from 'react';
 import { useRef, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -39,10 +41,12 @@ const FadeContent: React.FC<FadeContentProps> = ({
   ...props
 }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (prefersReducedMotion) return;
 
     let scrollerTarget: Element | string | null = container || document.getElementById('snap-main-container') || null;
 
@@ -97,7 +101,7 @@ const FadeContent: React.FC<FadeContentProps> = ({
       tl.kill();
       gsap.killTweensOf(el);
     };
-  }, []);
+  }, [prefersReducedMotion]);
 
   return (
     <div ref={ref} className={className} {...props}>

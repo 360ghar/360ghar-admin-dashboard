@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from 'react'
+import { lazy, Suspense, useState, type ComponentType } from 'react'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { cn } from '@/lib/utils'
 
@@ -39,8 +39,21 @@ export interface AmbientBackgroundProps {
 
 export function AmbientBackground({ variant = 'aurora', className }: AmbientBackgroundProps) {
   const prefersReducedMotion = usePrefersReducedMotion()
+  // WebGL is required by the ogl/three canvases; without it the lazy component
+  // crashes on mount, so fall back to the static gradient when unavailable.
+  const [webglSupported] = useState(() =>
+    typeof document !== 'undefined' &&
+    (() => {
+      try {
+        const c = document.createElement('canvas')
+        return !!(c.getContext('webgl2') || c.getContext('webgl'))
+      } catch {
+        return false
+      }
+    })()
+  )
 
-  if (prefersReducedMotion) {
+  if (prefersReducedMotion || !webglSupported) {
     return <div aria-hidden className={cn('h-full w-full', className)} style={{ background: FALLBACK_GRADIENTS[variant] }} />
   }
 

@@ -12,14 +12,14 @@ import { cn } from '@/lib/utils'
 
 const VISIT_COLOR = 'hsl(168 70% 45%)'
 const BOOKING_COLOR = 'hsl(218 77% 62%)'
-const GRID_COLOR = 'hsl(240 8% 20%)'
-const TICK_COLOR = 'hsl(240 8% 62%)'
+const GRID_COLOR = 'hsl(var(--border))'
+const TICK_COLOR = 'hsl(var(--muted-foreground))'
 
 const TOOLTIP_STYLE = {
-  background: 'hsl(240 12% 8% / 0.92)',
-  border: '1px solid hsl(240 10% 20%)',
+  background: 'hsl(var(--popover) / 0.92)',
+  border: '1px solid hsl(var(--border))',
   borderRadius: 12,
-  color: 'hsl(240 12% 93%)',
+  color: 'hsl(var(--popover-foreground))',
   fontSize: 12,
   boxShadow: '0 8px 32px -8px hsl(0 0% 0% / 0.6)',
 } as const
@@ -141,7 +141,7 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_COLOR} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: TICK_COLOR }} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 12, fill: TICK_COLOR }} />
-                  <Tooltip cursor={{ fill: 'hsl(240 10% 14% / 0.5)' }} contentStyle={TOOLTIP_STYLE} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} contentStyle={TOOLTIP_STYLE} />
                   <Bar dataKey="visits" name="Visits" fill={VISIT_COLOR} radius={[6, 6, 0, 0]} />
                   <Bar dataKey="bookings" name="Bookings" fill={BOOKING_COLOR} radius={[6, 6, 0, 0]} />
                 </BarChart>
