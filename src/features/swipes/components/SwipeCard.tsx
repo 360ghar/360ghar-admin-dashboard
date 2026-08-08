@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react'
-import { motion, useMotionValue, useTransform, type PanInfo } from 'framer-motion'
+import { motion, useMotionValue, useTransform, type PanInfo } from 'motion/react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

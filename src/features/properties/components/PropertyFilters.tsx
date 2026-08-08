@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Checkbox } from '@/components/ui/checkbox'
 import { Filter, X, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import type { Amenity } from '@/types/api'
 import FilterControls from './PropertyFilterControls'
 

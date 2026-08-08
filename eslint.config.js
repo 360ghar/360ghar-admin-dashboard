@@ -34,6 +34,24 @@ export default tseslint.config(
       }],
     },
   },
+  // Vendored ReactBits components (jsrepo registry, MIT). Keep correctness
+  // rules, relax strict type-checked rules that third-party registry code
+  // (ogl/three/motion internals) cannot satisfy without forking it.
+  {
+    files: ['src/components/reactbits/**'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      '@typescript-eslint/no-redundant-type-constituents': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+    },
+  },
   // Tests use Vitest globals (describe/it/expect/vi/...) without imports.
   {
     files: ['src/**/__tests__/**'],
