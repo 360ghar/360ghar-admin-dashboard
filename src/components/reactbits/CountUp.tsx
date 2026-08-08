@@ -10,6 +10,8 @@ interface CountUpProps {
   className?: string;
   startWhen?: boolean;
   separator?: string;
+  /** Custom formatter for the counted value (e.g. currency/percent). */
+  format?: (n: number) => string;
   onStart?: () => void;
   onEnd?: () => void;
 }
@@ -23,6 +25,7 @@ export default function CountUp({
   className = '',
   startWhen = true,
   separator = '',
+  format,
   onStart,
   onEnd
 }: CountUpProps) {
@@ -54,6 +57,8 @@ export default function CountUp({
 
   const formatValue = useCallback(
     (latest: number) => {
+      if (format) return format(latest);
+
       const hasDecimals = maxDecimals > 0;
 
       const options: Intl.NumberFormatOptions = {
@@ -66,7 +71,7 @@ export default function CountUp({
 
       return separator ? formattedNumber.replace(/,/g, separator) : formattedNumber;
     },
-    [maxDecimals, separator]
+    [maxDecimals, separator, format]
   );
 
   useEffect(() => {

@@ -3,11 +3,16 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
+import CountUp from '@/components/reactbits/CountUp'
 
 const Stat = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
-  <div className="rounded-md border bg-card p-3">
+  <div className="rounded-cohere-md border border-cohere-card-border bg-card/50 p-3 backdrop-blur-md">
     <div className="text-xs text-muted-foreground">{label}</div>
-    <div className="text-lg font-semibold">{String(value ?? '—')}</div>
+    {typeof value === 'number' ? (
+      <CountUp to={value} duration={1} className="text-lg font-semibold tabular-nums" />
+    ) : (
+      <div className="text-lg font-semibold">{String(value ?? '—')}</div>
+    )}
   </div>
 )
 

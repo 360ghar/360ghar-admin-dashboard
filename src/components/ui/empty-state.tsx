@@ -1,6 +1,8 @@
 import { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import ShinyText from '@/components/reactbits/ShinyText'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { cn } from '@/lib/utils'
 
 interface EmptyStateProps {
@@ -32,8 +34,9 @@ export function EmptyState({
   className = ''
 }: EmptyStateProps) {
   const isSm = size === 'sm'
+  const prefersReducedMotion = usePrefersReducedMotion()
   return (
-    <Card className={cn('border-dashed', className)}>
+    <Card className={cn('border-dashed border-border/60 bg-card/40', className)}>
       <CardContent
         className={cn(
           'flex flex-col items-center justify-center text-center',
@@ -46,7 +49,19 @@ export function EmptyState({
           </div>
         )}
         <div className="space-y-2">
-          <h3 className={cn('font-semibold', isSm ? 'text-base' : 'text-lg')}>{title}</h3>
+          {prefersReducedMotion ? (
+            <h3 className={cn('font-semibold', isSm ? 'text-base' : 'text-lg')}>{title}</h3>
+          ) : (
+            <h3 className={cn('font-semibold', isSm ? 'text-base' : 'text-lg')}>
+              <ShinyText
+                text={title}
+                speed={3}
+                color="hsl(var(--foreground) / 0.85)"
+                shineColor="hsl(var(--cohere-coral))"
+                spread={140}
+              />
+            </h3>
+          )}
           {description && (
             <p className={cn('text-muted-foreground max-w-md', isSm ? 'text-sm' : undefined)}>
               {description}

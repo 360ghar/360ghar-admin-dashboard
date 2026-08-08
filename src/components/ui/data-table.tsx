@@ -108,7 +108,7 @@ export function DataTable<TData, TValue>({
   if (!data.length) {
     return (
       emptyState ?? (
-        <div className="rounded-md border">
+        <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-sm">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -145,7 +145,7 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-sm">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

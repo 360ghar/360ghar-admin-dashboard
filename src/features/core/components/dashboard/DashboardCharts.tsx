@@ -10,9 +10,19 @@ import type { TrendBucket } from '@/features/core/lib/dashboard'
 import { formatNumber, formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const VISIT_COLOR = 'hsl(168 100% 22%)'
-const BOOKING_COLOR = 'hsl(218 77% 48%)'
-const GRID_COLOR = 'hsl(240 3% 90%)'
+const VISIT_COLOR = 'hsl(168 70% 45%)'
+const BOOKING_COLOR = 'hsl(218 77% 62%)'
+const GRID_COLOR = 'hsl(240 8% 20%)'
+const TICK_COLOR = 'hsl(240 8% 62%)'
+
+const TOOLTIP_STYLE = {
+  background: 'hsl(240 12% 8% / 0.92)',
+  border: '1px solid hsl(240 10% 20%)',
+  borderRadius: 12,
+  color: 'hsl(240 12% 93%)',
+  fontSize: 12,
+  boxShadow: '0 8px 32px -8px hsl(0 0% 0% / 0.6)',
+} as const
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
@@ -28,7 +38,7 @@ export function PropertyStatusCard({ className }: { className?: string }) {
   const slices = data.filter((slice) => slice.count > 0)
 
   return (
-    <Card className={cn('rounded-cohere-md border-cohere-card-border', className)}>
+    <Card className={cn('rounded-cohere-md border-cohere-card-border card-glow', className)}>
       <CardHeader>
         <CardTitle className="text-lg">Properties by Status</CardTitle>
       </CardHeader>
@@ -64,7 +74,7 @@ export function PropertyStatusCard({ className }: { className?: string }) {
                       <Cell key={slice.value} fill={slice.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -103,7 +113,7 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
   const hasData = trend.some((bucket) => bucket.visits > 0 || bucket.bookings > 0)
 
   return (
-    <Card className={cn('rounded-cohere-md border-cohere-card-border', className)}>
+    <Card className={cn('rounded-cohere-md border-cohere-card-border card-glow', className)}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Activity — last 7 days</CardTitle>
@@ -129,11 +139,11 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trend} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_COLOR} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="visits" name="Visits" fill={VISIT_COLOR} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="bookings" name="Bookings" fill={BOOKING_COLOR} radius={[4, 4, 0, 0]} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: TICK_COLOR }} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} tick={{ fontSize: 12, fill: TICK_COLOR }} />
+                  <Tooltip cursor={{ fill: 'hsl(240 10% 14% / 0.5)' }} contentStyle={TOOLTIP_STYLE} />
+                  <Bar dataKey="visits" name="Visits" fill={VISIT_COLOR} radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="bookings" name="Bookings" fill={BOOKING_COLOR} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

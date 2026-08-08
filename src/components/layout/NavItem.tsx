@@ -102,11 +102,11 @@ export const NavItem = ({ to, label, icon: Icon, children, depth = 0 }: NavItemP
             <Collapsible open={isOpen} onOpenChange={handleToggle}>
                 <CollapsibleTrigger
                     className={cn(
-                        'flex w-full items-center gap-2 rounded-md pr-3 py-2 text-sm font-medium transition-colors',
+                        'flex w-full items-center gap-2 rounded-cohere-md pr-3 py-2 text-sm font-medium transition-colors',
                         paddingLeft,
                         isChildActive
-                            ? 'bg-accent/50 text-accent-foreground'
-                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                            ? 'bg-accent/60 text-accent-foreground shadow-[inset_2px_0_0_0_hsl(var(--cohere-coral))]'
+                            : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
                     )}
                 >
                     <Icon className={iconSize} />
@@ -140,11 +140,11 @@ export const NavItem = ({ to, label, icon: Icon, children, depth = 0 }: NavItemP
         <NavLink
             to={to}
             className={cn(
-                'flex items-center gap-2 rounded-md pr-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-2 rounded-cohere-md pr-3 py-2 text-sm font-medium transition-colors',
                 paddingLeft,
                 isActive
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-accent/60 text-accent-foreground shadow-[inset_2px_0_0_0_hsl(var(--cohere-coral))]'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
             )}
         >
             <Icon className={iconSize} />

@@ -12,7 +12,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "rounded-xl border border-cohere-card-border bg-card text-card-foreground shadow-none",
+        "rounded-cohere-md border border-cohere-card-border bg-card/60 text-card-foreground shadow-none backdrop-blur-md transition-colors",
         responsive && "p-4 md:p-6",
         className
       )}

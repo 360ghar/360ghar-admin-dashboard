@@ -131,7 +131,7 @@ export function ResponsiveDataTable<TData, TValue>({
 
   // Render table view
   const renderTable = () => (
-    <div className="rounded-md border overflow-x-auto">
+    <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-sm overflow-x-auto">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

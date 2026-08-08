@@ -16,7 +16,7 @@ export function AdminKpis() {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title="Active Agents"
-        value={formatNumber(data?.active_agents)}
+        value={data?.active_agents}
         icon={UserCog}
         hint={data?.total_agents !== undefined ? `of ${formatNumber(data.total_agents)} total` : undefined}
         isLoading={isLoading}
@@ -24,21 +24,22 @@ export function AdminKpis() {
       />
       <StatCard
         title="Active Users"
-        value={formatNumber(data?.active_users)}
+        value={data?.active_users}
         icon={Users}
         isLoading={isLoading}
         to="/users"
       />
       <StatCard
         title="Properties Listed"
-        value={formatNumber(data?.properties_listed)}
+        value={data?.properties_listed}
         icon={Building2}
         isLoading={isLoading}
         to="/properties"
       />
       <StatCard
         title="Occupancy Rate"
-        value={formatPercent(data?.occupancy_rate)}
+        value={data?.occupancy_rate}
+        formatValue={(n) => formatPercent(n)}
         icon={TrendingUp}
         isLoading={isLoading}
       />
@@ -58,26 +59,27 @@ export function AgentKpis({ agentId }: { agentId?: number | null }) {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title="Assigned Users"
-        value={formatNumber(stats?.total_users_assigned)}
+        value={stats?.total_users_assigned}
         icon={Users}
         isLoading={isLoading}
         to="/users"
       />
       <StatCard
         title="Satisfaction"
-        value={(() => { const r = typeof stats?.user_satisfaction_rating === 'number' ? stats.user_satisfaction_rating : Number(stats?.user_satisfaction_rating); return !Number.isNaN(r) ? `${r.toFixed(1)}/5` : '—' })()}
+        value={(() => { const r = typeof stats?.user_satisfaction_rating === 'number' ? stats.user_satisfaction_rating : Number(stats?.user_satisfaction_rating); return Number.isNaN(r) ? '—' : r })()}
+        formatValue={(n) => `${n.toFixed(1)}/5`}
         icon={Star}
         isLoading={isLoading}
       />
       <StatCard
         title="Active Conversations"
-        value={formatNumber(stats?.active_conversations)}
+        value={stats?.active_conversations}
         icon={MessageSquare}
         isLoading={isLoading}
       />
       <StatCard
         title="Weekly Interactions"
-        value={formatNumber(stats?.weekly_interactions)}
+        value={stats?.weekly_interactions}
         icon={Activity}
         isLoading={isLoading}
       />

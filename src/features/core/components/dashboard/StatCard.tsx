@@ -2,11 +2,13 @@ import type { ComponentType } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import CountUp from '@/components/reactbits/CountUp'
+import GlareHover from '@/components/reactbits/GlareHover'
 import { cn } from '@/lib/utils'
 
 export interface StatCardProps {
   title: string
-  value: string | number
+  value: string | number | null | undefined
   icon?: ComponentType<{ className?: string }>
   /** Optional real, factual subtitle (e.g. "of 1,204 total"). Never a fabricated delta. */
   hint?: string
@@ -14,9 +16,13 @@ export interface StatCardProps {
   /** When set, the whole card links here. */
   to?: string
   className?: string
+  /** Formats a numeric `value` after the count-up (currency/percent). Ignored for strings. */
+  formatValue?: (n: number) => string
 }
 
-export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to, className }: StatCardProps) {
+const VALUE_CLASSES = 'text-2xl font-semibold tracking-tight tabular-nums'
+
+export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to, className, formatValue }: StatCardProps) {
   const body = (
     <Card
       className={cn(
@@ -28,8 +34,8 @@ export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {Icon && (
-          <div className="rounded-full bg-muted p-2">
-            <Icon className="h-4 w-4 text-foreground/70" />
+          <div className="rounded-full bg-primary/10 p-2">
+            <Icon className="h-4 w-4 text-primary/80" />
           </div>
         )}
       </CardHeader>
@@ -41,7 +47,16 @@ export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to
           </div>
         ) : (
           <>
-            <div className="text-2xl font-semibold tracking-tight">{value}</div>
+            {typeof value === 'number' ? (
+              <CountUp
+                to={value}
+                duration={1.2}
+                className={VALUE_CLASSES}
+                format={formatValue}
+              />
+            ) : (
+              <div className={VALUE_CLASSES}>{value ?? '—'}</div>
+            )}
             {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
           </>
         )}
@@ -49,12 +64,29 @@ export function StatCard({ title, value, icon: Icon, hint, isLoading = false, to
     </Card>
   )
 
+  const wrapped = (
+    <GlareHover
+      width="100%"
+      height="100%"
+      background="transparent"
+      borderColor="transparent"
+      borderRadius="16px"
+      glareColor="#ffffff"
+      glareOpacity={0.08}
+      glareSize={180}
+      className="h-full"
+      style={{ cursor: to ? 'pointer' : 'default' }}
+    >
+      {body}
+    </GlareHover>
+  )
+
   if (to && !isLoading) {
     return (
-      <Link to={to} className="block rounded-cohere-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        {body}
+      <Link to={to} className="block rounded-cohere-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring h-full">
+        {wrapped}
       </Link>
     )
   }
-  return body
+  return wrapped
 }

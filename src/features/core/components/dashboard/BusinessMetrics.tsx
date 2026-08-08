@@ -54,27 +54,31 @@ export function BusinessMetrics() {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         title="Booking Revenue (sample)"
-        value={formatCurrency(metrics.revenue)}
+        value={metrics.revenue}
+        formatValue={(n) => formatCurrency(n)}
         icon={IndianRupee}
         hint={`Across ${formatNumber(metrics.bookingTotal)} bookings`}
         isLoading={isLoading}
       />
       <StatCard
         title="Avg Booking Value"
-        value={formatCurrency(metrics.avgBookingValue)}
+        value={metrics.avgBookingValue}
+        formatValue={(n) => formatCurrency(n)}
         icon={TrendingUp}
         isLoading={isLoading}
       />
       <StatCard
         title="Visit → Booking"
-        value={formatPercent(metrics.visitToBooking * 100)}
+        value={metrics.visitToBooking * 100}
+        formatValue={(n) => formatPercent(n)}
         icon={Target}
         hint={`${formatNumber(metrics.bookingTotal)} bookings / ${formatNumber(metrics.visitTotal)} visits`}
         isLoading={isLoading}
       />
       <StatCard
         title="Total Bookings"
-        value={formatNumber(metrics.bookingTotal)}
+        value={metrics.bookingTotal}
+        formatValue={(n) => formatNumber(n)}
         icon={Percent}
         isLoading={isLoading}
       />

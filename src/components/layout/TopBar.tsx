@@ -45,7 +45,7 @@ const TopBar = () => {
   }
 
   return (
-    <header className="flex items-center justify-between border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 md:py-4">
+    <header className="flex items-center justify-between border-b border-cohere-card-border bg-card/60 px-4 backdrop-blur-xl md:px-6 py-3 md:py-4">
       <div className="flex items-center gap-3 min-w-0">
         {/* Full nav on mobile is BottomNav "More" — avoid a second identical sheet here. */}
         {showOwnerSelector && <OwnerSelector />}

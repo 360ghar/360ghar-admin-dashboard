@@ -8,7 +8,7 @@ import { SidebarContent } from './SidebarContent'
  */
 const Sidebar = () => {
   return (
-    <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 border-r bg-background h-full overflow-hidden">
+    <div className="hidden md:flex md:flex-col w-64 flex-shrink-0 border-r border-cohere-card-border bg-card/50 backdrop-blur-xl h-full overflow-hidden">
       <SidebarContent />
     </div>
   )

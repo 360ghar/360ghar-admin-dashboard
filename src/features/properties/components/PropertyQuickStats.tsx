@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { Handshake, Home, KeyRound, TrendingUp } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import CountUp from '@/components/reactbits/CountUp'
 import { usePropertyStatusBreakdown } from '@/features/core/hooks/useDashboardData'
 import { formatNumber } from '@/lib/format'
 
@@ -28,17 +29,22 @@ export function PropertyQuickStats() {
         return (
           <div
             key={tile.label}
-            className="flex items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-muted/30 p-4"
+            className="flex items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/50 p-4 backdrop-blur-md"
           >
-            <div className="rounded-full bg-muted p-2">
-              <Icon className="h-4 w-4 text-foreground/70" />
+            <div className="rounded-full bg-primary/10 p-2">
+              <Icon className="h-4 w-4 text-primary/80" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{tile.label}</p>
               {isLoading ? (
                 <Skeleton className="mt-1 h-7 w-16" />
               ) : (
-                <p className="text-2xl font-semibold tracking-tight">{formatNumber(tile.value)}</p>
+                <CountUp
+                  to={tile.value}
+                  duration={1.1}
+                  format={(n) => formatNumber(n)}
+                  className="text-2xl font-semibold tracking-tight tabular-nums"
+                />
               )}
             </div>
           </div>

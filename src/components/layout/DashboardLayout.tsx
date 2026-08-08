@@ -22,7 +22,7 @@ const DashboardLayout = () => {
         <TopBar />
         <main
           id="main-content"
-          className="min-w-0 flex-1 overflow-y-auto bg-muted/40 p-4 pb-20 md:pb-4 lg:p-6 lg:pb-6"
+          className="min-w-0 flex-1 overflow-y-auto bg-background bg-[radial-gradient(1200px_420px_at_50%_-8%,hsl(var(--cohere-action-blue)/0.08),transparent_65%)] p-4 pb-20 md:pb-4 lg:p-6 lg:pb-6"
         >
           {/* resetKeys clears the boundary's error state when the user
               navigates away from a crashed page, without remounting the

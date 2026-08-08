@@ -4,7 +4,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme tokens — shadcn/ui mapped to Cohere design system */
+/* Theme tokens — shadcn/ui mapped to the ReactBits "command center" system.
+ * Dark is the default surface; light remains available via the theme toggle. */
 @layer base {
   :root {
     /* Safe area insets for notched devices (iPhone X+) */
@@ -13,7 +14,7 @@
     --safe-area-inset-left: env(safe-area-inset-left, 0px);
     --safe-area-inset-right: env(safe-area-inset-right, 0px);
 
-    /* Cohere-inspired light theme */
+    /* Light mode — Cohere-inspired (kept functional via the toggle) */
     --background: 0 0% 100%;            /* Canvas White #ffffff */
     --foreground: 0 0% 13%;             /* Ink #212121 */
 
@@ -55,48 +56,57 @@
     --cohere-pale-green: 130 56% 96%;    /* #edfce9 */
     --cohere-pale-blue: 220 100% 97%;    /* #f1f5ff */
     --cohere-card-border: 0 0% 95%;      /* #f2f2f2 */
+
+    /* Command-center light glass (subtle, for the light variant) */
+    --glass-bg: 240 10% 98%;
+    --glass-border: 240 8% 88%;
   }
 
+  /* Command Center — default surface (dark) */
   .dark {
-    --background: 240 5% 10%;           /* Near-Black #17171c */
-    --foreground: 0 0% 98%;
+    --background: 240 14% 4%;           /* Deep space #08080d */
+    --foreground: 240 12% 93%;          /* Off-white ink */
 
-    --card: 240 5% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 240 12% 7%;                 /* Glass base */
+    --card-foreground: 240 12% 93%;
 
-    --popover: 240 5% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 240 12% 8%;
+    --popover-foreground: 240 12% 93%;
 
-    --primary: 0 0% 98%;                /* White on dark */
-    --primary-foreground: 240 5% 10%;   /* Near-Black */
+    --primary: 240 12% 96%;             /* White pill CTA on dark */
+    --primary-foreground: 240 14% 6%;   /* Near-black on white */
 
-    --secondary: 240 5% 18%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 240 10% 12%;
+    --secondary-foreground: 240 12% 93%;
 
-    --muted: 240 5% 18%;
-    --muted-foreground: 240 5% 65%;      /* Muted Slate inverted */
+    --muted: 240 10% 11%;
+    --muted-foreground: 240 8% 62%;
 
-    --accent: 240 5% 18%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 240 10% 14%;
+    --accent-foreground: 240 12% 93%;
 
-    --destructive: 0 62% 35%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 6 92% 62%;           /* Brighter red on dark */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5% 18%;
-    --input: 240 5% 18%;
-    --ring: 222 76% 55%;
+    --border: 240 10% 16%;              /* Hairline */
+    --input: 240 10% 16%;
+    --ring: 218 77% 62%;                /* Action blue focus */
 
-    /* Cohere dark-mode semantic tokens */
-    --cohere-coral: 14 100% 64%;
-    --cohere-coral-soft: 14 100% 80%;
-    --cohere-action-blue: 218 77% 55%;
-    --cohere-deep-green: 168 100% 18%;
-    --cohere-dark-navy: 211 93% 15%;
-    --cohere-form-focus: 283 21% 55%;
-    --cohere-hairline: 0 0% 25%;
-    --cohere-pale-green: 168 40% 15%;
-    --cohere-pale-blue: 218 40% 15%;
-    --cohere-card-border: 0 0% 20%;
+    /* Cohere semantic tokens — dark values */
+    --cohere-coral: 14 100% 66%;         /* #ff7a5c */
+    --cohere-coral-soft: 14 100% 78%;
+    --cohere-action-blue: 218 77% 62%;   /* #4f8df5 */
+    --cohere-deep-green: 168 60% 20%;
+    --cohere-dark-navy: 211 60% 16%;
+    --cohere-form-focus: 283 40% 62%;
+    --cohere-hairline: 240 8% 20%;
+    --cohere-pale-green: 168 40% 12%;
+    --cohere-pale-blue: 218 40% 12%;
+    --cohere-card-border: 240 8% 18%;
+
+    /* Command-center glass */
+    --glass-bg: 240 12% 10%;
+    --glass-border: 240 10% 20%;
   }
 
   * {
@@ -108,6 +118,91 @@
   }
 }
 
+/* ---------- Command-center glass surfaces ---------- */
+@layer components {
+  .glass-card {
+    background-color: hsl(var(--glass-bg) / 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid hsl(var(--glass-border) / 0.7);
+  }
+
+  .glass-panel {
+    background-color: hsl(var(--glass-bg) / 0.4);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid hsl(var(--glass-border) / 0.5);
+  }
+
+  .glass-strong {
+    background-color: hsl(var(--glass-bg) / 0.8);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid hsl(var(--glass-border) / 0.8);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 24px hsl(var(--cohere-action-blue) / 0.45);
+  }
+
+  .text-glow-coral {
+    text-shadow: 0 0 24px hsl(var(--cohere-coral) / 0.45);
+  }
+
+  .card-glow {
+    box-shadow:
+      0 0 0 1px hsl(var(--glass-border) / 0.6),
+      0 8px 40px -12px hsl(218 77% 62% / 0.18),
+      0 2px 12px -4px hsl(0 0% 0% / 0.5);
+  }
+
+  .card-glow-coral {
+    box-shadow:
+      0 0 0 1px hsl(var(--glass-border) / 0.6),
+      0 8px 40px -12px hsl(var(--cohere-coral) / 0.22),
+      0 2px 12px -4px hsl(0 0% 0% / 0.5);
+  }
+
+  .hairline-t {
+    border-top: 1px solid hsl(var(--border));
+  }
+  .hairline-b {
+    border-bottom: 1px solid hsl(var(--border));
+  }
+}
+
+/* ---------- Scrollbars ---------- */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: hsl(var(--muted-foreground) / 0.3);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 html, body, #root {
   height: 100%;
 }
+

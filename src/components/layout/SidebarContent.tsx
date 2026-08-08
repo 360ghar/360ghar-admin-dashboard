@@ -3,6 +3,8 @@ import { NavItem } from './NavItem'
 import { Separator } from '@/components/ui/separator'
 import { filterByRole, NAV_ROUTES, type NavRoute } from './navConfig'
 import { User } from 'lucide-react'
+import GradientText from '@/components/reactbits/GradientText'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 interface NavSection {
     label?: string
@@ -15,6 +17,7 @@ interface NavSection {
  */
 export const SidebarContent = () => {
     const { role } = useUserRole()
+    const prefersReducedMotion = usePrefersReducedMotion()
 
     const routes = filterByRole(NAV_ROUTES, role)
     const profileItem: NavRoute = { name: 'My Profile', href: role === 'agent' ? '/agents/me' : '/profile', icon: User }
@@ -61,7 +64,17 @@ export const SidebarContent = () => {
     return (
         <div className="flex h-full flex-col">
             <div className="flex-shrink-0 p-4 pb-2">
-                <div className="text-lg font-semibold">360 Ghar</div>
+                {prefersReducedMotion ? (
+                    <div className="text-lg font-semibold">360 Ghar</div>
+                ) : (
+                    <GradientText
+                        className="text-lg font-semibold"
+                        colors={['#ffffff', 'hsl(var(--cohere-action-blue))', '#ffffff']}
+                        animationSpeed={6}
+                    >
+                        360 Ghar
+                    </GradientText>
+                )}
             </div>
             <nav className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
                 {sections.map((section, idx) => (

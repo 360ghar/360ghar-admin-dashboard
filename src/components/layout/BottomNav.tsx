@@ -52,7 +52,7 @@ const BottomNav = () => {
   }
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-cohere-card-border bg-card/80 backdrop-blur-xl pb-safe-bottom">
       <div className="flex items-stretch justify-around">
         {navItems.map((item) => {
           const active = isActive(item.href)
@@ -67,7 +67,7 @@ const BottomNav = () => {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <item.icon className={cn('h-5 w-5', active && 'text-primary')} />
+              <item.icon className={cn('h-5 w-5', active && 'text-primary drop-shadow-[0_0_8px_hsl(var(--cohere-action-blue)/0.6)]')} />
               <span className={cn('text-[10px] font-medium', active && 'text-primary')}>
                 {item.name}
               </span>

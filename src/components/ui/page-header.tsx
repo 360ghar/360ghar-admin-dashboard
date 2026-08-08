@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import SplitText from '@/components/reactbits/SplitText'
+import FadeContent from '@/components/reactbits/FadeContent'
 import { cn } from '@/lib/utils'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export interface PageBreadcrumb {
@@ -21,9 +24,12 @@ export interface PageHeaderProps {
   className?: string
 }
 
+const TITLE_CLASSES = 'text-2xl font-semibold tracking-tight md:text-3xl'
+
 /**
  * Standard page chrome — title, optional description, badge, actions, breadcrumbs.
  * Prefer this over freehand h1 layouts so list/detail pages share hierarchy.
+ * The title uses a one-shot SplitText entrance; description fades in.
  */
 export function PageHeader({
   title,
@@ -35,6 +41,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   useDocumentTitle(title)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -74,14 +81,32 @@ export function PageHeader({
                 <Icon className="h-5 w-5 text-primary md:h-6 md:w-6" aria-hidden />
               </div>
             )}
-            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl truncate">
-              {title}
-            </h1>
+            {prefersReducedMotion ? (
+              <h1 className={cn(TITLE_CLASSES, 'truncate')}>{title}</h1>
+            ) : (
+              <SplitText
+                text={title}
+                tag="h1"
+                splitType="words, chars"
+                delay={14}
+                duration={0.8}
+                threshold={0}
+                rootMargin="0px"
+                className={TITLE_CLASSES}
+              />
+            )}
           </div>
           {description && (
-            <p className="text-muted-foreground text-sm md:text-base max-w-2xl">
-              {description}
-            </p>
+            <FadeContent
+              container="#main-content"
+              threshold={0}
+              duration={700}
+              delay={150}
+              blur
+              className="max-w-2xl"
+            >
+              <p className="text-muted-foreground text-sm md:text-base">{description}</p>
+            </FadeContent>
           )}
         </div>
 

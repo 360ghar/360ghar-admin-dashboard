@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Building2, IndianRupee, LayoutDashboard, Wrench } from 'lucide-react'
+import { Building2, IndianRupee, LayoutDashboard, Wrench } from 'lucide-react'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
 import { selectSelectedOwner } from '@/features/pm/slices/pmSlice'
@@ -11,11 +11,15 @@ import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { StatCard } from '@/features/core/components/dashboard/StatCard'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
+import FadeContent from '@/components/reactbits/FadeContent'
 
 export default function PmDashboardPage() {
   const { role } = useUserRole()
   const selectedOwner = useAppSelector(selectSelectedOwner)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   const ownerId = selectedOwner?.id ?? null
 
@@ -47,91 +51,40 @@ export default function PmDashboardPage() {
 
       {!overview.isError ? (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Managed Properties</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {overview.isLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="text-2xl font-bold">{overview.data?.total_properties ?? 0}</div>
-            )}
-            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Occupied: {overview.data?.occupied_properties ?? 0}</span>
-              <span>•</span>
-              <span>Vacant: {overview.data?.vacant_properties ?? 0}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding Rent</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {overview.isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className="text-2xl font-bold">
-                {formatCurrency(overview.data?.outstanding_rent_total ?? 0)}
-              </div>
-            )}
-            <div className="mt-2">
-              <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <Link to="/pm/rent-ledger">
-                  Open rent ledger <ArrowRight className="ml-1 h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Revenue</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {overview.isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className="text-2xl font-bold">
-                {formatCurrency(overview.data?.monthly_revenue_current ?? 0)}
-              </div>
-            )}
-            <div className="mt-2 text-xs text-muted-foreground">
-              Prev month: {formatCurrency(overview.data?.monthly_revenue_previous ?? 0)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Open Maintenance</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {overview.isLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="text-2xl font-bold">{overview.data?.under_maintenance_properties ?? 0}</div>
-            )}
-            <div className="mt-2">
-              <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <Link to="/pm/maintenance">
-                  Open maintenance <ArrowRight className="ml-1 h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Managed Properties"
+          value={overview.data?.total_properties}
+          icon={Building2}
+          hint={overview.data ? `Occupied: ${overview.data.occupied_properties} • Vacant: ${overview.data.vacant_properties}` : undefined}
+          isLoading={overview.isLoading}
+        />
+        <StatCard
+          title="Outstanding Rent"
+          value={overview.data?.outstanding_rent_total}
+          formatValue={(n) => formatCurrency(n)}
+          icon={IndianRupee}
+          isLoading={overview.isLoading}
+          to="/pm/rent-ledger"
+        />
+        <StatCard
+          title="Monthly Revenue"
+          value={overview.data?.monthly_revenue_current}
+          formatValue={(n) => formatCurrency(n)}
+          icon={IndianRupee}
+          hint={overview.data ? `Prev month: ${formatCurrency(overview.data.monthly_revenue_previous)}` : undefined}
+          isLoading={overview.isLoading}
+        />
+        <StatCard
+          title="Open Maintenance"
+          value={overview.data?.under_maintenance_properties}
+          icon={Wrench}
+          isLoading={overview.isLoading}
+          to="/pm/maintenance"
+        />
       </div>
       ) : null}
 
-      <Card>
+      <Card className="card-glow">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent Activity</CardTitle>
           {role === 'admin' ? (
@@ -154,18 +107,33 @@ export default function PmDashboardPage() {
             </div>
           ) : activity.data?.items?.length ? (
             <div className="space-y-2">
-              {activity.data.items.map((a, idx) => (
-                <div key={`${a.type}-${a.at}-${idx}`} className="flex items-center justify-between gap-4 text-sm">
-                  <div className="min-w-0">
-                    <span className="font-medium">{a.type}</span>
-                    {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
-                    {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
+              {activity.data.items.map((a, idx) => {
+                const row = (
+                  <div className="flex items-center justify-between gap-4 rounded-cohere-md px-2 py-2 text-sm transition-colors hover:bg-muted/40">
+                    <div className="min-w-0">
+                      <span className="font-medium">{a.type}</span>
+                      {a.status ? <span className="text-muted-foreground"> • {a.status}</span> : null}
+                      {a.amount ? <span className="text-muted-foreground"> • {formatCurrency(a.amount)}</span> : null}
+                    </div>
+                    <div className="shrink-0 text-xs text-muted-foreground">
+                      {formatRelativeTime(a.at)}
+                    </div>
                   </div>
-                  <div className="shrink-0 text-xs text-muted-foreground">
-                    {formatRelativeTime(a.at)}
-                  </div>
-                </div>
-              ))}
+                )
+                return prefersReducedMotion ? (
+                  <div key={`${a.type}-${a.at}-${idx}`}>{row}</div>
+                ) : (
+                  <FadeContent
+                    key={`${a.type}-${a.at}-${idx}`}
+                    container="#main-content"
+                    threshold={0}
+                    duration={500}
+                    delay={idx > 6 ? 0 : idx * 60}
+                  >
+                    {row}
+                  </FadeContent>
+                )
+              })}
             </div>
           ) : (
             <EmptyState title="No recent activity" />
