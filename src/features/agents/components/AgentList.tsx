@@ -73,9 +73,10 @@ const AgentList = () => {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
 
   // Unassigned users are only needed while the auto-assign dialog is open —
-  // defer the 100-row fetch until then instead of loading it on every visit.
+  // defer the fetch until then instead of loading it on every visit. The
+  // backend filters to users with no agent (`unassigned=true`).
   const { data: unassignedUsers, isFetching: unassignedUsersFetching } = useGetUsersQuery(
-    { limit: 100 },
+    { limit: 100, unassigned: true },
     { skip: !autoAssignOpen },
   )
 
@@ -205,9 +206,10 @@ const AgentList = () => {
     downloadCsv(csvFilename('agents'), rows)
   }
 
-  // Users without an agent assignment (best-effort client filter)
+  // Users without an agent assignment (server-filtered) — still keep only
+  // active users for the picker.
   const assignableUsers = useMemo(() => {
-    return (unassignedUsers?.items ?? []).filter((u) => !u.agent_id && u.is_active)
+    return (unassignedUsers?.items ?? []).filter((u) => u.is_active)
   }, [unassignedUsers])
 
   // Find the least-loaded active agent
@@ -383,7 +385,7 @@ const AgentList = () => {
                   <p className="text-xs text-muted-foreground">Loading users…</p>
                 )}
                 {!unassignedUsersFetching && assignableUsers.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No unassigned active users found in the current sample.</p>
+                  <p className="text-xs text-muted-foreground">No unassigned active users found.</p>
                 )}
               </div>
             </div>

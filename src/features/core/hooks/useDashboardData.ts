@@ -2,12 +2,12 @@ import { useMemo } from 'react'
 import { useSearchPropertiesQuery } from '@/features/properties/api/propertiesApi'
 import { useGetAllVisitsQuery } from '@/features/visits/api/visitsApi'
 import { useGetAllBookingsQuery } from '@/features/bookings/api/bookingsApi'
+import { useGetSystemStatsQuery } from '@/features/core/api/systemApi'
 import { useUserRole } from '@/hooks/useUserRole'
 import {
   PROPERTY_STATUS_META,
   buildActivityTrend,
   bookingToActivity,
-  computeBusinessMetrics,
   computeStatusBreakdown,
   mergeActivity,
   propertyToActivity,
@@ -70,7 +70,7 @@ export interface DashboardData {
   isLoading: boolean
   /** Activity semantics: hard error only when every source failed. */
   isError: boolean
-  /** Business-metrics semantics: error when visits OR bookings failed. */
+  /** Business-metrics semantics: loading/error from the admin aggregates query. */
   isMetricsLoading: boolean
   isMetricsError: boolean
   refetch: () => void
@@ -78,22 +78,23 @@ export interface DashboardData {
 
 /**
  * Single source of truth for the dashboard page. Subscribes to each list
- * endpoint exactly once and derives the activity feed, engagement trend AND
- * business metrics from the same cached payloads — so widgets share one
- * network request per endpoint instead of firing per-widget queries with
- * different page sizes.
+ * endpoint exactly once and derives the activity feed and engagement trend
+ * from the same cached payloads — so widgets share one network request per
+ * endpoint instead of firing per-widget queries with different page sizes.
  *
- * The visits/bookings page size is role-aware: agents have no business-metrics
- * widget, so 50 rows (the pre-consolidation feed size) is enough, while admins
- * fetch 100 to preserve the revenue/conversion sample semantics.
+ * Exact business aggregates (revenue, booking/visit totals, conversion) come
+ * from the backend `/agents/system/stats` endpoint (admin-only), not from
+ * list-page samples.
  */
 export function useDashboardData(): DashboardData {
   const { role } = useUserRole()
+  // The recent-activity feed/trend only need a bounded window of rows.
   const listLimit = role === 'agent' ? 50 : 100
   const visits = useGetAllVisitsQuery({ limit: listLimit })
   const bookings = useGetAllBookingsQuery({ limit: listLimit })
   const newProperties = useSearchPropertiesQuery({ sort_by: 'newest', limit: 5 })
   const statusBreakdown = usePropertyStatusBreakdown()
+  const systemStats = useGetSystemStatsQuery(undefined, { skip: role !== 'admin' })
 
   const trend = useMemo(
     () => buildActivityTrend(visits.data?.items ?? [], bookings.data?.items ?? []),
@@ -117,10 +118,19 @@ export function useDashboardData(): DashboardData {
     return mergeActivity(entries, 8)
   }, [visits.data, bookings.data, newProperties.data])
 
-  const metrics = useMemo(
-    () => computeBusinessMetrics(visits.data?.items, bookings.data?.items),
-    [visits.data, bookings.data],
-  )
+  // Exact all-time business metrics from the backend aggregates.
+  const metrics = useMemo<BusinessMetricsData>(() => {
+    const revenue = systemStats.data?.total_revenue ?? 0
+    const bookingTotal = systemStats.data?.total_bookings ?? 0
+    const visitTotal = systemStats.data?.total_visits ?? 0
+    return {
+      revenue,
+      bookingTotal,
+      visitTotal,
+      visitToBooking: visitTotal > 0 ? bookingTotal / visitTotal : 0,
+      avgBookingValue: bookingTotal > 0 ? revenue / bookingTotal : 0,
+    }
+  }, [systemStats.data])
 
   const queries = [visits, bookings, newProperties]
   // Keep partial successes: only treat as hard error when every source failed
@@ -135,15 +145,16 @@ export function useDashboardData(): DashboardData {
     statusBreakdown,
     isLoading: anyLoading && feed.length === 0 && !allFailed,
     isError: allFailed,
-    // Business metrics need BOTH sources — a single failed query would
+    // Business metrics need the admin aggregates — a failed stats query would
     // silently zero out conversion rates if we only showed partial samples.
-    isMetricsLoading: visits.isLoading || bookings.isLoading,
-    isMetricsError: visits.isError || bookings.isError,
+    isMetricsLoading: systemStats.isLoading,
+    isMetricsError: systemStats.isError,
     refetch: () => {
       void visits.refetch()
       void bookings.refetch()
       void newProperties.refetch()
       statusBreakdown.refetch()
+      void systemStats.refetch()
     },
   }
 }

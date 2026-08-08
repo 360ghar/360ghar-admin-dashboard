@@ -1,19 +1,5 @@
 export type ManagedPropertyStatus = 'draft' | 'active' | 'archived'
 
-export interface PmSettings {
-  payment_due_day: number
-  grace_period_days: number
-  late_fee_enabled: boolean
-  late_fee_flat?: number | null
-  late_fee_percent?: number | null
-  auto_generate_charges: boolean
-  notify_owner_on_payment: boolean
-  notify_tenant_on_charge: boolean
-  default_lease_term_months: number
-}
-
-export type PmSettingsUpdate = Partial<PmSettings>
-
 export type TenantStatus = 'applicant' | 'approved' | 'active' | 'notice_period' | 'vacated' | 'rejected'
 
 export type LeaseStatus =

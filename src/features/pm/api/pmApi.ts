@@ -50,8 +50,6 @@ import type {
   RentalApplicationDecision,
   RentalApplication,
   ManagedPropertyDetail,
-  PmSettings,
-  PmSettingsUpdate,
 } from '@/types/pm'
 
 import type { RootState } from '@/store'
@@ -836,25 +834,6 @@ export const pmApi = api.injectEndpoints({
         }
       },
     }),
-
-    // PM Settings
-    getPmSettings: builder.query<PmSettings, { owner_id?: number | null } | void>({
-      query: (args) => ({
-        url: '/pm/settings',
-        params: args?.owner_id ? { owner_id: args.owner_id } : undefined,
-      }),
-      providesTags: [{ type: 'PmSettings' as const, id: 'LIST' }],
-    }),
-
-    updatePmSettings: builder.mutation<PmSettings, { owner_id?: number | null; payload: PmSettingsUpdate }>({
-      query: ({ owner_id, payload }) => ({
-        url: '/pm/settings',
-        method: 'PUT',
-        body: payload,
-        params: owner_id ? { owner_id } : undefined,
-      }),
-      invalidatesTags: [{ type: 'PmSettings' as const, id: 'LIST' }],
-    }),
   }),
 })
 
@@ -912,6 +891,4 @@ export const {
   useDeleteApplicationFormMutation,
   useDeleteApplicationMutation,
   useDecideApplicationMutation,
-  useGetPmSettingsQuery,
-  useUpdatePmSettingsMutation,
 } = pmApi

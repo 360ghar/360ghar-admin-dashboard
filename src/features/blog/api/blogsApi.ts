@@ -107,6 +107,7 @@ export const blogsApi = api.injectEndpoints({
         const p = params || {}
         const queryParams: Record<string, string | null> = { limit: String(p.limit || 20) }
         if (p.cursor) queryParams.cursor = p.cursor
+        if (p.include_total) queryParams.include_total = 'true'
         return {
           url: '/blog/categories',
           params: queryParams,
@@ -158,6 +159,7 @@ export const blogsApi = api.injectEndpoints({
         const p = params || {}
         const queryParams: Record<string, string | null> = { limit: String(p.limit || 20) }
         if (p.cursor) queryParams.cursor = p.cursor
+        if (p.include_total) queryParams.include_total = 'true'
         return {
           url: '/blog/tags',
           params: queryParams,

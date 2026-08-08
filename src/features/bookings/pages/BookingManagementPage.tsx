@@ -34,6 +34,22 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
     { skip: !isUser },
   )
 
+  // Exact counts via COUNT-style queries (limit=1 + include_total + status).
+  // The backend returns the precise total per status, so no stat card is
+  // derived from the bounded list sample anymore.
+  const skipBookingStats = !isUser
+  const totalBookingsQ = useGetUserBookingsQuery({ limit: 1, include_total: true }, { skip: skipBookingStats })
+  const pendingBookingsQ = useGetUserBookingsQuery({ limit: 1, include_total: true, status: 'pending' }, { skip: skipBookingStats })
+  const confirmedBookingsQ = useGetUserBookingsQuery({ limit: 1, include_total: true, status: 'confirmed' }, { skip: skipBookingStats })
+  const completedBookingsQ = useGetUserBookingsQuery({ limit: 1, include_total: true, status: 'completed' }, { skip: skipBookingStats })
+
+  const bookingStatsFetching = totalBookingsQ.isFetching || pendingBookingsQ.isFetching || confirmedBookingsQ.isFetching || completedBookingsQ.isFetching
+  const bookingStats = {
+    total: totalBookingsQ.data?.total ?? 0,
+    upcoming: (pendingBookingsQ.data?.total ?? 0) + (confirmedBookingsQ.data?.total ?? 0),
+    completed: completedBookingsQ.data?.total ?? 0,
+  }
+
   // Admin/Agent view
   const { data: allBookings, isLoading: allBookingsLoading, isError: allBookingsError, refetch: refetchAllBookings } = useGetAllBookingsQuery(
     { status: statusFilter === 'all' ? undefined : statusFilter },
@@ -146,7 +162,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
       )}
 
       {/* Stats */}
-      {isUser && userBookings && (
+      {isUser && (
         <FadeContent container="#main-content" threshold={0} duration={600} className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -156,7 +172,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               </span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{userBookings.items.length}</div>
+              <div className="text-2xl font-bold">{bookingStatsFetching ? '…' : bookingStats.total}</div>
             </CardContent>
           </Card>
           <Card>
@@ -167,7 +183,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               </span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{userBookings.items.filter((b) => ['pending', 'confirmed'].includes(b.booking_status)).length}</div>
+              <div className="text-2xl font-bold">{bookingStatsFetching ? '…' : bookingStats.upcoming}</div>
             </CardContent>
           </Card>
           <Card>
@@ -178,7 +194,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               </span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{userBookings.items.filter((b) => b.booking_status === 'completed').length}</div>
+              <div className="text-2xl font-bold">{bookingStatsFetching ? '…' : bookingStats.completed}</div>
             </CardContent>
           </Card>
         </FadeContent>

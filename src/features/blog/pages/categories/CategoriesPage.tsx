@@ -23,6 +23,9 @@ const CategoriesPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const { data: categoriesData, isFetching, error, refetch } = useGetBlogCategoriesQuery({ limit: 100 })
+  // Exact total via a COUNT-style query (limit=1 + include_total), so the
+  // "N categories total" label is never derived from the bounded list sample.
+  const { data: categoriesTotal } = useGetBlogCategoriesQuery({ limit: 1, include_total: true })
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteBlogCategoryMutation()
 
   const handleDeleteCategory = useCallback(async (category: BlogCategory) => {
@@ -83,7 +86,7 @@ const CategoriesPage = () => {
           <EmptyState icon={<Folder className="h-12 w-12" />} title="No categories found" description="Create your first category to organize blog posts." action={{ label: 'New Category', onClick: () => setIsCreateDialogOpen(true) }} />
         ) : (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">{categoriesData.items.length} categories total</div>
+            <div className="text-sm text-muted-foreground">{categoriesTotal?.total ?? '…'} categories total</div>
             <DataTable columns={columns} data={categoriesData.items} />
           </div>
         )}

@@ -15,7 +15,7 @@ const WORKLOAD_COLOR = 'hsl(218 77% 62%)'
 const AnalyticsPage = () => {
   const stats = useGetSystemStatsQuery()
   const workload = useGetWorkloadQuery()
-  const s = stats.data ?? { active_agents: 0, active_users: 0, properties_listed: 0, occupancy_rate: 0 }
+  const s = stats.data
   const workloadData = workload.data?.map((w) => ({
     name: w.agent_name,
     value: w.current_users,
@@ -36,10 +36,10 @@ const AnalyticsPage = () => {
             <ErrorState title="Could not load KPIs" onRetry={() => void stats.refetch()} />
           ) : (
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <StatCard title="Active Agents" value={s.active_agents} formatValue={(n) => formatNumber(n)} icon={Home} isLoading={stats.isLoading} />
-            <StatCard title="Active Users" value={s.active_users} formatValue={(n) => formatNumber(n)} icon={Users} isLoading={stats.isLoading} />
-            <StatCard title="Properties Listed" value={s.properties_listed} formatValue={(n) => formatNumber(n)} icon={Home} isLoading={stats.isLoading} />
-            <StatCard title="Occupancy Rate" value={s.occupancy_rate} formatValue={(n) => formatPercent(n)} icon={Home} isLoading={stats.isLoading} />
+            <StatCard title="Active Agents" value={s?.active_agents} formatValue={(n) => formatNumber(n)} icon={Home} isLoading={stats.isLoading} />
+            <StatCard title="Active Users" value={s?.active_users} formatValue={(n) => formatNumber(n)} icon={Users} isLoading={stats.isLoading} />
+            <StatCard title="Properties Listed" value={s?.properties_listed} formatValue={(n) => formatNumber(n)} icon={Home} isLoading={stats.isLoading} />
+            <StatCard title="Occupancy Rate" value={s?.occupancy_rate} formatValue={(n) => formatPercent(n)} icon={Home} isLoading={stats.isLoading} />
           </div>
           )}
         </CardContent>

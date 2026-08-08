@@ -71,11 +71,13 @@ export interface BlogPostFilters {
 export interface BlogCategoryFilters {
   cursor?: string | null
   limit?: number
+  include_total?: boolean
 }
 
 export interface BlogTagFilters {
   cursor?: string | null
   limit?: number
+  include_total?: boolean
 }
 
 // Create/Update Types

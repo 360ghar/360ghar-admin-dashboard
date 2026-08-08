@@ -20,12 +20,14 @@ export interface VisitsQuery {
 /**
  * Cursor-based query args for the "current user's" visits endpoints.
  * The three list endpoints (`/visits`, `/visits/upcoming`, `/visits/past`)
- * all accept the same `{ cursor, limit }` shape.
+ * all accept the same `{ cursor, limit }` shape; `/visits` also accepts an
+ * optional `status` filter.
  */
 export interface VisitsCursorQuery {
   cursor?: string | null
   limit?: number
   include_total?: boolean
+  status?: string
 }
 
 const DEFAULT_VISITS_LIMIT = 20
@@ -44,9 +46,14 @@ export const visitsApi = api.injectEndpoints({
 
     // Get current user's visits
     getUserVisits: builder.query<PaginatedResponse<Visit>, VisitsCursorQuery>({
-      query: ({ cursor, limit, include_total }) => ({
+      query: ({ cursor, limit, include_total, status }) => ({
         url: '/visits',
-        params: { limit: limit ?? DEFAULT_VISITS_LIMIT, cursor: cursor ?? undefined, ...(include_total ? { include_total: true } : {}) }
+        params: {
+          limit: limit ?? DEFAULT_VISITS_LIMIT,
+          cursor: cursor ?? undefined,
+          status: status ?? undefined,
+          ...(include_total ? { include_total: true } : {})
+        }
       }),
       providesTags: [{type: 'Visit' as const, id: 'LIST'}]
     }),

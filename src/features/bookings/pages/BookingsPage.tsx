@@ -26,19 +26,25 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
   const [searchParams, setSearchParams] = useSearchParams()
   const view = searchParams.get('view') === 'manage' ? 'manage' : 'list'
 
-  const { data, isFetching, isError } = useGetAllBookingsQuery(
-    { limit: 1000, include_total: true },
-    { skip: mode === 'detail' || view === 'manage' },
-  )
+  // Exact counts via COUNT-style queries (limit=1 + include_total + status).
+  // The backend returns the precise total per status, so no stat card is
+  // derived from a bounded page sample anymore.
+  const skipStats = mode === 'detail' || view === 'manage'
+  const totalQ = useGetAllBookingsQuery({ limit: 1, include_total: true }, { skip: skipStats })
+  const pendingQ = useGetAllBookingsQuery({ limit: 1, include_total: true, status: 'pending' }, { skip: skipStats })
+  const confirmedQ = useGetAllBookingsQuery({ limit: 1, include_total: true, status: 'confirmed' }, { skip: skipStats })
+  const completedQ = useGetAllBookingsQuery({ limit: 1, include_total: true, status: 'completed' }, { skip: skipStats })
+  const cancelledQ = useGetAllBookingsQuery({ limit: 1, include_total: true, status: 'cancelled' }, { skip: skipStats })
 
-  const counts = useMemo(() => {
-    const items = data?.items ?? []
-    const total = data?.total ?? items.length
-    const upcoming = items.filter((b) => ['pending', 'confirmed'].includes(b.booking_status)).length
-    const completed = items.filter((b) => b.booking_status === 'completed').length
-    const cancelled = items.filter((b) => b.booking_status === 'cancelled').length
-    return { total, upcoming, completed, cancelled }
-  }, [data])
+  const counts = useMemo(() => ({
+    total: totalQ.data?.total ?? 0,
+    upcoming: (pendingQ.data?.total ?? 0) + (confirmedQ.data?.total ?? 0),
+    completed: completedQ.data?.total ?? 0,
+    cancelled: cancelledQ.data?.total ?? 0,
+  }), [totalQ.data, pendingQ.data, confirmedQ.data, completedQ.data, cancelledQ.data])
+
+  const statsFetching = totalQ.isFetching || pendingQ.isFetching || confirmedQ.isFetching || completedQ.isFetching || cancelledQ.isFetching
+  const statsError = totalQ.isError || pendingQ.isError || confirmedQ.isError || completedQ.isError || cancelledQ.isError
 
   if (mode === 'detail') return <BookingDetail id={Number(params.id)} />
 
@@ -94,34 +100,32 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
             <FadeContent container="#main-content" threshold={0} duration={600} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 icon={<CalendarCheck className="h-4 w-4 text-primary" />}
-                label="Total (up to 1000)"
-                value={isFetching ? '…' : counts.total}
+                label="Total Bookings"
+                value={statsFetching ? '…' : counts.total}
                 tone="bg-primary/10"
               />
               <StatCard
                 icon={<CalendarClock className="h-4 w-4 text-cohere-action-blue" />}
-                label="Upcoming (sample)"
-                value={isFetching ? '…' : counts.upcoming}
+                label="Upcoming"
+                value={statsFetching ? '…' : counts.upcoming}
                 tone="bg-cohere-action-blue/10"
               />
               <StatCard
                 icon={<CheckCircle2 className="h-4 w-4 text-cohere-deep-green" />}
-                label="Completed (sample)"
-                value={isFetching ? '…' : counts.completed}
+                label="Completed"
+                value={statsFetching ? '…' : counts.completed}
                 tone="bg-cohere-deep-green/15"
               />
               <StatCard
                 icon={<XCircle className="h-4 w-4 text-destructive" />}
-                label="Cancelled (sample)"
-                value={isFetching ? '…' : counts.cancelled}
+                label="Cancelled"
+                value={statsFetching ? '…' : counts.cancelled}
                 tone="bg-destructive/10"
               />
             </FadeContent>
-            <p className="text-xs text-muted-foreground">
-              {isError
-                ? 'Could not load booking stats. List below may still work.'
-                : 'Status breakdowns from the most recent 1000 bookings (sample).'}
-            </p>
+            {statsError && (
+              <p className="text-xs text-muted-foreground">Could not load booking stats. List below may still work.</p>
+            )}
           </>
         )}
       </div>

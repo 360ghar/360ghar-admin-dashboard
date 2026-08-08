@@ -51,12 +51,22 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
     { skip: !user || user.role === 'user' }
   )
 
-  // High-limit query for stats KPI cards (not paginated, no cursor) so counts
-  // reflect the full dataset rather than only the current page.
-  const { data: userVisitsStats } = useGetUserVisitsQuery(
-    { limit: 1000, include_total: true },
-    { skip: user?.role !== 'user' }
-  )
+  // Exact counts via COUNT-style queries (limit=1 + include_total + status).
+  // The backend returns the precise total per status, so no stat card is
+  // derived from a bounded sample anymore.
+  const skipStats = user?.role !== 'user'
+  const totalVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true }, { skip: skipStats })
+  const requestedVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true, status: 'requested' }, { skip: skipStats })
+  const confirmedVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true, status: 'confirmed' }, { skip: skipStats })
+  const rescheduledVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true, status: 'reschedule_suggested' }, { skip: skipStats })
+  const completedVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true, status: 'completed' }, { skip: skipStats })
+
+  const statsFetching = totalVisitsQ.isFetching || requestedVisitsQ.isFetching || confirmedVisitsQ.isFetching || rescheduledVisitsQ.isFetching || completedVisitsQ.isFetching
+  const visitStats = {
+    total: totalVisitsQ.data?.total ?? 0,
+    upcoming: (requestedVisitsQ.data?.total ?? 0) + (confirmedVisitsQ.data?.total ?? 0) + (rescheduledVisitsQ.data?.total ?? 0),
+    completed: completedVisitsQ.data?.total ?? 0,
+  }
 
   const [rescheduleVisit] = useRescheduleVisitMutation()
   const [cancelVisit] = useCancelVisitMutation()
@@ -150,7 +160,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
       )}
 
       {/* Stats */}
-      {user.role === 'user' && userVisitsStats && (
+      {user.role === 'user' && (
         <FadeContent container="#main-content" threshold={0} duration={600} className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -159,7 +169,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                 <CalendarIcon className="h-4 w-4 text-cohere-action-blue" />
               </span>
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{userVisitsStats.total ?? userVisitsStats.items.length}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{statsFetching ? '…' : visitStats.total}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -168,7 +178,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                 <Clock className="h-4 w-4 text-cohere-coral" />
               </span>
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{userVisitsStats.items.filter((v) => ['requested', 'confirmed', 'reschedule_suggested'].includes(v.status)).length}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{statsFetching ? '…' : visitStats.upcoming}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -177,7 +187,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                 <Check className="h-4 w-4 text-cohere-deep-green" />
               </span>
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{userVisitsStats.items.filter((v) => v.status === 'completed').length}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{statsFetching ? '…' : visitStats.completed}</div></CardContent>
           </Card>
         </FadeContent>
       )}

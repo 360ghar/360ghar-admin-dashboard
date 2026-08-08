@@ -2,9 +2,10 @@
  * Pure helpers for composing dashboard widgets from existing list endpoints.
  *
  * Kept free of React / RTK so the merge + bucketing logic is unit-testable.
- * The dashboard has no dedicated aggregate endpoint, so these transform the
- * data the platform already exposes (recent visits/bookings/properties) into
- * an activity feed and a short engagement trend.
+ * The recent-activity widgets transform the data the platform already exposes
+ * (recent visits/bookings/properties) into an activity feed and a short
+ * engagement trend. Exact business aggregates (revenue, totals) come from the
+ * backend `/agents/system/stats` endpoint instead — see useDashboardData.
  */
 import { parseServerTimestamp } from '@/lib/dateTime'
 
@@ -130,40 +131,14 @@ export function mergeActivity(entries: ActivityEntry[], limit = 8): ActivityEntr
 }
 
 export interface BusinessMetricsData {
-  /** Sum of total_amount across the fetched booking sample. */
+  /** Sum of total_amount across non-cancelled bookings (all-time). */
   revenue: number
-  /** bookings / visits ratio over the fetched sample (0..1). */
+  /** bookings / visits ratio (all-time, 0..1). */
   visitToBooking: number
-  /** revenue / bookings over the fetched sample. */
+  /** revenue / bookings over non-cancelled bookings (all-time). */
   avgBookingValue: number
   bookingTotal: number
   visitTotal: number
-}
-
-/**
- * Business KPIs (revenue, conversion, average booking value) derived from the
- * shared visits/bookings list samples. Pure so it can be unit-tested and so
- * the dashboard subscribes to each endpoint exactly once.
- */
-export function computeBusinessMetrics(
-  visits: ReadonlyArray<unknown> | null | undefined,
-  bookings: ReadonlyArray<{ total_amount?: number | null }> | null | undefined,
-): BusinessMetricsData {
-  const bookingList = bookings ?? []
-  const visitTotal = visits?.length ?? 0
-  const bookingTotal = bookingList.length
-
-  // Revenue: sum of total_amount across fetched bookings (best-effort sample).
-  const revenue = bookingList.reduce((sum, b) => sum + (b.total_amount ?? 0), 0)
-
-  // Conversion rates use the sampled array lengths (no `total` field is
-  // returned by the cursor-paginated list endpoints).
-  const visitToBooking = visitTotal > 0 ? bookingTotal / visitTotal : 0
-
-  // Average booking value from the sampled bookings.
-  const avgBookingValue = bookingList.length > 0 ? revenue / bookingList.length : 0
-
-  return { revenue, visitToBooking, avgBookingValue, bookingTotal, visitTotal }
 }
 
 interface VisitRow {

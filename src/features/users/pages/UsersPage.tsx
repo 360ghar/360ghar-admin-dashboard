@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { Users, TrendingUp, Shield, Phone } from 'lucide-react'
 import UserList from '../components/UserList'
@@ -16,27 +15,22 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
   const params = useParams()
   const { role } = useUserRole()
 
-  // Cursor-paginated endpoints no longer expose a `total` field, so the Total
-  // Users stat card is derived from a bounded sample (limit=100). Active /
-  // Phone Verified counts come from the same sample unless the admin
-  // system-stats endpoint exposes them directly. The Agents count uses the
-  // exact `total_agents` from system stats — no separate sample fetch.
-  const { data: usersSample, isFetching: usersFetching } = useGetUsersQuery({ limit: 100 })
+  // Exact counts via COUNT-style queries (limit=1 + include_total + filters).
+  // The backend returns the precise total matching each filter, so no stat
+  // card is derived from a bounded sample anymore. Skipped in detail mode,
+  // where the stat row is not rendered.
+  const skipStats = mode === 'detail'
+  const { data: totalUsersData, isFetching: totalUsersFetching } = useGetUsersQuery({ limit: 1, include_total: true }, { skip: skipStats })
+  const { data: activeUsersData, isFetching: activeUsersFetching } = useGetUsersQuery({ limit: 1, include_total: true, is_active: true }, { skip: skipStats })
+  const { data: phoneVerifiedData, isFetching: phoneVerifiedFetching } = useGetUsersQuery({ limit: 1, include_total: true, phone_verified: true }, { skip: skipStats })
   const { data: systemStats, isFetching: systemStatsFetching } = useGetSystemStatsQuery(undefined, {
     skip: role !== 'admin',
   })
 
-  const totalUsers = usersSample?.items?.length ?? 0
-  const activeUsers = useMemo(() => {
-    if (role === 'admin' && typeof systemStats?.active_users === 'number') {
-      return systemStats.active_users
-    }
-    return usersSample?.items?.filter((u) => u.is_active).length ?? 0
-  }, [role, systemStats, usersSample])
-
-  const phoneVerified = useMemo(() => {
-    return usersSample?.items?.filter((u) => u.phone_verified).length ?? 0
-  }, [usersSample])
+  const statsFetching = totalUsersFetching || activeUsersFetching || phoneVerifiedFetching
+  const totalUsers = totalUsersData?.total ?? 0
+  const activeUsers = activeUsersData?.total ?? 0
+  const phoneVerified = phoneVerifiedData?.total ?? 0
 
   if (mode === 'detail') {
     const id = Number(params.id)
@@ -58,7 +52,7 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
             badge={role === 'admin' ? 'Admin View' : 'Agent View'}
           />
 
-          {/* Sample-bounded stats (cursor API has no total) — labels reflect that. */}
+          {/* Exact counts — each card reads a server-computed total. */}
           <FadeContent container="#main-content" threshold={0} duration={600}>
             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
               <div className="flex items-center gap-3 p-4 rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md">
@@ -66,8 +60,8 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                   <Users className="h-4 w-4 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground">Users (up to 100)</p>
-                  {usersFetching ? (
+                  <p className="text-sm text-muted-foreground">Total Users</p>
+                  {statsFetching ? (
                     <p className="text-2xl font-semibold tracking-tight">…</p>
                   ) : (
                     <CountUp
@@ -85,12 +79,8 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                   <TrendingUp className="h-4 w-4 text-cohere-coral" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground">
-                    {role === 'admin' && typeof systemStats?.active_users === 'number'
-                      ? 'Active Users'
-                      : 'Active Users (sample)'}
-                  </p>
-                  {usersFetching ? (
+                  <p className="text-sm text-muted-foreground">Active Users</p>
+                  {statsFetching ? (
                     <p className="text-2xl font-semibold tracking-tight">…</p>
                   ) : (
                     <CountUp
@@ -108,8 +98,8 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                   <Phone className="h-4 w-4 text-cohere-action-blue" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground">Phone Verified (sample)</p>
-                  {usersFetching ? (
+                  <p className="text-sm text-muted-foreground">Phone Verified</p>
+                  {statsFetching ? (
                     <p className="text-2xl font-semibold tracking-tight">…</p>
                   ) : (
                     <CountUp

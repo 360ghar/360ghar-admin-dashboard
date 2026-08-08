@@ -7,7 +7,6 @@ import {
   propertyToActivity,
   type ActivityEntry,
 } from '@/features/core/lib/dashboard'
-
 describe('buildActivityTrend', () => {
   const now = new Date('2026-06-04T12:00:00Z')
 
@@ -82,7 +81,7 @@ describe('activity mappers', () => {
   })
 })
 
-import { computeBusinessMetrics, computeStatusBreakdown } from '@/features/core/lib/dashboard'
+import { computeStatusBreakdown } from '@/features/core/lib/dashboard'
 
 describe('computeStatusBreakdown', () => {  it('extracts totals from queries with total fields', () => {
     const { totals, isLoading, isError } = computeStatusBreakdown([
@@ -122,41 +121,5 @@ describe('computeStatusBreakdown', () => {  it('extracts totals from queries wit
       { data: null, isLoading: false, isError: false },
     ])
     expect(totals).toEqual([0])
-  })
-})
-
-describe('computeBusinessMetrics', () => {
-  it('computes revenue, averages and conversion from the fetched samples', () => {
-    const metrics = computeBusinessMetrics(
-      [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }],
-      [{ total_amount: 1000 }, { total_amount: 2000 }, { total_amount: null }],
-    )
-    expect(metrics.visitTotal).toBe(4)
-    expect(metrics.bookingTotal).toBe(3)
-    expect(metrics.revenue).toBe(3000)
-    expect(metrics.avgBookingValue).toBe(1000)
-    expect(metrics.visitToBooking).toBe(0.75)
-  })
-
-  it('returns zeros when there is no data', () => {
-    expect(computeBusinessMetrics(null, undefined)).toEqual({
-      revenue: 0,
-      visitToBooking: 0,
-      avgBookingValue: 0,
-      bookingTotal: 0,
-      visitTotal: 0,
-    })
-  })
-
-  it('returns zero conversion when there are visits but no bookings', () => {
-    const metrics = computeBusinessMetrics([{ id: 1 }], [])
-    expect(metrics.visitToBooking).toBe(0)
-    expect(metrics.avgBookingValue).toBe(0)
-  })
-
-  it('ignores missing total_amount on bookings', () => {
-    const metrics = computeBusinessMetrics([{ id: 1 }], [{}, { total_amount: 500 }])
-    expect(metrics.revenue).toBe(500)
-    expect(metrics.avgBookingValue).toBe(250)
   })
 })

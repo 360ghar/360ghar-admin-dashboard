@@ -78,7 +78,6 @@ export const NAV_ROUTES: NavRoute[] = [
       { name: 'Documents', href: '/pm/documents', icon: Folder },
       { name: 'Reports', href: '/pm/reports', icon: FileBarChart },
       { name: 'Audit Log', href: '/pm/audit', icon: FileText, roles: ['admin'] },
-      { name: 'Settings', href: '/pm/settings', icon: Settings, roles: ['admin'] },
     ],
   },
   { name: 'Users', href: '/users', icon: Users },

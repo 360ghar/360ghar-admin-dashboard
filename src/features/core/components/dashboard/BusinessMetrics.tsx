@@ -12,12 +12,11 @@ interface BusinessMetricsProps {
 }
 
 /**
- * Business KPIs for the admin dashboard: monthly revenue, booking conversion,
- * visit-to-booking conversion, and average booking value.
+ * Business KPIs for the admin dashboard: revenue, average booking value,
+ * visit-to-booking conversion, and total bookings.
  *
- * Presentational only — the data comes from the shared dashboard queries
- * (see `useDashboardData`) so the page subscribes to `/visits/all` and
- * `/bookings/all` exactly once instead of once per widget.
+ * Presentational only — the exact all-time numbers come from the backend
+ * `/agents/system/stats` aggregates (see `useDashboardData`).
  */
 export function BusinessMetrics({ metrics, isLoading, isError, onRetry }: BusinessMetricsProps) {
   if (isError) {
@@ -27,11 +26,11 @@ export function BusinessMetrics({ metrics, isLoading, isError, onRetry }: Busine
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        title="Revenue (recent bookings)"
+        title="Revenue"
         value={metrics.revenue}
         formatValue={(n) => formatCurrency(n)}
         icon={IndianRupee}
-        hint={`Across ${formatNumber(metrics.bookingTotal)} recent bookings`}
+        hint="All-time · excludes cancelled"
         isLoading={isLoading}
       />
       <StatCard
@@ -39,6 +38,7 @@ export function BusinessMetrics({ metrics, isLoading, isError, onRetry }: Busine
         value={metrics.avgBookingValue}
         formatValue={(n) => formatCurrency(n)}
         icon={TrendingUp}
+        hint="All-time"
         isLoading={isLoading}
       />
       <StatCard
@@ -46,14 +46,15 @@ export function BusinessMetrics({ metrics, isLoading, isError, onRetry }: Busine
         value={metrics.visitToBooking * 100}
         formatValue={(n) => formatPercent(n)}
         icon={Target}
-        hint={`Recent sample: ${formatNumber(metrics.bookingTotal)} bookings / ${formatNumber(metrics.visitTotal)} visits`}
+        hint={`All-time: ${formatNumber(metrics.bookingTotal)} bookings / ${formatNumber(metrics.visitTotal)} visits`}
         isLoading={isLoading}
       />
       <StatCard
-        title="Recent Bookings"
+        title="Total Bookings"
         value={metrics.bookingTotal}
         formatValue={(n) => formatNumber(n)}
         icon={CalendarCheck}
+        hint="All-time"
         isLoading={isLoading}
       />
     </div>

@@ -26,6 +26,8 @@ export interface BookingsQuery {
 export interface BookingsCursorQuery {
   cursor?: string | null
   limit?: number
+  include_total?: boolean
+  status?: string
 }
 
 export const bookingsApi = api.injectEndpoints({
@@ -44,7 +46,14 @@ export const bookingsApi = api.injectEndpoints({
     getUserBookings: builder.query<PaginatedResponse<Booking>, BookingsCursorQuery | void>({
       query: (params) => ({
         url: '/bookings',
-        params: params ? { limit: 20, ...params } : undefined,
+        params: params
+          ? {
+              limit: params.limit ?? 20,
+              cursor: params.cursor ?? undefined,
+              status: params.status ?? undefined,
+              ...(params.include_total ? { include_total: true } : {})
+            }
+          : undefined,
       }),
       providesTags: [{type: 'Booking' as const, id: 'LIST'}]
     }),

@@ -23,6 +23,9 @@ const TagsPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const { data: tagsData, isFetching, error, refetch } = useGetBlogTagsQuery({ limit: 100 })
+  // Exact total via a COUNT-style query (limit=1 + include_total), so the
+  // "N tags total" label is never derived from the bounded list sample.
+  const { data: tagsTotal } = useGetBlogTagsQuery({ limit: 1, include_total: true })
   const [deleteTag, { isLoading: isDeleting }] = useDeleteBlogTagMutation()
 
   const handleDeleteTag = useCallback(async (tag: BlogTag) => {
@@ -82,7 +85,7 @@ const TagsPage = () => {
           <EmptyState icon={<Tag className="h-12 w-12" />} title="No tags found" description="Create your first tag to label blog posts." action={{ label: 'New Tag', onClick: () => setIsCreateDialogOpen(true) }} />
         ) : (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">{tagsData.items.length} tags total</div>
+            <div className="text-sm text-muted-foreground">{tagsTotal?.total ?? '…'} tags total</div>
             <DataTable columns={columns} data={tagsData.items} />
           </div>
         )}

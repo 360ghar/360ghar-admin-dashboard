@@ -59,7 +59,6 @@ const PmInspectionsPage = lazy(() => import('@/features/pm/pages/PmInspectionsPa
 const PmInspectionDetailPage = lazy(() => import('@/features/pm/pages/PmInspectionDetailPage'))
 const PmReportsPage = lazy(() => import('@/features/pm/pages/PmReportsPage'))
 const PmAuditLogPage = lazy(() => import('@/features/pm/pages/PmAuditLogPage'))
-const PmSettingsPage = lazy(() => import('@/features/pm/pages/PmSettingsPage'))
 
 function App() {
   const dispatch = useAppDispatch()
@@ -228,7 +227,6 @@ function App() {
 
                   {/* PM admin-only */}
                   <Route path="/pm/audit" element={<ErrorBoundary><PmAuditLogPage /></ErrorBoundary>} />
-                  <Route path="/pm/settings" element={<ErrorBoundary><PmSettingsPage /></ErrorBoundary>} />
                 </Route>
               </Route>
             </Route>

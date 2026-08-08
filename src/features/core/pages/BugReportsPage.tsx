@@ -36,6 +36,15 @@ const BugReportsPage: React.FC = () => {
     limit: 20,
     include_total: true})
 
+  // Exact counts via COUNT-style queries (limit=1 + include_total + filters).
+  // Unfiltered so the stat cards always reflect the whole system, not the
+  // current page/filter selection.
+  const totalQ = useGetBugReportsQuery({ limit: 1, include_total: true })
+  const openQ = useGetBugReportsQuery({ limit: 1, include_total: true, status: 'open' })
+  const inProgressQ = useGetBugReportsQuery({ limit: 1, include_total: true, status: 'in_progress' })
+  const resolvedQ = useGetBugReportsQuery({ limit: 1, include_total: true, status: 'resolved' })
+  const criticalQ = useGetBugReportsQuery({ limit: 1, include_total: true, severity: 'critical' })
+
   const [updateBugReport] = useUpdateBugReportMutation()
 
   const reports = bugReports?.items ?? []
@@ -67,13 +76,15 @@ const BugReportsPage: React.FC = () => {
     }
   }
 
-  // Statistics
+  // Statistics (server-computed totals)
   const stats = {
-    total: bugReports?.total ?? reports.length,
-    open: reports.filter(r => r.status === 'open').length,
-    inProgress: reports.filter(r => r.status === 'in_progress').length,
-    resolved: reports.filter(r => r.status === 'resolved').length,
-    critical: reports.filter(r => r.severity === 'critical').length}
+    total: totalQ.data?.total ?? 0,
+    open: openQ.data?.total ?? 0,
+    inProgress: inProgressQ.data?.total ?? 0,
+    resolved: resolvedQ.data?.total ?? 0,
+    critical: criticalQ.data?.total ?? 0}
+  const statsLoading = totalQ.isLoading || openQ.isLoading || inProgressQ.isLoading || resolvedQ.isLoading || criticalQ.isLoading
+  const statsError = totalQ.isError || openQ.isError || inProgressQ.isError || resolvedQ.isError || criticalQ.isError
 
   const handleExport = () => {
     const rows = reports.map((r) => ({
@@ -113,7 +124,7 @@ const BugReportsPage: React.FC = () => {
             <Bug className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -122,7 +133,7 @@ const BugReportsPage: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.open}</div>
+            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.open}</div>
           </CardContent>
         </Card>
         <Card>
@@ -131,7 +142,7 @@ const BugReportsPage: React.FC = () => {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.inProgress}</div>
+            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.inProgress}</div>
           </CardContent>
         </Card>
         <Card>
@@ -140,7 +151,7 @@ const BugReportsPage: React.FC = () => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.resolved}</div>
+            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.resolved}</div>
           </CardContent>
         </Card>
         <Card>
@@ -149,13 +160,15 @@ const BugReportsPage: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.critical}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statsLoading ? '…' : stats.critical}</div>
           </CardContent>
         </Card>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Status counts (Open / In Progress / Resolved / Critical) are from the current page sample (up to 20). Total uses the server total when available.
+        {statsError
+          ? 'Could not load report stats. List below may still work.'
+          : 'Counts are exact server totals across all reports.'}
       </p>
 
       {/* Filters */}

@@ -202,14 +202,19 @@ export interface AgentWorkload {
 export interface AgentSystemStats {
   total_agents: number
   active_agents: number
-  active_users?: number
-  properties_listed?: number
-  occupancy_rate?: number
+  /** Exact platform aggregates served by /agents/system/stats. */
+  active_users: number
+  properties_listed: number
+  /** Percentage 0-100: properties with an active lease / all properties. */
+  occupancy_rate: number
+  total_bookings: number
+  total_visits: number
+  /** Sum of total_amount across non-cancelled bookings. */
+  total_revenue: number
   total_users_served: number
   system_satisfaction_score: number
   agents_by_type: Record<string, number>
   load_distribution: AgentWorkload[]
-  [key: string]: number | string | Record<string, number> | AgentWorkload[] | undefined
 }
 
 export interface AgentWithStats extends Agent {
@@ -542,6 +547,7 @@ export interface BugReportUpdate {
 export interface BugReportsQuery {
   status?: string
   bug_type?: string
+  severity?: string
   limit?: number
   cursor?: string | null
   include_total?: boolean
@@ -690,6 +696,11 @@ export interface UsersQuery {
   limit?: number
   q?: string
   agent_id?: number
+  /** Admin only: only users with no assigned agent. */
+  unassigned?: boolean
+  is_active?: boolean
+  phone_verified?: boolean
+  include_total?: boolean
 }
 
 // Flatmates Moderation Types

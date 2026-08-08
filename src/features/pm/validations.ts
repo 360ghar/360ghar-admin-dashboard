@@ -216,38 +216,3 @@ export const pmLeaseTerminateSchema = z.object({
 })
 
 export type PmLeaseTerminateForm = z.infer<typeof pmLeaseTerminateSchema>
-
-export const pmSettingsSchema = z.object({
-  payment_due_day: z
-    .number({ invalid_type_error: 'Required' })
-    .int('Must be a whole number')
-    .min(1, 'Due day must be between 1 and 28')
-    .max(28, 'Due day must be between 1 and 28'),
-  grace_period_days: z
-    .number({ invalid_type_error: 'Required' })
-    .int('Must be a whole number')
-    .min(0, 'Cannot be negative')
-    .max(30, 'Cannot exceed 30 days'),
-  late_fee_enabled: z.boolean(),
-  late_fee_flat: z
-    .number({ invalid_type_error: 'Must be a number' })
-    .min(0, 'Cannot be negative')
-    .nullable()
-    .optional(),
-  late_fee_percent: z
-    .number({ invalid_type_error: 'Must be a number' })
-    .min(0, 'Cannot be negative')
-    .max(100, 'Cannot exceed 100')
-    .nullable()
-    .optional(),
-  auto_generate_charges: z.boolean(),
-  notify_owner_on_payment: z.boolean(),
-  notify_tenant_on_charge: z.boolean(),
-  default_lease_term_months: z
-    .number({ invalid_type_error: 'Required' })
-    .int('Must be a whole number')
-    .min(1, 'Must be at least 1 month')
-    .max(60, 'Cannot exceed 60 months'),
-})
-
-export type PmSettingsForm = z.infer<typeof pmSettingsSchema>

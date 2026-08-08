@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   pmPropertyCreateSchema,
-  pmSettingsSchema,
   pmChargeGenerateSchema,
   pmMaintenanceUpdateSchema,
   pmLeaseTerminateSchema,
@@ -57,35 +56,6 @@ describe('pmPropertyCreateSchema', () => {
 
   it('rejects negative daily rate', () => {
     expect(pmPropertyCreateSchema.safeParse({ ...base, daily_rate: '-1' }).success).toBe(false)
-  })
-})
-
-describe('pmSettingsSchema', () => {
-  it('enforces payment due day 1-28 and grace 0-30', () => {
-    expect(pmSettingsSchema.safeParse({
-      payment_due_day: 5, grace_period_days: 5, late_fee_enabled: false,
-      auto_generate_charges: false, notify_owner_on_payment: false,
-      notify_tenant_on_charge: false, default_lease_term_months: 12,
-    }).success).toBe(true)
-    expect(pmSettingsSchema.safeParse({
-      payment_due_day: 0, grace_period_days: 5, late_fee_enabled: false,
-      auto_generate_charges: false, notify_owner_on_payment: false,
-      notify_tenant_on_charge: false, default_lease_term_months: 12,
-    }).success).toBe(false)
-    expect(pmSettingsSchema.safeParse({
-      payment_due_day: 5, grace_period_days: 31, late_fee_enabled: false,
-      auto_generate_charges: false, notify_owner_on_payment: false,
-      notify_tenant_on_charge: false, default_lease_term_months: 12,
-    }).success).toBe(false)
-  })
-
-  it('caps late fee percent at 100', () => {
-    expect(pmSettingsSchema.safeParse({
-      payment_due_day: 5, grace_period_days: 5, late_fee_enabled: true,
-      late_fee_percent: 101, auto_generate_charges: false,
-      notify_owner_on_payment: false, notify_tenant_on_charge: false,
-      default_lease_term_months: 12,
-    }).success).toBe(false)
   })
 })
 
