@@ -1,33 +1,49 @@
-/**
- * Minimal error-reporting sink.
- *
- * Every render error in the app funnels through `reportError` (see
- * `components/common/ErrorBoundary.tsx`). Until a crash service (Sentry or
- * equivalent) is provisioned, this emits a structured console report that
- * captures the error name/message/stack plus the component stack — the only
- * diagnostic signal available in production today.
- *
- * To enable real telemetry: replace the body with your SDK's capture call and
- * keep the try/catch guard so the reporter itself can never throw.
- */
+/** A local reporting adapter. Only allowlisted diagnostic context is emitted. */
 
 export interface ReportedErrorContext {
   componentStack?: string
-  extra?: Record<string, unknown>
+  operation?: string
+  route?: string
+  release?: string
+  requestId?: string
+}
+
+const MAX_DIAGNOSTIC_LENGTH = 2000
+
+function redact(value: string | undefined): string | undefined {
+  if (!value) return value
+  return value
+    .replace(/https?:\/\/[^\s)]+/gi, '[url]')
+    .replace(/Bearer\s+[^\s,;]+/gi, 'Bearer [redacted]')
+    .replace(/\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, '[token]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
+    .replace(/\b\d{10,}\b/g, '[number]')
+    .replace(/\b(access_token|refresh_token|api_key|password|token)=([^\s&]+)/gi, '$1=[redacted]')
+    .slice(0, MAX_DIAGNOSTIC_LENGTH)
+}
+
+function safeRoute(pathname: string): string {
+  return pathname
+    .split('/')
+    .map((part) => /^\d+$|^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(part) ? ':id' : part)
+    .join('/')
 }
 
 export function reportError(error: unknown, context: ReportedErrorContext = {}): void {
   try {
-    const detail: Record<string, unknown> = {
+    const configuredRelease: unknown = import.meta.env.VITE_RELEASE
+    const detail = {
       name: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      componentStack: context.componentStack,
-      ...(context.extra ?? {}),
-      href: typeof window !== 'undefined' ? window.location.href : undefined,
+      message: redact(error instanceof Error ? error.message : String(error)),
+      stack: redact(error instanceof Error ? error.stack : undefined),
+      componentStack: redact(context.componentStack),
+      route: safeRoute(context.route ?? (typeof window !== 'undefined' ? window.location.pathname : '')),
+      operation: redact(context.operation),
+      release: redact(context.release ?? (typeof configuredRelease === 'string' ? configuredRelease : import.meta.env.MODE)),
+      requestId: redact(context.requestId),
     }
-    console.error('[360Ghar] Uncaught error', detail)
+    console.error('[360Ghar] Error', detail)
   } catch {
-    // Never let the reporter itself throw.
+    // Reporting must never interrupt the user flow.
   }
 }

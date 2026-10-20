@@ -1,58 +1,34 @@
 /**
  * Map server / RTK Query errors onto react-hook-form fields.
  *
- * The FastAPI backend returns validation errors as
- *   422 → { detail: [{ loc: ["body", "field", ...], msg, type }] }
- * and other failures as
- *   400/4xx → { detail: "message" }  (or a network error with no body).
+ * The backend returns every error in one envelope:
+ *   422 → { error: { code: "VALIDATION_ERROR", message, details: { fields: [{ field, msg, type }] } } }
+ *   other 4xx → { error: { code, message, details? } }  (or a network error with no body).
  *
  * `applyServerValidation` turns the former into per-field `setError` calls and
  * routes anything it can't map (plus generic failures) to the form `root`
  * error, which `<FormRootError>` renders at the top of the form.
  */
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
-import { getErrorMessage, isApiError } from '@/lib/errors'
+import { getErrorMessage, getFieldErrors } from '@/lib/errors'
 
-interface FastApiValidationItem {
-  loc?: (string | number)[]
-  msg?: string
-  type?: string
-}
-
+/** `field` keeps its source prefix: `body.price`, `query.limit`, `path.id`. */
 const LOC_PREFIXES = new Set(['body', 'query', 'path', 'header', 'cookie'])
 
 function capitalize(value: string): string {
   return value.length ? value.charAt(0).toUpperCase() + value.slice(1) : value
 }
 
-/** Pull `{ field: message }` pairs out of a FastAPI/RTK Query error, if any. */
+/** Pull `{ field: message }` pairs out of a 422 envelope, if any. */
 export function extractFieldErrors(error: unknown): Record<string, string> {
   const result: Record<string, string> = {}
-  if (!isApiError(error) || !error.data) return result
-
-  const detail = (error.data as { detail?: unknown }).detail
-  if (Array.isArray(detail)) {
-    for (const item of detail as FastApiValidationItem[]) {
-      if (!item || !Array.isArray(item.loc) || !item.msg) continue
-      const segments = item.loc
-        .filter((part, index) => !(index === 0 && typeof part === 'string' && LOC_PREFIXES.has(part)))
-        .map((part) => String(part))
-      const field = segments.join('.')
-      if (field && !(field in result)) {
-        result[field] = capitalize(item.msg)
-      }
+  for (const item of getFieldErrors(error)) {
+    const segments = item.field.split('.').filter((part, index) => !(index === 0 && LOC_PREFIXES.has(part)))
+    const field = segments.join('.')
+    if (field && !(field in result)) {
+      result[field] = capitalize(item.msg)
     }
   }
-
-  // Alternative shape used by some endpoints: { errors: { field: [msg] } }.
-  const errors = (error.data as { errors?: Record<string, string[] | string> }).errors
-  if (errors && typeof errors === 'object') {
-    for (const [field, messages] of Object.entries(errors)) {
-      if (field in result) continue
-      result[field] = Array.isArray(messages) ? String(messages[0]) : String(messages)
-    }
-  }
-
   return result
 }
 
@@ -63,6 +39,8 @@ interface ApplyServerValidationOptions {
    * it to avoid setting errors on fields the form doesn't render.
    */
   knownFields?: readonly string[]
+  /** Rename server field names to form field names (for example `deep_link` to `route`). Applied before `knownFields`. */
+  fieldMap?: Readonly<Record<string, string>>
   /** Fallback root message when nothing maps to a field. */
   fallback?: string
 }
@@ -83,7 +61,8 @@ export function applyServerValidation<TFieldValues extends FieldValues>(
   const unmapped: string[] = []
   let appliedField = false
 
-  for (const [field, message] of Object.entries(fieldErrors)) {
+  for (const [serverField, message] of Object.entries(fieldErrors)) {
+    const field = options?.fieldMap?.[serverField] ?? serverField
     if (options?.knownFields && !options.knownFields.includes(field)) {
       unmapped.push(message)
       continue

@@ -33,6 +33,20 @@ describe('sanitizeFetchArgs', () => {
     })
   })
 
+  it('holds limit to the backend maximum of 100 (a larger limit is a 422)', () => {
+    expect(sanitizeFetchArgs({ url: '/pm/rent/charges', params: { limit: 200 } })).toEqual({
+      url: '/pm/rent/charges',
+      params: { limit: 100 },
+    })
+    expect(sanitizeFetchArgs({ url: '/pm/rent/charges', params: { limit: '250', q: 'a' } })).toEqual({
+      url: '/pm/rent/charges',
+      params: { limit: 100, q: 'a' },
+    })
+    expect(sanitizeFetchArgs({ url: '/x', params: { limit: 100 } })).toEqual({ url: '/x', params: { limit: 100 } })
+    const clamped = sanitizeFetchArgs({ url: '/properties', params: new URLSearchParams({ limit: '500', status: 'sold' }) })
+    expect(typeof clamped === 'string' ? null : (clamped.params as URLSearchParams).toString()).toBe('limit=100&status=sold')
+  })
+
   it('returns args unchanged when params is an array or missing', () => {
     const urlOnly = { url: '/properties', params: undefined }
     expect(sanitizeFetchArgs(urlOnly)).toBe(urlOnly)

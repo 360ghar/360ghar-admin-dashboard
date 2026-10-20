@@ -1,24 +1,67 @@
-import type { User } from '@/types'
+import type { AuthMethod as ApiAuthMethod, SelfUser } from '@/types'
 import { API_BASE_URL, ALLOWED_GOOGLE_EMAIL_DOMAINS } from '@/lib/config'
 import { supabase } from '@/lib/supabase'
+import { isRecord } from '@/lib/storage'
 
 export interface ProfileFetchResult {
-  user: User | null
+  user: SelfUser | null
   /** HTTP status when the backend responded; null on network/parse failure. */
   status: number | null
 }
 
+const stringOrNull = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+
 /**
+ * Validate `GET /users/profile` (`SelfUser`) at the boundary. The backend
+ * allows a null email, name and phone, and the portal keeps them null: it
+ * shows a placeholder instead of inventing an empty string.
+ *
  * Fetch the backend profile, distinguishing "backend says there is no such
  * staff account" (404) from "backend unreachable / transient failure"
  * (status === null). Callers use the distinction to decide between bouncing
  * the user (404) and falling back to a cached profile (transient).
  */
-export async function fetchUserProfileWithStatus(token: string): Promise<ProfileFetchResult> {
+function normalizeUserProfile(value: unknown): SelfUser | null {
+  if (!isRecord(value)) return null
+  if (typeof value.id !== 'number' || !Number.isInteger(value.id) || value.id <= 0) return null
+  if (typeof value.supabase_user_id !== 'string' || !value.supabase_user_id) return null
+  if (value.email != null && typeof value.email !== 'string') return null
+  if (value.full_name != null && typeof value.full_name !== 'string') return null
+  if (value.role !== 'admin' && value.role !== 'agent' && value.role !== 'user') return null
+  if (typeof value.is_active !== 'boolean' || typeof value.is_verified !== 'boolean') return null
+  if (typeof value.created_at !== 'string') return null
+  if (value.updated_at != null && typeof value.updated_at !== 'string') return null
+  if (value.agent_id != null && typeof value.agent_id !== 'number') return null
+  return {
+    id: value.id,
+    supabase_user_id: value.supabase_user_id,
+    email: stringOrNull(value.email),
+    full_name: stringOrNull(value.full_name),
+    phone: stringOrNull(value.phone),
+    date_of_birth: stringOrNull(value.date_of_birth),
+    profile_image_url: stringOrNull(value.profile_image_url),
+    role: value.role,
+    is_active: value.is_active,
+    is_verified: value.is_verified,
+    phone_verified: value.phone_verified === true,
+    email_verified: value.email_verified === true,
+    agent_id: typeof value.agent_id === 'number' ? value.agent_id : null,
+    created_at: value.created_at,
+    updated_at: stringOrNull(value.updated_at),
+  }
+}
+
+export async function fetchUserProfileWithStatus(
+  token: string,
+  expectedAccountId?: string,
+): Promise<ProfileFetchResult> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10_000)
   try {
     // No trailing slash: backend redirect_slashes=False → `/users/profile/` is 404.
     const res = await fetch(`${API_BASE_URL}/users/profile`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
     if (!res.ok) {
       // Log non-404 failures so transient backend errors aren't invisible.
@@ -27,13 +70,20 @@ export async function fetchUserProfileWithStatus(token: string): Promise<Profile
       }
       return { user: null, status: res.status }
     }
-    return { user: (await res.json()) as User, status: res.status }
+    const value: unknown = await res.json()
+    const user = normalizeUserProfile(value)
+    if (!user || (expectedAccountId && user.supabase_user_id !== expectedAccountId)) {
+      return { user: null, status: res.status }
+    }
+    return { user, status: res.status }
   } catch {
     return { user: null, status: null }
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
-export async function fetchUserProfileWithToken(token: string): Promise<User | null> {
+export async function fetchUserProfileWithToken(token: string): Promise<SelfUser | null> {
   const { user } = await fetchUserProfileWithStatus(token)
   return user
 }
@@ -69,12 +119,21 @@ export async function signInWithGoogle(): Promise<void> {
 export type IdentifierChannel = 'phone' | 'email'
 export type IdentifierNextStep = 'password' | 'otp'
 
+/** Mirrors `IdentifierStatusResponse` (`channel` is `email|phone`, `next_step` is `password|otp`). */
 export interface IdentifierStatus {
   exists: boolean
   verified: boolean
   has_password: boolean
   channel: IdentifierChannel
   next_step: IdentifierNextStep
+}
+
+function isIdentifierStatus(value: unknown): value is IdentifierStatus {
+  if (!isRecord(value)) return false
+  return typeof value.exists === 'boolean' && typeof value.verified === 'boolean' &&
+    typeof value.has_password === 'boolean' &&
+    (value.channel === 'phone' || value.channel === 'email') &&
+    (value.next_step === 'password' || value.next_step === 'otp')
 }
 
 /**
@@ -95,19 +154,16 @@ export async function checkIdentifierStatus(identifier: string): Promise<Identif
     if (!res.ok) {
       return null
     }
-    return (await res.json()) as IdentifierStatus
+    const value: unknown = await res.json()
+    return isIdentifierStatus(value) ? value : null
   } catch {
     // Network / CORS / backend-down — caller falls back to default flow
     return null
   }
 }
 
-export type AuthMethod =
-  | 'google'
-  | 'email_password'
-  | 'phone_password'
-  | 'phone_otp'
-  | 'email_otp'
+/** The backend `AuthMethod` enum: google, apple, email_password, phone_password, phone_otp, email_otp. */
+export type AuthMethod = ApiAuthMethod
 
 /**
  * Mirror the last-used auth method to the backend (best-effort; never throws).
