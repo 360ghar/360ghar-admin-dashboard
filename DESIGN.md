@@ -167,9 +167,9 @@ CSS variables, so the variant switch is automatic (`:root` vs `.dark` in `src/in
 
 ## Typography
 
-**Inter is the only font family currently applied** (Tailwind `sans` — the body default
-inherits it everywhere). The config defines a **Space Grotesk display token** (loaded via
-Google Fonts in `src/index.css`, `Inter` 100–900 + `Space Grotesk` 400–700) for
+**Inter Variable is the main font family** (Tailwind `sans` — the body default
+inherits it everywhere). The config defines a **Space Grotesk Variable display token** (both
+fonts are bundled from Fontsource and served from this site) for
 display/headline moments — apply it with `font-display` on KPIs and page titles; it is
 **not yet used in any component**, so new display moments should adopt it per the tokens
 below rather than staying on Inter.
