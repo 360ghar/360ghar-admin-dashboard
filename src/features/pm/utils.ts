@@ -3,11 +3,11 @@ import type { User } from '@/types'
 // New code should import directly from `@/lib/csv`.
 export { downloadCsv, csvFilename } from '@/lib/csv'
 
-export const getOwnerLabel = (u: Pick<User, 'full_name' | 'phone' | 'email'>) =>
-  (u.full_name || u.phone || u.email || 'Unnamed owner').trim()
+/**
+ * Owner label. The selected owner is saved in local storage, so the label never falls back to
+ * the owner's phone or email: no contact data is stored on this machine.
+ */
+export const getOwnerLabel = (u: Pick<User, 'id' | 'full_name'>) => u.full_name?.trim() || `Owner #${u.id}`
 
-export const getKycStatus = (u: User): string => {
-  const prefs = u.preferences as unknown as Record<string, unknown> | undefined
-  const raw = prefs?.pm_kyc_status ?? prefs?.kyc_status
-  return typeof raw === 'string' && raw.trim() ? raw : 'unknown'
-}
+/** An HTML month input gives `YYYY-MM`. Charge generation takes the first day of the month: `YYYY-MM-01`. */
+export const monthToFirstDay = (month: string) => `${month}-01`

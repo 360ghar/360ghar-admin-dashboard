@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import { readJSON, writeJSON } from '@/lib/storage'
 
 export type ViewMode = 'table' | 'cards'
+const isViewMode = (value: unknown): value is ViewMode => value === 'table' || value === 'cards'
+const readViewMode = (key: string, fallback: ViewMode) => readJSON(key, fallback, isViewMode)
 
 interface ViewToggleProps {
   view: ViewMode
@@ -42,14 +44,18 @@ export function ViewToggle({ view, onChange, className }: ViewToggleProps) {
  */
 export function useViewMode(key: string, defaultView: ViewMode = 'table'): [ViewMode, (view: ViewMode) => void] {
   const storageKey = `view-mode-${key}`
-  const isViewMode = (value: unknown): value is ViewMode => value === 'table' || value === 'cards'
 
-  const [view, setViewState] = React.useState<ViewMode>(() =>
-    readJSON(storageKey, defaultView, isViewMode),
-  )
+  const [state, setState] = React.useState(() => ({ key: storageKey, view: readViewMode(storageKey, defaultView) }))
+  // Derive the new account's value during render so the old view is never shown
+  // while the effect synchronizes state after a scoped key change.
+  const view = state.key === storageKey ? state.view : readViewMode(storageKey, defaultView)
+
+  React.useEffect(() => {
+    if (state.key !== storageKey) setState({ key: storageKey, view: readViewMode(storageKey, defaultView) })
+  }, [state.key, storageKey, defaultView])
 
   const setView = (newView: ViewMode) => {
-    setViewState(newView)
+    setState({ key: storageKey, view: newView })
     writeJSON(storageKey, newView)
   }
 

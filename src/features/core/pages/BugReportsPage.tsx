@@ -15,21 +15,24 @@ import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
-import type { BugReportUpdate } from '@/types/api'
+import type { BugReportUpdate, BugStatus, BugType } from '@/types/api'
 import { BugReportCard } from '@/features/core/components/bug-reports/BugReportCard'
 import { CreateBugReportDialog } from '@/features/core/components/bug-reports/CreateBugReportDialog'
 import { downloadCsv, csvFilename } from '@/lib/csv'
 
+const BUG_STATUSES: readonly BugStatus[] = ['open', 'in_progress', 'resolved', 'closed']
+const BUG_TYPES: readonly BugType[] = ['ui_bug', 'functionality_bug', 'performance_issue', 'crash', 'feature_request', 'other']
+
 const BugReportsPage: React.FC = () => {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<BugStatus | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<BugType | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const pager = useCursorPagination(`${statusFilter}|${typeFilter}`)
 
-  const { data: bugReports, isLoading, isError, refetch } = useGetBugReportsQuery({
+  const { currentData: bugReports, isLoading, isFetching, isError, refetch } = useGetBugReportsQuery({
     status: statusFilter === 'all' ? undefined : statusFilter,
     bug_type: typeFilter === 'all' ? undefined : typeFilter,
     cursor: pager.cursor,
@@ -67,7 +70,6 @@ const BugReportsPage: React.FC = () => {
       toast({
         title: 'Report Updated',
         description: 'Bug report has been updated successfully.'})
-      void refetch()
     } catch (error: unknown) {
       toast({
         title: 'Update Failed',
@@ -78,12 +80,11 @@ const BugReportsPage: React.FC = () => {
 
   // Statistics (server-computed totals)
   const stats = {
-    total: totalQ.data?.total ?? 0,
-    open: openQ.data?.total ?? 0,
-    inProgress: inProgressQ.data?.total ?? 0,
-    resolved: resolvedQ.data?.total ?? 0,
-    critical: criticalQ.data?.total ?? 0}
-  const statsLoading = totalQ.isLoading || openQ.isLoading || inProgressQ.isLoading || resolvedQ.isLoading || criticalQ.isLoading
+    total: totalQ.isError ? '—' : totalQ.data?.total ?? '…',
+    open: openQ.isError ? '—' : openQ.data?.total ?? '…',
+    inProgress: inProgressQ.isError ? '—' : inProgressQ.data?.total ?? '…',
+    resolved: resolvedQ.isError ? '—' : resolvedQ.data?.total ?? '…',
+    critical: criticalQ.isError ? '—' : criticalQ.data?.total ?? '…'}
   const statsError = totalQ.isError || openQ.isError || inProgressQ.isError || resolvedQ.isError || criticalQ.isError
 
   const handleExport = () => {
@@ -100,7 +101,7 @@ const BugReportsPage: React.FC = () => {
     downloadCsv(csvFilename('bug-reports'), rows)
   }
 
-  if (isLoading) return <LoadingState type="card" rows={5} />
+  if (isLoading || (isFetching && !bugReports)) return <LoadingState type="card" rows={5} />
   if (isError) return <ErrorState title="Failed to load bug reports" onRetry={() => void refetch()} />
 
   return (
@@ -113,7 +114,7 @@ const BugReportsPage: React.FC = () => {
             Track and manage bug reports and issues
           </p>
         </div>
-        <CreateBugReportDialog onSuccess={() => { void refetch() }} />
+        <CreateBugReportDialog />
       </div>
 
       {/* Statistics */}
@@ -124,7 +125,7 @@ const BugReportsPage: React.FC = () => {
             <Bug className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.total}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -133,7 +134,7 @@ const BugReportsPage: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.open}</div>
+            <div className="text-2xl font-bold">{stats.open}</div>
           </CardContent>
         </Card>
         <Card>
@@ -142,7 +143,7 @@ const BugReportsPage: React.FC = () => {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.inProgress}</div>
+            <div className="text-2xl font-bold">{stats.inProgress}</div>
           </CardContent>
         </Card>
         <Card>
@@ -151,7 +152,7 @@ const BugReportsPage: React.FC = () => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statsLoading ? '…' : stats.resolved}</div>
+            <div className="text-2xl font-bold">{stats.resolved}</div>
           </CardContent>
         </Card>
         <Card>
@@ -160,7 +161,7 @@ const BugReportsPage: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statsLoading ? '…' : stats.critical}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.critical}</div>
           </CardContent>
         </Card>
       </div>
@@ -182,7 +183,7 @@ const BugReportsPage: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(BUG_STATUSES.find((item) => item === value) ?? 'all')}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -194,7 +195,7 @@ const BugReportsPage: React.FC = () => {
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter} onValueChange={(value) => setTypeFilter(BUG_TYPES.find((item) => item === value) ?? 'all')}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
@@ -239,7 +240,7 @@ const BugReportsPage: React.FC = () => {
         canPrev={pager.canPrev}
         onNext={() => pager.next(bugReports?.next_cursor ?? null)}
         onPrev={pager.prev}
-        loading={isLoading}
+        loading={isFetching}
       />
     </div>
   )

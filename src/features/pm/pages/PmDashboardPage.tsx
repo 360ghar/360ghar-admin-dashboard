@@ -53,32 +53,32 @@ export default function PmDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Managed Properties"
-          value={overview.data?.total_properties}
+          value={overview.currentData?.total_properties}
           icon={Building2}
-          hint={overview.data ? `Occupied: ${overview.data.occupied_properties} • Vacant: ${overview.data.vacant_properties}` : undefined}
-          isLoading={overview.isLoading}
+          hint={overview.currentData ? `Occupied: ${overview.currentData.occupied_properties} • Vacant: ${overview.currentData.vacant_properties}` : undefined}
+          isLoading={(!overview.currentData && overview.isFetching)}
         />
         <StatCard
           title="Outstanding Rent"
-          value={overview.data?.outstanding_rent_total}
+          value={overview.currentData?.outstanding_rent_total}
           formatValue={(n) => formatCurrency(n)}
           icon={IndianRupee}
-          isLoading={overview.isLoading}
+          isLoading={(!overview.currentData && overview.isFetching)}
           to="/pm/rent-ledger"
         />
         <StatCard
           title="Monthly Revenue"
-          value={overview.data?.monthly_revenue_current}
+          value={overview.currentData?.monthly_revenue_current}
           formatValue={(n) => formatCurrency(n)}
           icon={IndianRupee}
-          hint={overview.data ? `Prev month: ${formatCurrency(overview.data.monthly_revenue_previous)}` : undefined}
-          isLoading={overview.isLoading}
+          hint={overview.currentData ? `Prev month: ${formatCurrency(overview.currentData.monthly_revenue_previous)}` : undefined}
+          isLoading={(!overview.currentData && overview.isFetching)}
         />
         <StatCard
           title="Open Maintenance"
-          value={overview.data?.under_maintenance_properties}
+          value={overview.currentData?.under_maintenance_properties}
           icon={Wrench}
-          isLoading={overview.isLoading}
+          isLoading={(!overview.currentData && overview.isFetching)}
           to="/pm/maintenance"
         />
       </div>
@@ -99,15 +99,15 @@ export default function PmDashboardPage() {
               error={activity.error}
               onRetry={() => void activity.refetch()}
             />
-          ) : activity.isLoading ? (
+          ) : (!activity.currentData && activity.isFetching) ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
               <Skeleton className="h-4 w-4/6" />
             </div>
-          ) : activity.data?.items?.length ? (
+          ) : activity.currentData?.items?.length ? (
             <div className="space-y-2">
-              {activity.data.items.map((a, idx) => {
+              {activity.currentData.items.map((a, idx) => {
                 const row = (
                   <ActivityRow
                     activity={a}

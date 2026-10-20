@@ -12,7 +12,7 @@ import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
 import BugReportFormFields from './parts/BugReportFormFields'
 
-const CreateBugReportDialog: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
+const CreateBugReportDialog: React.FC = () => {
   const { toast } = useToast()
   const [isOpen, setIsOpen] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
@@ -32,15 +32,17 @@ const CreateBugReportDialog: React.FC<{ onSuccess?: () => void }> = ({ onSuccess
       if (attachments.length > 0) {
         const formData = new FormData()
         Object.entries(data).forEach(([key, value]) => {
+          // Unset optional fields are left out. Appending them would send the text "undefined".
+          if (value === undefined || value === null || value === '') return
           if (key === 'device_info') formData.append(key, JSON.stringify(value))
           else if (key === 'tags' && Array.isArray(value)) formData.append(key, JSON.stringify(value))
-          else formData.append(key, value as string)
+          else if (typeof value === 'string') formData.append(key, value)
         })
         attachments.forEach(file => formData.append('files', file))
         await createBugReportWithMedia(formData).unwrap()
       } else { await createBugReport(data).unwrap() }
       toast({ title: 'Bug Report Created', description: 'Thank you for reporting this issue. We will look into it.' })
-      setIsOpen(false); form.reset(); setAttachments([]); onSuccess?.()
+      setIsOpen(false); form.reset(); setAttachments([])
     } catch (error) { applyServerValidation(error, form.setError); toast({ title: 'Report Failed', description: getErrorMessage(error, 'Failed to create bug report. Please try again.'), variant: 'destructive' }) }
   }
 

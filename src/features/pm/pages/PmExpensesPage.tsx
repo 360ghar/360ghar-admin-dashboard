@@ -1,35 +1,28 @@
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
 import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Receipt, Trash2 } from "lucide-react";
+import { Download, Receipt } from "lucide-react";
 import { EXPENSE_CATEGORIES, PAGE_SIZES } from "@/features/pm/constants";
 import { downloadCsv } from "@/features/pm/utils";
 import { formatCurrency } from "@/lib/format"
 import { formatDate } from "@/lib/format";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import CreateExpenseDialog from "@/features/pm/components/CreateExpenseDialog";
-import ExpenseEditForm from "@/features/pm/components/ExpenseEditForm";
+import ExpenseRowActions from "@/features/pm/components/ExpenseRowActions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
-import type { DocumentType, Expense, ExpenseCategory } from "@/types/pm";
-import {
-  useListPmExpensesQuery,
-  useUpdatePmExpenseMutation,
-  useDeletePmExpenseMutation,
-  useUploadPmDocumentMutation} from "@/features/pm/api/pmApi";
+import type { Expense, ExpenseCategory } from "@/types/pm";
+import { useListPmExpensesQuery } from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
-import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,7 +36,6 @@ import { PageHeader } from "@/components/ui/page-header";
 export default function PmExpensesPage() {
   const { role } = useUserRole();
   const selectedOwnerId = useAppSelector(selectSelectedOwnerId);
-  const { toast } = useToast();
 
   const ownerId = selectedOwnerId;
 
@@ -54,7 +46,7 @@ export default function PmExpensesPage() {
 
   const validDateRange = !startDate || !endDate || startDate <= endDate;
 
-  const pager = useCursorPagination(`${category}|${startDate}|${endDate}|${limit}`);
+  const pager = useCursorPagination(pmCursorKey(ownerId, category, startDate, endDate, limit));
 
 
   const expenses = useListPmExpensesQuery(
@@ -68,10 +60,6 @@ export default function PmExpensesPage() {
     { skip: role === "agent" && !ownerId },
   );
 
-  const [updateExpense, updateState] = useUpdatePmExpenseMutation();
-  const [deleteExpense, deleteState] = useDeletePmExpenseMutation();
-  const [uploadDoc, uploadDocState] = useUploadPmDocumentMutation();
-
   const columns = useMemo<ColumnDef<Expense>[]>(() => {
     return [
       {
@@ -80,8 +68,13 @@ export default function PmExpensesPage() {
         cell: ({ row }) => formatDate(row.original.expense_date)},
       {
         accessorKey: "category",
-        header: "Category",
-        cell: ({ row }) => <Badge variant="secondary">{row.original.category}</Badge>},
+        header: "Expense",
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            {row.original.title ? <div className="truncate font-medium">{row.original.title}</div> : null}
+            <Badge variant="secondary">{row.original.category}</Badge>
+          </div>
+        )},
       {
         accessorKey: "amount",
         header: "Amount",
@@ -89,7 +82,9 @@ export default function PmExpensesPage() {
       {
         accessorKey: "property_id",
         header: "Property",
-        cell: ({ row }) => <span className="text-sm">#{row.original.property_id}</span>},
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.property_name || `#${row.original.property_id}`}</span>
+        )},
       {
         id: "receipt",
         header: "Receipt",
@@ -102,62 +97,11 @@ export default function PmExpensesPage() {
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">Edit</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Edit expense</DialogTitle>
-                </DialogHeader>
-                <ExpenseEditForm
-                  expense={row.original}
-                  onUploadReceipt={async (file) => {
-                    const fd = new FormData();
-                    fd.append("file", file);
-                    fd.append("document_type", "receipt" satisfies DocumentType);
-                    fd.append("title", `Expense receipt • #${row.original.id}`);
-                    fd.append("owner_id", String(row.original.owner_id));
-                    fd.append("property_id", String(row.original.property_id));
-                    fd.append("shared_with_agent", "true");
-                    const doc = await uploadDoc(fd).unwrap();
-                    return doc.id;
-                  }}
-                  onSubmit={async (payload) => {
-                    await updateExpense({ expense_id: row.original.id, payload }).unwrap();
-                  }}
-                  isSubmitting={updateState.isLoading || uploadDocState.isLoading}
-                />
-              </DialogContent>
-            </Dialog>
-            <ConfirmAlertDialog
-              title="Delete Expense"
-              description={`Are you sure you want to delete expense #${row.original.id}? This action cannot be undone.`}
-              confirmLabel="Delete"
-              variant="destructive"
-              onConfirm={async () => {
-                try {
-                  await deleteExpense(row.original.id).unwrap();
-                  toast({ title: "Deleted", description: "Expense deleted." });
-                } catch (e: unknown) {
-                  toast({ title: "Failed", description: getErrorMessage(e, "Could not delete expense."), variant: "destructive" });
-                }
-              }}
-            >
-              {(openDialog) => (
-                <Button variant="destructive" size="sm" onClick={openDialog} disabled={deleteState.isLoading} aria-label="Delete">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </ConfirmAlertDialog>
-          </div>
-        )},
+        cell: ({ row }) => <ExpenseRowActions expense={row.original} />},
     ];
-  }, [updateExpense, updateState.isLoading, deleteExpense, deleteState.isLoading, uploadDoc, uploadDocState.isLoading, toast]);
+  }, []);
 
-  const expenseItems = useMemo(() => expenses.data?.items ?? [], [expenses.data?.items]);
+  const expenseItems = useMemo(() => expenses.currentData?.items ?? [], [expenses.currentData?.items]);
 
   const totalExpenses = useMemo(
     () => expenseItems.reduce((sum, e) => sum + e.amount, 0),
@@ -173,16 +117,18 @@ export default function PmExpensesPage() {
           icon={Receipt}
           actions={
             <div className="flex items-center gap-2">
-              <CreateExpenseDialog ownerId={ownerId} />
+              <CreateExpenseDialog key={ownerId ?? 'all'} ownerId={ownerId} />
               <Button
                 variant="outline"
                 onClick={() => {
                   const rows = expenseItems.map((e) => ({
                     id: e.id,
                     expense_date: e.expense_date,
+                    title: e.title,
                     category: e.category,
                     amount: e.amount,
                     property_id: e.property_id,
+                    property_name: e.property_name,
                     receipt_document_id: e.receipt_document_id,
                     description: e.description,
                     notes: e.notes}));
@@ -190,7 +136,7 @@ export default function PmExpensesPage() {
                 }}
               >
                 <Download className="mr-2 h-4 w-4" />
-                Export CSV
+                Export current page CSV
               </Button>
             </div>
           }
@@ -261,17 +207,17 @@ export default function PmExpensesPage() {
                 error={expenses.error}
                 onRetry={() => { void expenses.refetch(); }}
               />
-            ) : expenses.isLoading ? (
+            ) : (!expenses.currentData && expenses.isFetching) ? (
               <LoadingState type="spinner" />
             ) : expenseItems.length ? (
               <>
                 <ResponsiveDataTable columns={columns} data={expenseItems} />
                 <CursorPager
                   canPrev={pager.canPrev}
-                  hasMore={expenses.data?.has_more ?? false}
+                  hasMore={expenses.currentData?.has_more ?? false}
                   loading={expenses.isFetching}
                   onPrev={pager.prev}
-                  onNext={() => expenses.data && pager.next(expenses.data.next_cursor)}
+                  onNext={() => expenses.currentData && pager.next(expenses.currentData.next_cursor)}
                 />
               </>
             ) : (

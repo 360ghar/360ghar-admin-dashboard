@@ -17,9 +17,11 @@ interface PropertyBasicInfoProps {
   setImages: (urls: string[]) => void
   primaryImage: string | null
   setPrimaryImage: (url: string | null) => void
+  onImageUploadingChange?: (uploading: boolean) => void
+  disabled?: boolean
 }
 
-const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, setImages, primaryImage, setPrimaryImage }) => {
+const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, setImages, primaryImage, setPrimaryImage, onImageUploadingChange, disabled = false }) => {
   const { setValue, watch } = form
   const lat = watch('latitude')
   const lng = watch('longitude')
@@ -29,6 +31,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
   const hasCoords = lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))
 
   const toggleFeature = (feature: string) => {
+    if (disabled) return
     const current = form.getValues('features') || []
     const next = current.includes(feature)
       ? current.filter((f) => f !== feature)
@@ -47,21 +50,21 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
       <div className="grid gap-4 md:grid-cols-2 md:col-span-2">
         <FormField control={form.control} name="property_type" render={({ field }) => (
           <FormItem><FormLabel>Type</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || undefined}>
+            <Select disabled={disabled} onValueChange={(value) => { if (!disabled) field.onChange(value) }} value={field.value || undefined}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
               <SelectContent>{PROPERTY_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
             </Select><FormMessage /></FormItem>
         )} />
         <FormField control={form.control} name="purpose" render={({ field }) => (
           <FormItem><FormLabel>Purpose</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || undefined}>
+            <Select disabled={disabled} onValueChange={(value) => { if (!disabled) field.onChange(value) }} value={field.value || undefined}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
               <SelectContent>{PROPERTY_PURPOSES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
             </Select><FormMessage /></FormItem>
         )} />
         <FormField control={form.control} name="status" render={({ field }) => (
           <FormItem><FormLabel>Status</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value || undefined}>
+            <Select disabled={disabled} onValueChange={(value) => { if (!disabled) field.onChange(value) }} value={field.value || undefined}>
               <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
               <SelectContent>{PROPERTY_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
             </Select><FormMessage /></FormItem>
@@ -127,7 +130,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
             )} />
             <FormField control={form.control} name="kitchen_type" render={({ field }) => (
               <FormItem><FormLabel>Kitchen Type</FormLabel>
-                <Select value={field.value ?? 'none'} onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}>
+                <Select disabled={disabled} value={field.value ?? 'none'} onValueChange={(v) => { if (!disabled) field.onChange(v === 'none' ? undefined : v) }}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none">Not specified</SelectItem>
@@ -137,7 +140,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
             )} />
             <FormField control={form.control} name="ventilation_type" render={({ field }) => (
               <FormItem><FormLabel>Ventilation</FormLabel>
-                <Select value={field.value ?? 'none'} onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}>
+                <Select disabled={disabled} value={field.value ?? 'none'} onValueChange={(v) => { if (!disabled) field.onChange(v === 'none' ? undefined : v) }}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none">Not specified</SelectItem>
@@ -147,7 +150,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
             )} />
             <FormField control={form.control} name="furnishing_level" render={({ field }) => (
               <FormItem><FormLabel>Furnishing</FormLabel>
-                <Select value={field.value ?? 'none'} onValueChange={(v) => field.onChange(v === 'none' ? undefined : v)}>
+                <Select disabled={disabled} value={field.value ?? 'none'} onValueChange={(v) => { if (!disabled) field.onChange(v === 'none' ? undefined : v) }}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Not specified" /></SelectTrigger></FormControl>
                   <SelectContent>
                     <SelectItem value="none">Not specified</SelectItem>
@@ -190,8 +193,8 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
             <Badge
               key={feature}
               variant={selectedFeatures.includes(feature) ? 'default' : 'outline'}
-              className="cursor-pointer capitalize"
-              onClick={() => toggleFeature(feature)}
+              className={disabled ? 'capitalize' : 'cursor-pointer capitalize'}
+              onClick={disabled ? undefined : () => toggleFeature(feature)}
             >
               {feature.replaceAll('_', ' ')}
             </Badge>
@@ -204,6 +207,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
         <AddressAutocomplete
           value={address || ''}
           onSelect={(addr: { display_name: string; lat: string; lon: string; address?: Record<string, string | undefined> }) => {
+            if (disabled) return
             setValue('address', addr.display_name, { shouldDirty: true })
             setValue('latitude', Number(addr.lat), { shouldDirty: true })
             setValue('longitude', Number(addr.lon), { shouldDirty: true })
@@ -227,6 +231,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
         <LocationPicker
           value={hasCoords ? { lat: Number(lat), lng: Number(lng) } : null}
           onChange={(p) => {
+            if (disabled) return
             setValue('latitude', p.lat, { shouldDirty: true })
             setValue('longitude', p.lng, { shouldDirty: true })
           }}
@@ -234,7 +239,7 @@ const PropertyBasicInfo: React.FC<PropertyBasicInfoProps> = ({ form, images, set
       </div>
       <div className="md:col-span-2">
         <FormLabel>Media</FormLabel>
-        <ImageUpload value={images} onChange={setImages} primary={primaryImage} onPrimaryChange={setPrimaryImage} />
+        <ImageUpload value={images} onChange={setImages} primary={primaryImage} onPrimaryChange={setPrimaryImage} onUploadingChange={onImageUploadingChange} disabled={disabled} />
       </div>
       <FormField control={form.control} name="latitude" render={({ field }) => (
         <FormItem><FormLabel>Latitude</FormLabel><FormControl><Input type="number" step="0.000001" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>

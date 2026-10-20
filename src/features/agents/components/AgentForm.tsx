@@ -50,8 +50,10 @@ const AgentForm = ({ id }: { id?: number }) => {
         contact_number: agent.contact_number || '',
         description: agent.description || '',
         languages: (agent.languages || []).join(', '),
-        agent_type: agent.agent_type || 'general',
-        experience_level: agent.experience_level || 'intermediate',
+        // An unknown stored value reads as null: leave the select unset so the editor picks one,
+        // instead of saving a made-up 'general' or 'intermediate' over it.
+        agent_type: agent.agent_type ?? undefined,
+        experience_level: agent.experience_level ?? undefined,
         is_active: agent.is_active ?? true,
         is_available: agent.is_available ?? true,
       })
@@ -67,13 +69,14 @@ const AgentForm = ({ id }: { id?: number }) => {
 
     try {
       if (isEdit && id) {
+        // PUT is PATCH-style: a blank text field is sent as null so it clears the stored value.
         await update({
           id,
           data: {
             name: values.name,
-            contact_number: values.contact_number || undefined,
-            description: values.description || undefined,
-            languages: parsedLanguages,
+            contact_number: values.contact_number || null,
+            description: values.description || null,
+            languages: parsedLanguages?.length ? parsedLanguages : null,
             agent_type: values.agent_type,
             experience_level: values.experience_level,
             is_active: values.is_active,

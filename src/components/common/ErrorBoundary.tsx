@@ -59,26 +59,28 @@ class ErrorBoundary extends Component<Props, State> {
     window.location.reload()
   }
 
+  private handleReset = () => {
+    this.setState({ hasError: false, error: undefined, errorInfo: undefined })
+  }
+
   public render() {
     if (this.state.hasError) {
-      // Fetch failures surface as TypeError ("Failed to fetch") or network
-      // message strings; anything else is an app bug.
       const message = this.state.error?.message ?? ''
-      const isNetworkError =
-        this.state.error?.name === 'TypeError' ||
-        message.includes('Network Error') ||
-        message.includes('fetch')
+      const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk \d+ failed|ChunkLoadError/i.test(message)
+      const isNetworkError = !isChunkError && /Failed to fetch$|NetworkError|Network Error|network request failed/i.test(message)
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="flex min-h-[50vh] items-center justify-center p-4">
           <div className="max-w-md w-full space-y-4">
             <Alert variant="destructive" className="border-2">
               <AlertTriangle className="h-5 w-5" />
               <AlertTitle>
-                {isNetworkError ? 'Network Error' : 'Something went wrong'}
+                {isChunkError ? 'Page could not load' : isNetworkError ? 'Connection problem' : 'Something went wrong'}
               </AlertTitle>
               <AlertDescription className="mt-2">
-                {isNetworkError ? (
+                {isChunkError ? (
+                  <p>A page file did not load. Reload the app to get the latest version.</p>
+                ) : isNetworkError ? (
                   <div className="space-y-2">
                     <p>Unable to connect to the server. Please check your internet connection and try again.</p>
                     <p className="text-sm opacity-80">
@@ -87,7 +89,7 @@ class ErrorBoundary extends Component<Props, State> {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p>We encountered an unexpected error. Please reload the page and try again.</p>
+                    <p>This page stopped working. Try opening it again.</p>
                     {import.meta.env.DEV && this.state.error && (
                       <details className="text-sm">
                         <summary className="cursor-pointer hover:underline">Error details</summary>
@@ -103,9 +105,9 @@ class ErrorBoundary extends Component<Props, State> {
             </Alert>
 
             <div className="flex gap-2">
-              <Button onClick={this.handleReload} className="flex-1">
+              <Button onClick={isChunkError ? this.handleReload : this.handleReset} className="flex-1">
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Reload Page
+                {isChunkError ? 'Reload App' : 'Try Again'}
               </Button>
               <Button
                 variant="outline"

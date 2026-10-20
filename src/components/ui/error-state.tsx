@@ -36,7 +36,7 @@ export function ErrorState({
       : 'An unexpected error occurred. Please try again.')
 
   return (
-    <Card className={`border-destructive/30 ${className}`}>
+    <Card role="alert" className={`border-destructive/30 ${className}`}>
       <CardContent className="flex flex-col items-center justify-center gap-4 p-12 text-center">
         <div className="text-destructive">
           {icon ?? <AlertTriangle className="h-10 w-10" aria-hidden />}

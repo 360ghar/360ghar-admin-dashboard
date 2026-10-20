@@ -1,54 +1,18 @@
 import { z } from 'zod'
 import { isValidJson } from '@/lib/json'
-import { VALIDATION } from './constants'
+import { VALIDATION, PAYMENT_METHOD_VALUES } from './constants'
+import { validatePropertyValues, type PropertyFormMode, type PropertyFormValues } from './propertyForm'
 
-export const pmPropertyCreateSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  property_type: z.enum([
-    'house', 'apartment', 'builder_floor', 'room', 'villa', 'plot', 'condo',
-    'penthouse', 'studio', 'loft', 'pg', 'flatmate', 'office', 'shop', 'warehouse',
-  ]),
-  purpose: z.enum(['rent', 'buy', 'short_stay']),
-  base_price: z
-    .string()
-    .min(1, 'Base price is required')
-    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Base price must be a positive number'),
-  daily_rate: z
-    .string()
-    .optional()
-    .or(z.literal(''))
-    .refine(
-      (v) => !v || (!isNaN(Number(v)) && Number(v) >= 0),
-      'Daily rate must be a non-negative number',
-    ),
-  city: z.string().optional().or(z.literal('')),
-  locality: z.string().optional().or(z.literal('')),
-  full_address: z.string().optional().or(z.literal('')),
-  management_status: z.enum(['draft', 'active', 'archived']),
-  payment_due_day: z
-    .string()
-    .min(1, 'Payment due day is required')
-    .refine(
-      (v) => {
-        const n = Number(v)
-        return !isNaN(n) && n >= VALIDATION.PAYMENT_DUE_DAY_MIN && n <= VALIDATION.PAYMENT_DUE_DAY_MAX
-      },
-      `Payment due day must be between ${VALIDATION.PAYMENT_DUE_DAY_MIN} and ${VALIDATION.PAYMENT_DUE_DAY_MAX}`,
-    ),
-  grace_days: z
-    .string()
-    .min(1, 'Grace period is required')
-    .refine(
-      (v) => {
-        const n = Number(v)
-        return !isNaN(n) && n >= 0 && n <= 30
-      },
-      'Grace period must be between 0 and 30 days',
-    ),
-  late_fee_policy_json: z
-    .string()
-    .refine((v) => !v || isValidJson(v), 'Late fee policy must be valid JSON'),
-})
+/**
+ * Create and edit form of a managed property. Every value is a string. The rules live in
+ * `propertyForm.ts` next to the field catalogue, so the schema cannot drift from the fields.
+ */
+export const pmPropertyFormSchema = (mode: PropertyFormMode, initial?: PropertyFormValues) =>
+  z.record(z.string(), z.string()).superRefine((values, ctx) => {
+    for (const [field, message] of Object.entries(validatePropertyValues(values, mode, initial))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message })
+    }
+  })
 
 export const pmLeaseCreateSchema = z
   .object({
@@ -66,7 +30,32 @@ export const pmLeaseCreateSchema = z
     security_deposit: z
       .string()
       .min(1, 'Security deposit is required')
-      .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Security deposit must be a positive number'),
+      .refine((v) => !isNaN(Number(v)) && Number(v) >= 0, 'Security deposit must be zero or more'),
+    // Blank due day and grace period take the managed property's settings (the backend copies them).
+    payment_due_day: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine(
+        (v) => !v || (Number.isInteger(Number(v)) && Number(v) >= VALIDATION.PAYMENT_DUE_DAY_MIN && Number(v) <= VALIDATION.PAYMENT_DUE_DAY_MAX),
+        `Payment due day must be between ${VALIDATION.PAYMENT_DUE_DAY_MIN} and ${VALIDATION.PAYMENT_DUE_DAY_MAX}`,
+      ),
+    grace_period_days: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((v) => !v || (Number.isInteger(Number(v)) && Number(v) >= 0), 'Grace period must be a whole number of 0 or more'),
+    // Late fee: a fixed amount wins over a percentage of the rent.
+    late_fee_amount: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0), 'Late fee amount must be zero or more'),
+    late_fee_percentage: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((v) => !v || (!isNaN(Number(v)) && Number(v) >= 0 && Number(v) <= 100), 'Late fee percentage must be between 0 and 100'),
   })
   .refine((data) => new Date(data.end_date) > new Date(data.start_date), {
     message: 'End date must be after start date',
@@ -78,13 +67,14 @@ export const pmRentPaymentSchema = z.object({
     .string()
     .min(1, 'Amount is required')
     .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Amount must be a positive number'),
-  payment_method: z.string().min(1, 'Payment method is required'),
+  payment_method: z.enum(PAYMENT_METHOD_VALUES),
   reference: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
 })
 
 export const pmExpenseCreateSchema = z.object({
   property_id: z.string().min(1, 'Property is required'),
+  title: z.string().max(200, 'Title must be 200 characters or fewer').optional().or(z.literal('')),
   category: z.enum([
     'maintenance',
     'repairs',
@@ -106,6 +96,7 @@ export const pmExpenseCreateSchema = z.object({
 })
 
 export const pmExpenseUpdateSchema = z.object({
+  title: z.string().max(200, 'Title must be 200 characters or fewer').optional().or(z.literal('')),
   category: z.enum([
     'maintenance',
     'repairs',
@@ -155,7 +146,6 @@ export const pmInspectionCreateSchema = z.object({
   overall_notes: z.string().optional().or(z.literal('')),
 })
 
-export type PmPropertyCreateForm = z.infer<typeof pmPropertyCreateSchema>
 export type PmLeaseCreateForm = z.infer<typeof pmLeaseCreateSchema>
 export type PmRentPaymentForm = z.infer<typeof pmRentPaymentSchema>
 export type PmExpenseCreateForm = z.infer<typeof pmExpenseCreateSchema>
@@ -166,7 +156,12 @@ export type PmInspectionCreateForm = z.infer<typeof pmInspectionCreateSchema>
 export const pmChargeGenerateSchema = z.object({
   scope: z.enum(['owner', 'lease']),
   lease_id: z.string().optional().or(z.literal('')),
-  start_month: z.string().optional().or(z.literal('')),
+  // An HTML month input gives YYYY-MM. The backend wants the first day of the month (YYYY-MM-01).
+  start_month: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine((v) => !v || /^\d{4}-(0[1-9]|1[0-2])$/.test(v), 'Choose a month'),
   months: z
     .string()
     .min(1, 'Number of months is required')
@@ -185,7 +180,7 @@ export const pmMaintenanceUpdateSchema = z.object({
   request_status: z.enum(['open', 'in_review', 'work_order_created', 'resolved', 'closed']),
   work_order_status: z.enum(['created', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled']).optional().or(z.literal('')),
   assign_to_me: z.enum(['yes', 'no']),
-  priority: z.string().optional().or(z.literal('')),
+  urgency: z.enum(['emergency', 'high', 'medium', 'low']),
   estimated_cost: z
     .string()
     .optional()

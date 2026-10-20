@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -10,6 +9,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useDecideApplicationMutation } from "@/features/pm/api/pmApi";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
@@ -33,29 +35,30 @@ export function DecisionAlertDialog({
     open: boolean;
     type: "approve" | "reject";
   }>({ open: false, type: "approve" });
+  const [notes, setNotes] = useState("");
 
   const handleConfirm = useCallback(async () => {
     const decision = confirmDialog.type === "approve" ? "approved" : "rejected";
     try {
       await decide({
         application_id: applicationId,
-        payload: { decision },
+        payload: { decision, notes: notes.trim() || undefined },
       }).unwrap();
       toast({
         title: confirmDialog.type === "approve" ? "Approved" : "Rejected",
         description: `Application ${decision}.`,
       });
       onDecided?.();
+      setConfirmDialog({ open: false, type: "approve" });
+      setNotes("");
     } catch (e: unknown) {
       toast({
         title: "Failed",
         description: getErrorMessage(e, `Could not ${confirmDialog.type} application.`),
         variant: "destructive",
       });
-    } finally {
-      setConfirmDialog({ open: false, type: "approve" });
     }
-  }, [applicationId, confirmDialog.type, decide, onDecided, toast]);
+  }, [applicationId, confirmDialog.type, decide, notes, onDecided, toast]);
 
   const openApprove = () => setConfirmDialog({ open: true, type: "approve" });
   const openReject = () => setConfirmDialog({ open: true, type: "reject" });
@@ -66,7 +69,10 @@ export function DecisionAlertDialog({
       <AlertDialog
         open={confirmDialog.open}
         onOpenChange={(open) => {
-          if (!open) setConfirmDialog({ open: false, type: "approve" });
+          if (!open && !decideState.isLoading) {
+            setConfirmDialog({ open: false, type: "approve" });
+            setNotes("");
+          }
         }}
       >
         <AlertDialogContent>
@@ -82,11 +88,22 @@ export function DecisionAlertDialog({
                 : "Are you sure you want to reject this application? This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="decision-notes">Notes (optional)</Label>
+            <Textarea
+              id="decision-notes"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={decideState.isLoading}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={decideState.isLoading}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction
+            <Button
+              type="button"
               onClick={() => void handleConfirm()}
               disabled={decideState.isLoading}
               className={
@@ -102,7 +119,7 @@ export function DecisionAlertDialog({
                 : confirmDialog.type === "approve"
                   ? "Approve"
                   : "Reject"}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

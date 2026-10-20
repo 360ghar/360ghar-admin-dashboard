@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { MapPin, Star, CreditCard } from 'lucide-react'
-import type { Booking, BookingReview } from '@/types/api'
+import type { Booking, BookingReview, BookingStaff } from '@/types/api'
 import { getBookingStatusColor, getBookingPaymentStatusColor } from '@/lib/statusColors'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { BookingReviewForm } from './BookingReviewForm'
@@ -13,18 +15,23 @@ import TiltedCard from '@/components/reactbits/TiltedCard'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
 interface BookingCardProps {
-  booking: Booking
-  onUpdate?: (booking: Booking) => void
-  onCancel?: (bookingId: number) => void
-  onReview?: (bookingId: number, review: BookingReview) => void
+  /** The guest shape has no `internal_notes`. Staff views pass `BookingStaff`, which does. */
+  booking: Booking | BookingStaff
+  /** Open the booking to record a manual payment (the method and transaction id are entered there). */
+  onUpdate?: (booking: Booking | BookingStaff) => void
+  /** `reason` is required by the backend (1 to 1000 characters). */
+  onCancel?: (bookingId: number, reason: string) => void
+  onReview?: (bookingId: number, review: Omit<BookingReview, 'booking_id'>) => void
   showActions?: boolean
+  /** Only the guest of the booking can review it. */
+  canReview?: boolean
 }
 
 /** 1x1 transparent GIF so the tilt layer stays invisible when no photo exists. */
 const TRANSPARENT_PIXEL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
-const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true }: BookingCardProps) => {
+const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true, canReview = false }: BookingCardProps) => {
   const prefersReducedMotion = usePrefersReducedMotion()
   const cardRef = useRef<HTMLDivElement>(null)
   const [cardHeight, setCardHeight] = useState(0)
@@ -43,6 +50,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
 
   const [showDetails, setShowDetails] = useState(false)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
 
   const taxesAndFees = (booking.taxes_amount ?? 0) + (booking.service_charges ?? 0)
 
@@ -59,7 +67,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
                 <h3 className="font-semibold text-lg">{booking.property?.title || `Property #${booking.property_id}`}</h3>
                 <p className="text-sm text-muted-foreground">
                   <MapPin className="h-4 w-4 inline mr-1" />
-                  {[booking.property?.city, booking.property?.locality].filter(Boolean).join(', ') || 'Location unavailable'}
+                  {[booking.property?.city, booking.property?.country].filter(Boolean).join(', ') || 'Location unavailable'}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -174,11 +182,11 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
                 onClick={() => onUpdate?.(booking)}
               >
                 <CreditCard className="h-4 w-4 mr-2" />
-                Pay Now
+                Record payment
               </Button>
             )}
 
-            {showActions && booking.booking_status === 'completed' && !booking.guest_rating && (
+            {showActions && canReview && booking.booking_status === 'completed' && !booking.guest_rating && (
                   <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="outline">
@@ -202,19 +210,29 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
             )}
 
             {showActions && ['confirmed', 'pending'].includes(booking.booking_status) && (
-              <ConfirmAlertDialog
-                title="Cancel Booking"
-                description="Are you sure you want to cancel this booking?"
-                confirmLabel="Cancel Booking"
-                variant="destructive"
-                onConfirm={() => onCancel?.(booking.id)}
-              >
-                {(openDialog) => (
-                  <Button size="sm" variant="destructive" onClick={openDialog}>
-                    Cancel Booking
-                  </Button>
-                )}
-              </ConfirmAlertDialog>
+              <div className="space-y-2">
+                <Label htmlFor={`cancel-reason-${booking.id}`} className="text-xs text-muted-foreground">Cancellation reason</Label>
+                <Input
+                  id={`cancel-reason-${booking.id}`}
+                  value={cancelReason}
+                  maxLength={1000}
+                  placeholder="Why is it cancelled?"
+                  onChange={(e) => setCancelReason(e.target.value)}
+                />
+                <ConfirmAlertDialog
+                  title="Cancel Booking"
+                  description="Are you sure you want to cancel this booking?"
+                  confirmLabel="Cancel Booking"
+                  variant="destructive"
+                  onConfirm={() => onCancel?.(booking.id, cancelReason.trim())}
+                >
+                  {(openDialog) => (
+                    <Button size="sm" variant="destructive" onClick={openDialog} disabled={!cancelReason.trim()} className="w-full">
+                      Cancel Booking
+                    </Button>
+                  )}
+                </ConfirmAlertDialog>
+              </div>
             )}
           </div>
         </div>
@@ -226,7 +244,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
 
   return (
     <TiltedCard
-      imageSrc={booking.property?.main_image_url || TRANSPARENT_PIXEL}
+      imageSrc={booking.property?.cover_image_url ?? TRANSPARENT_PIXEL}
       altText={booking.property?.title || 'Property booking'}
       containerHeight={`${cardHeight}px`}
       containerWidth="100%"

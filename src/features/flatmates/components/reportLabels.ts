@@ -1,4 +1,7 @@
-export const reasonLabels: Record<string, string> = {
+import type { UserReportReason, UserReportStatus } from '@/types/api'
+
+// Typed over the generated unions: a value the backend adds fails the type check until it is labelled here.
+export const reasonLabels: Record<UserReportReason, string> = {
   spam: 'Spam',
   fake_profile: 'Fake Profile',
   abuse: 'Abuse/Harassment',
@@ -6,7 +9,7 @@ export const reasonLabels: Record<string, string> = {
   other: 'Other',
 }
 
-export const statusLabels: Record<string, string> = {
+export const statusLabels: Record<UserReportStatus, string> = {
   open: 'Open',
   reviewed: 'Reviewed',
   dismissed: 'Dismissed',

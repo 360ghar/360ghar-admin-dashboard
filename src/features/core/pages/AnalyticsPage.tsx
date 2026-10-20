@@ -17,9 +17,11 @@ const AnalyticsPage = () => {
   const workload = useGetWorkloadQuery()
   const s = stats.data
   const workloadData = workload.data?.map((w) => ({
+    id: w.agent_id,
     name: w.agent_name,
     value: w.current_users,
   })) ?? []
+  const assignedUsers = workloadData.reduce((sum, agent) => sum + agent.value, 0)
   return (
     <div className="space-y-6">
       <PageHeader
@@ -60,17 +62,33 @@ const AnalyticsPage = () => {
               description="Agent workload will appear once agents have assigned users."
             />
           ) : (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={workloadData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(240 8% 20%)" vertical={false} />
-                  <XAxis dataKey="name" hide={false} interval={0} angle={-20} textAnchor="end" height={60} tick={{ fontSize: 12, fill: 'hsl(240 8% 62%)' }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'hsl(240 8% 62%)' }} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Legend wrapperStyle={{ color: 'hsl(240 8% 62%)' }} />
-                  <Bar dataKey="value" fill={WORKLOAD_COLOR} name="Workload" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div>
+              <div className="h-64 w-full" aria-hidden="true">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={workloadData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(240 8% 20%)" vertical={false} />
+                    <XAxis dataKey="name" hide={false} interval={0} angle={-20} textAnchor="end" height={60} tick={{ fontSize: 12, fill: 'hsl(240 8% 62%)' }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'hsl(240 8% 62%)' }} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={{ color: 'hsl(240 8% 62%)' }} />
+                    <Bar dataKey="value" fill={WORKLOAD_COLOR} name="Workload" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {formatNumber(assignedUsers)} users assigned across {formatNumber(workloadData.length)} agents.
+              </p>
+              <details className="mt-2 text-sm">
+                <summary className="cursor-pointer text-foreground">View agent counts</summary>
+                <ul className="mt-2 space-y-1">
+                  {workloadData.map((agent) => (
+                    <li key={agent.id} className="flex justify-between gap-3">
+                      <span>{agent.name}</span>
+                      <span className="tabular-nums">{formatNumber(agent.value)} users</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </div>
           )}
         </CardContent>

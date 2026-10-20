@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -45,20 +46,29 @@ export default function UploadSignedDialog({
   const [signedByOwner, setSignedByOwner] = useState<"yes" | "no">("yes");
   const [signedByTenant, setSignedByTenant] = useState<"yes" | "no">("no");
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [uploadedDocument, setUploadedDocument] = useState<{ file: File; leaseId: number; id: number } | null>(null);
+  const [stage, setStage] = useState<"uploading" | "attaching" | null>(null);
 
   const handleOpenChange = useCallback((isOpen: boolean) => {
+    if (stage) return;
     setOpen(isOpen);
     if (!isOpen) {
       setSignedFile(null);
       setSignedByOwner("yes");
       setSignedByTenant("no");
+      setUploadedDocument(null);
       setFileInputKey((k) => k + 1);
     }
-  }, []);
+  }, [stage]);
 
   const submit = async () => {
-    if (!signedFile) {
+    if (!signedFile || stage) {
+      if (stage) return;
       toast({ title: "Missing file", description: "Choose a signed lease PDF.", variant: "destructive" });
+      return;
+    }
+    if (!signedFile.name.toLowerCase().endsWith(".pdf") || (signedFile.type && signedFile.type !== "application/pdf")) {
+      toast({ title: "Invalid file", description: "Choose a PDF file.", variant: "destructive" });
       return;
     }
     if (signedFile.size > 10 * 1024 * 1024) {
@@ -66,30 +76,43 @@ export default function UploadSignedDialog({
       return;
     }
     try {
-      const fd = new FormData();
-      fd.append("file", signedFile);
-      fd.append("document_type", "lease_agreement" satisfies DocumentType);
-      fd.append("title", `Signed lease #${leaseId}`);
-      fd.append("owner_id", String(ownerId));
-      fd.append("property_id", String(propertyId));
-      fd.append("lease_id", String(leaseId));
-      fd.append("shared_with_agent", "true");
-      fd.append("shared_with_tenant", "true");
+      let documentId = uploadedDocument?.file === signedFile && uploadedDocument.leaseId === leaseId
+        ? uploadedDocument.id
+        : null;
+      if (documentId === null) {
+        setStage("uploading");
+        const fd = new FormData();
+        fd.append("file", signedFile);
+        fd.append("document_type", "lease_agreement" satisfies DocumentType);
+        fd.append("title", `Signed lease #${leaseId}`);
+        fd.append("owner_id", String(ownerId));
+        fd.append("property_id", String(propertyId));
+        fd.append("lease_id", String(leaseId));
+        fd.append("shared_with_agent", "true");
+        fd.append("shared_with_tenant", "true");
 
-      const doc = await uploadDoc(fd).unwrap();
+        const doc = await uploadDoc(fd).unwrap();
+        documentId = doc.id;
+        setUploadedDocument({ file: signedFile, leaseId, id: documentId });
+      }
+      setStage("attaching");
       await uploadSigned({
         lease_id: leaseId,
         payload: {
-          lease_document_id: doc.id,
+          lease_document_id: documentId,
           signed_by_owner: signedByOwner === "yes",
           signed_by_tenant: signedByTenant === "yes",
         },
       }).unwrap();
       toast({ title: "Uploaded", description: "Signed lease attached." });
+      setStage(null);
       setOpen(false);
       setSignedFile(null);
+      setUploadedDocument(null);
+      setFileInputKey((k) => k + 1);
     } catch (e: unknown) {
       toast({ title: "Upload failed", description: getErrorMessage(e, "Please try again."), variant: "destructive" });
+      setStage(null);
     }
   };
 
@@ -104,6 +127,7 @@ export default function UploadSignedDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Upload signed lease</DialogTitle>
+          <DialogDescription className="sr-only">Upload a signed lease PDF and attach it to this lease.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -112,13 +136,17 @@ export default function UploadSignedDialog({
               key={fileInputKey}
               type="file"
               accept="application/pdf"
-              onChange={(e) => setSignedFile(e.target.files?.[0] ?? null)}
+              disabled={Boolean(stage)}
+              onChange={(e) => {
+                setSignedFile(e.target.files?.[0] ?? null);
+                setUploadedDocument(null);
+              }}
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Signed by owner</Label>
-              <Select value={signedByOwner} onValueChange={(v) => setSignedByOwner(v as "yes" | "no")}>
+              <Select value={signedByOwner} onValueChange={(v) => setSignedByOwner(v as "yes" | "no")} disabled={Boolean(stage)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -130,7 +158,7 @@ export default function UploadSignedDialog({
             </div>
             <div className="space-y-2">
               <Label>Signed by tenant</Label>
-              <Select value={signedByTenant} onValueChange={(v) => setSignedByTenant(v as "yes" | "no")}>
+              <Select value={signedByTenant} onValueChange={(v) => setSignedByTenant(v as "yes" | "no")} disabled={Boolean(stage)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -142,16 +170,16 @@ export default function UploadSignedDialog({
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={Boolean(stage)}>
               Cancel
             </Button>
             <Button
               onClick={() => {
                 void submit();
               }}
-              disabled={uploadDocState.isLoading || uploadSignedState.isLoading || !signedFile}
+              disabled={Boolean(stage) || uploadDocState.isLoading || uploadSignedState.isLoading || !signedFile}
             >
-              {uploadDocState.isLoading || uploadSignedState.isLoading ? "Uploading…" : "Upload"}
+              {stage === "uploading" ? "Uploading document…" : stage === "attaching" ? "Attaching to lease…" : "Upload"}
             </Button>
           </div>
         </div>

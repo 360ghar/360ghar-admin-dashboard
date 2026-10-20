@@ -15,8 +15,8 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
-        display: ["Space Grotesk", "Inter", "sans-serif"],
+        sans: ["Inter Variable", "sans-serif"],
+        display: ["Space Grotesk Variable", "Inter Variable", "sans-serif"],
       },
       spacing: {
         'safe-top': 'var(--safe-area-inset-top)',

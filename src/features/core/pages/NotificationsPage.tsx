@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Megaphone, Radio, Send, Users2 } from 'lucide-react'
+import { Megaphone, Send, Users2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,9 +13,8 @@ import { useToast } from '@/hooks/use-toast'
 import {
   useSendMarketingBroadcastMutation,
   useSendMarketingToSegmentMutation,
-  useSendToTopicMutation,
 } from '@/features/core/api/notificationsApi'
-import { useListAgentsQuery } from '@/features/agents/api/agentsApi'
+import { useListAllAgentsQuery } from '@/features/agents/api/agentsApi'
 import { applyServerValidation } from '@/lib/formErrors'
 import { getErrorMessage } from '@/lib/errors'
 import { formatNumber } from '@/lib/format'
@@ -30,11 +29,11 @@ import {
   type NotificationComposerValues,
   type SegmentRole,
 } from '@/features/core/notificationsValidation'
+import { isMarketingTypeKey } from '@/features/core/notificationTypes'
 
 const CHANNEL_META: Record<NotificationChannel, { label: string; icon: ComponentType<{ className?: string }>; description: string }> = {
   broadcast: { label: 'Broadcast', icon: Megaphone, description: 'Send to all active users (respects each user’s marketing opt-in).' },
   segment: { label: 'Segment', icon: Users2, description: 'Send to a filtered audience by role and/or assigned agent.' },
-  topic: { label: 'Topic', icon: Radio, description: 'Send to all devices subscribed to a push topic.' },
 }
 
 const ROLE_LABELS: Record<SegmentRole, string> = {
@@ -51,40 +50,44 @@ const NotificationsPage = () => {
     defaultValues: notificationComposerDefaults,
   })
   const channel = form.watch('channel')
-  const agents = useListAgentsQuery({ include_inactive: false }, { skip: channel !== 'segment' })
+  const agents = useListAllAgentsQuery({ include_inactive: false }, { skip: channel !== 'segment' })
 
   const [sendBroadcast, broadcastState] = useSendMarketingBroadcastMutation()
   const [sendSegment, segmentState] = useSendMarketingToSegmentMutation()
-  const [sendTopic, topicState] = useSendToTopicMutation()
-  const isSending = broadcastState.isLoading || segmentState.isLoading || topicState.isLoading
+  const isSending = broadcastState.isLoading || segmentState.isLoading
 
   const onSubmit = async (values: NotificationComposerValues) => {
     form.clearErrors()
-    const deepLink = values.deepLink?.trim() || undefined
+    // The route goes out as `deep_link`, the only key the request schema declares. The backend delivers it as `data.route`.
+    const route = values.route?.trim() || undefined
+    if (!isMarketingTypeKey(values.typeKey)) return
     try {
-      if (values.channel === 'broadcast') {
-        const res = await sendBroadcast({ typeKey: values.typeKey, title: values.title, body: values.body, deep_link: deepLink }).unwrap()
-        toast({ title: 'Broadcast queued', description: `Queued for ${formatNumber(res.requested)} users (${formatNumber(res.processed)} processed).` })
-      } else if (values.channel === 'segment') {
-        const res = await sendSegment({
-          typeKey: values.typeKey,
-          title: values.title,
-          body: values.body,
-          deep_link: deepLink,
-          filter: {
-            role: values.role && values.role !== 'all' ? values.role : undefined,
-            agent_id: values.agentId && values.agentId !== 'all' ? Number(values.agentId) : undefined,
-            is_active: true,
-          },
-        }).unwrap()
-        toast({ title: 'Segment notification queued', description: `Queued for ${formatNumber(res.requested)} users (${formatNumber(res.processed)} processed).` })
-      } else {
-        await sendTopic({ topic: values.topic ?? '', title: values.title, body: values.body, deep_link: deepLink }).unwrap()
-        toast({ title: 'Topic notification sent', description: `Pushed to topic “${values.topic ?? ''}”.` })
-      }
+      const result = values.channel === 'broadcast'
+        ? await sendBroadcast({ typeKey: values.typeKey, title: values.title, body: values.body, deep_link: route }).unwrap()
+        : await sendSegment({
+            typeKey: values.typeKey,
+            title: values.title,
+            body: values.body,
+            deep_link: route,
+            filter: {
+              role: values.role && values.role !== 'all' ? values.role : undefined,
+              agent_id: values.agentId && values.agentId !== 'all' ? Number(values.agentId) : undefined,
+              is_active: true,
+            },
+          }).unwrap()
+      // `succeeded` counts dispatches that reported no error. A user who opted out of marketing is still skipped,
+      // and `processed` below `requested` means part of the audience was not sent to. Do not call either "delivered".
+      const partial = result.processed < result.requested
+      toast({
+        title: values.channel === 'broadcast' ? 'Broadcast sent' : 'Segment notification sent',
+        description: `Sent to ${formatNumber(result.processed)} of ${formatNumber(result.requested)} users. ${formatNumber(result.succeeded)} dispatched without error.${partial ? ' Part of the audience was not sent to.' : ''}`,
+      })
       form.reset({ ...notificationComposerDefaults, channel: values.channel })
     } catch (error) {
-      applyServerValidation(error, form.setError, { knownFields: ['title', 'body', 'topic', 'typeKey'] })
+      applyServerValidation(error, form.setError, {
+        knownFields: ['title', 'body', 'typeKey', 'route'],
+        fieldMap: { type_key: 'typeKey', deep_link: 'route' },
+      })
       toast({ title: 'Failed to send notification', description: getErrorMessage(error, 'Please try again.'), variant: 'destructive' })
     }
   }
@@ -179,7 +182,7 @@ const NotificationsPage = () => {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="all">All agents</SelectItem>
-                            {(agents.data?.items ?? []).map((agent) => (
+                            {(agents.data ?? []).map((agent) => (
                               <SelectItem key={agent.id} value={String(agent.id)}>
                                 {agent.name}
                               </SelectItem>
@@ -190,50 +193,38 @@ const NotificationsPage = () => {
                       </FormItem>
                     )}
                   />
+                  {agents.error && (
+                    <p role="alert" className="text-sm text-destructive md:col-span-2">
+                      Could not load agents for this filter. <Button type="button" variant="link" size="sm" onClick={() => { void agents.refetch() }}>Retry</Button>
+                    </p>
+                  )}
                 </div>
               )}
 
-              {channel === 'topic' ? (
-                <FormField
-                  control={form.control}
-                  name="topic"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Topic</FormLabel>
+              <FormField
+                control={form.control}
+                name="typeKey"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notification type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
-                        <Input placeholder="e.g. new_listings_delhi" {...field} value={field.value ?? ''} />
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormDescription>The FCM topic devices are subscribed to.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="typeKey"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notification type</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {MARKETING_TYPES.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+                      <SelectContent>
+                        {MARKETING_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -265,13 +256,14 @@ const NotificationsPage = () => {
 
               <FormField
                 control={form.control}
-                name="deepLink"
+                name="route"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Deep link (optional)</FormLabel>
+                    <FormLabel>Route (optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. ghar360://properties/123" {...field} value={field.value ?? ''} />
+                      <Input placeholder="e.g. /property/123" {...field} value={field.value ?? ''} />
                     </FormControl>
+                    <FormDescription>The app screen the push opens. Leave empty to open the app as is.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

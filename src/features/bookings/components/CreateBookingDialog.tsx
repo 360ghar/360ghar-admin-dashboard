@@ -13,6 +13,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { skipToken } from '@reduxjs/toolkit/query'
 import { useToast } from '@/hooks/use-toast'
 import { useCreateBookingMutation, useCheckAvailabilityQuery, useCalculatePricingQuery } from '@/features/bookings/api/bookingsApi'
+import { useGetUsersQuery } from '@/features/users/api/usersApi'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
@@ -26,14 +27,22 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
   const [isOpen, setIsOpen] = useState(false)
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | undefined>(externalPropertyId)
   const [propertySearch, setPropertySearch] = useState('')
+  // Staff book on behalf of a guest: the guest owns the booking (`user_id`). Without it the booking would belong to the staff account.
+  const [guestSearch, setGuestSearch] = useState('')
+  const [guestUser, setGuestUser] = useState<{ id: number; label: string } | null>(null)
+  const debouncedGuestSearch = useDebounce(guestSearch.trim(), 300)
   const [selectedDates, setSelectedDates] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined })
 
   const propertyId = selectedPropertyId ?? externalPropertyId
-  const { data: searchResults } = useSearchPropertiesQuery(
+  const { currentData: searchResults, error: searchError, refetch: refetchSearch } = useSearchPropertiesQuery(
     { q: propertySearch, limit: 10 },
     { skip: !isOpen || !!externalPropertyId || propertySearch.length < 2 },
   )
-  const { data: property } = useGetPropertyQuery(propertyId || 0, { skip: !propertyId || !isOpen })
+  const { currentData: guestResults, error: guestSearchError, refetch: refetchGuestSearch } = useGetUsersQuery(
+    { q: debouncedGuestSearch, limit: 10 },
+    { skip: !isOpen || guestUser !== null || debouncedGuestSearch.length < 2 },
+  )
+  const { currentData: property, error: propertyError, refetch: refetchProperty } = useGetPropertyQuery(propertyId || 0, { skip: !propertyId || !isOpen })
 
   const form = useForm<CreateBookingFormValues>({
     resolver: zodResolver(createBookingSchema),
@@ -70,7 +79,10 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
     }
   }, [selectedDates, form])
 
-  const availabilityArgs =
+  // Guest-count check: `{ property_id, guests }` only. The route rejects dates.
+  const occupancyArgs = propertyId ? { property_id: propertyId, guests: guestsCount } : skipToken
+  // Pricing needs the dates. An error (no rate, bad range) comes back as a 4xx envelope.
+  const pricingArgs =
     propertyId && selectedDates.from && selectedDates.to
       ? {
           property_id: propertyId,
@@ -80,14 +92,18 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
         }
       : skipToken
 
-  const checkAvailability = useCheckAvailabilityQuery(availabilityArgs)
-  const calculatePricing = useCalculatePricingQuery(availabilityArgs)
+  const checkAvailability = useCheckAvailabilityQuery(occupancyArgs)
+  const calculatePricing = useCalculatePricingQuery(pricingArgs)
   const [createBooking, { isLoading: isCreating }] = useCreateBookingMutation()
 
-  const availabilityInfo = checkAvailability.data ?? null
-  const pricingInfo = calculatePricing.data ?? null
-  const isCheckingAvailability = Boolean(propertyId && selectedDates.from && selectedDates.to) &&
+  const availabilityInfo = checkAvailability.currentData ?? null
+  const pricingInfo = calculatePricing.currentData ?? null
+  // A price is usable only when the response carries a total. A failed or empty answer disables Create.
+  const hasPrice = pricingInfo != null && typeof pricingInfo.total_amount === 'number'
+  const isCheckingAvailability = Boolean(propertyId) &&
     (checkAvailability.isLoading || checkAvailability.isFetching)
+  const isPricing = Boolean(propertyId && selectedDates.from && selectedDates.to) &&
+    (calculatePricing.isLoading || calculatePricing.isFetching)
 
   const resetDialog = () => {
     form.reset({
@@ -102,6 +118,8 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
     })
     setSelectedDates({ from: undefined, to: undefined })
     setPropertySearch('')
+    setGuestSearch('')
+    setGuestUser(null)
     if (!externalPropertyId) setSelectedPropertyId(undefined)
   }
 
@@ -114,10 +132,26 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
       })
       return
     }
-    if (!availabilityInfo?.available) {
+    if (!guestUser) {
+      toast({ title: 'Guest required', description: 'Select the guest this booking is for.', variant: 'destructive' })
+      return
+    }
+    if (checkAvailability.error) {
+      toast({ title: 'Availability check failed', description: getErrorMessage(checkAvailability.error, 'Retry the availability check before creating a booking.'), variant: 'destructive' })
+      return
+    }
+    if (!availabilityInfo?.occupancy_ok) {
       toast({
-        title: 'Unavailable',
-        description: availabilityInfo?.reason || 'Property is not available for the selected dates.',
+        title: 'Guest count does not fit',
+        description: availabilityInfo?.reason || 'The guest count does not fit this property.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (calculatePricing.error || !hasPrice) {
+      toast({
+        title: 'No price for these dates',
+        description: calculatePricing.error ? getErrorMessage(calculatePricing.error, 'Pricing is not available.') : 'Pricing is not available yet.',
         variant: 'destructive',
       })
       return
@@ -125,11 +159,13 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
     try {
       await createBooking({
         ...data,
+        special_requests: data.special_requests?.trim() ? data.special_requests : undefined,
+        user_id: guestUser.id,
         property_id: propertyId,
         check_in_date: selectedDates.from.toISOString(),
         check_out_date: selectedDates.to.toISOString(),
       }).unwrap()
-      toast({ title: 'Booking Created', description: 'Your booking has been created successfully.' })
+      toast({ title: 'Booking Created', description: 'The booking has been created for the selected guest.' })
       setIsOpen(false)
       resetDialog()
       onSuccess?.()
@@ -160,7 +196,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Booking</DialogTitle>
-          <DialogDescription>Select dates and enter guest details for your booking</DialogDescription>
+          <DialogDescription>Choose the guest, pick the dates and confirm the price</DialogDescription>
         </DialogHeader>
         {!externalPropertyId && (
           <div className="space-y-2 mb-4">
@@ -175,6 +211,11 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
             />
             {form.formState.errors.property_id && (
               <p className="text-sm text-destructive">{form.formState.errors.property_id.message}</p>
+            )}
+            {searchError && (
+              <p role="alert" className="text-sm text-destructive">
+                Could not search properties. <Button type="button" variant="link" size="sm" onClick={() => { void refetchSearch() }}>Retry</Button>
+              </p>
             )}
             {searchResults?.items && searchResults.items.length > 0 && !propertyId && (
               <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 max-h-40 overflow-y-auto backdrop-blur-md">
@@ -196,12 +237,57 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
             )}
           </div>
         )}
+        <div className="space-y-2 mb-4">
+          <Label>Guest</Label>
+          {guestUser ? (
+            <div className="flex items-center justify-between rounded-cohere-md border border-cohere-card-border bg-card/40 px-3 py-2 text-sm">
+              <span className="font-medium">{guestUser.label}</span>
+              <Button type="button" variant="link" size="sm" onClick={() => { setGuestUser(null); setGuestSearch('') }}>Change</Button>
+            </div>
+          ) : (
+            <>
+              <Input placeholder="Search guest by name, phone or email..." value={guestSearch} onChange={(e) => setGuestSearch(e.target.value)} />
+              {guestSearchError && (
+                <p role="alert" className="text-sm text-destructive">
+                  Could not search users. <Button type="button" variant="link" size="sm" onClick={() => { void refetchGuestSearch() }}>Retry</Button>
+                </p>
+              )}
+              {guestResults?.items && guestResults.items.length > 0 && (
+                <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 max-h-40 overflow-y-auto backdrop-blur-md">
+                  {guestResults.items.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-muted/60 text-sm border-b border-cohere-card-border/60 last:border-b-0 transition-colors"
+                      onClick={() => {
+                        const label = u.full_name || u.phone || u.email || `User #${u.id}`
+                        setGuestUser({ id: u.id, label })
+                        // Prefill the contact fields the booking needs, without overwriting what staff typed.
+                        if (!form.getValues('primary_guest_name') && u.full_name) form.setValue('primary_guest_name', u.full_name, { shouldValidate: true })
+                        if (!form.getValues('primary_guest_phone') && u.phone) form.setValue('primary_guest_phone', u.phone, { shouldValidate: true })
+                        if (!form.getValues('primary_guest_email') && u.email) form.setValue('primary_guest_email', u.email, { shouldValidate: true })
+                      }}
+                    >
+                      <span className="font-medium">{u.full_name || `User #${u.id}`}</span>
+                      <span className="text-muted-foreground ml-2">{u.phone || u.email || ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        {propertyError && (
+          <p role="alert" className="text-sm text-destructive">
+            Could not load the selected property. <Button type="button" variant="link" size="sm" onClick={() => { void refetchProperty() }}>Retry</Button>
+          </p>
+        )}
         {property && (
           <Card className="mb-4">
             <CardContent className="pt-4">
               <div className="flex gap-4">
                 <img
-                  src={property.main_image_url || '/placeholder-property.jpg'}
+                  src={property.main_image_url ?? '/placeholder-property.jpg'}
                   alt={property.title}
                   className="w-20 h-20 object-cover rounded"
                 />
@@ -210,7 +296,11 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
                   <p className="text-sm text-muted-foreground">
                     {property.city}, {property.locality}
                   </p>
-                  <p className="text-sm font-medium">{formatCurrency(property.base_price)}/night</p>
+                  <p className="text-sm font-medium">
+                    {property.nightly_rate != null
+                      ? `${formatCurrency(property.nightly_rate)}/night`
+                      : 'No nightly rate set'}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -218,6 +308,16 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
         )}
         <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-6">
           <FormRootError form={form} />
+          {checkAvailability.error && (
+            <p role="alert" className="text-sm text-destructive">
+              Could not check availability: {getErrorMessage(checkAvailability.error, 'try again')}. <Button type="button" variant="link" size="sm" onClick={() => { void checkAvailability.refetch() }}>Retry</Button>
+            </p>
+          )}
+          {calculatePricing.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {getErrorMessage(calculatePricing.error, 'Could not calculate pricing.')} <Button type="button" variant="link" size="sm" onClick={() => { void calculatePricing.refetch() }}>Retry</Button>
+            </p>
+          )}
           <BookingDateSelection
             selectedDates={selectedDates}
             setSelectedDates={setSelectedDates}
@@ -288,14 +388,20 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
               disabled={
                 isCreating ||
                 isCheckingAvailability ||
+                isPricing ||
+                Boolean(checkAvailability.error) ||
+                Boolean(calculatePricing.error) ||
+                Boolean(propertyError) ||
+                !guestUser ||
                 !propertyId ||
                 !selectedDates.from ||
                 !selectedDates.to ||
-                !availabilityInfo?.available
+                !availabilityInfo?.occupancy_ok ||
+                !hasPrice
               }
               className="flex-1"
             >
-              {isCreating ? 'Creating…' : isCheckingAvailability ? 'Checking availability…' : 'Create Booking'}
+              {isCreating ? 'Creating…' : isCheckingAvailability || isPricing ? 'Checking price…' : 'Create Booking'}
             </Button>
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel

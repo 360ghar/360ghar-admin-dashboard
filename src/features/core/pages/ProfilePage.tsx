@@ -4,6 +4,7 @@ import { setCredentials } from '@/features/auth/slices/authSlice'
 import { useUserRole } from '@/hooks/useUserRole'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/ui/page-header'
@@ -11,8 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useUpdateUserMutation } from '@/features/users/api/usersApi'
-import { useUploadFileMutation } from '@/features/core/api/uploadApi'
+import { useUpdateProfileMutation, useUploadAvatarMutation } from '@/features/users/api/usersApi'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { FormRootError } from '@/components/ui/form-root-error'
 import { User, Mail, Phone, Calendar, MapPin, Shield, CheckCircle, Camera } from 'lucide-react'
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { getInitials } from '@/lib/utils'
+import type { UserUpdate } from '@/types'
 import { profileSchema, type ProfileFormValues } from '@/features/core/validations'
 
 const AdminPrivilegesCard = () => (
@@ -44,9 +45,10 @@ const ProfilePage = () => {
   const dispatch = useAppDispatch()
   const authToken = useAppSelector((state) => state.auth.token)
   const { toast } = useToast()
-  const form = useForm<ProfileFormValues>({ resolver: zodResolver(profileSchema), defaultValues: { full_name: '', phone: '', email: '' } })
-  const [updateUser, updateState] = useUpdateUserMutation()
-  const [uploadFile, uploadState] = useUploadFileMutation()
+  const form = useForm<ProfileFormValues>({ resolver: zodResolver(profileSchema), defaultValues: { full_name: '', phone: '' } })
+  // Own profile: `PUT /users/profile` (UserUpdate, returns SelfUser). The admin route `PUT /users/{id}` returns no supabase_user_id.
+  const [updateProfile, updateState] = useUpdateProfileMutation()
+  const [uploadAvatar, uploadState] = useUploadAvatarMutation()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
@@ -61,8 +63,7 @@ const ProfilePage = () => {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const uploaded = await uploadFile(fd).unwrap()
-      const updatedUser = await updateUser({ id: me.id, data: { profile_image_url: uploaded.public_url } }).unwrap()
+      const updatedUser = await uploadAvatar(fd).unwrap()
       dispatch(setCredentials({ token: authToken, user: updatedUser }))
       toast({ title: 'Avatar updated' })
     } catch (error: unknown) {
@@ -74,17 +75,25 @@ const ProfilePage = () => {
   }
 
   React.useEffect(() => {
-    if (me && 'id' in me) form.reset({ full_name: me.full_name || '', phone: me.phone || '', email: me.email || '' })
+    if (me && 'id' in me) form.reset({ full_name: me.full_name || '', phone: me.phone || '' })
   }, [me, form])
 
   const onSubmit = async (values: ProfileFormValues) => {
     form.clearErrors()
     try {
       if (!me?.id) { toast({ title: 'Update Failed', description: 'User information is unavailable.', variant: 'destructive' }); return }
-      const user = await updateUser({ id: me.id, data: values }).unwrap()
+      // Send only what changed. A blank phone is never sent (the backend ignores "" and rejects null)
+      // and a blank name is rejected, so neither is sent empty. No email: it changes through the sign-in provider.
+      const fullName = values.full_name?.trim() ?? ''
+      const phone = values.phone?.trim() ?? ''
+      const payload: UserUpdate = {}
+      if (fullName && fullName !== (me.full_name ?? '')) payload.full_name = fullName
+      if (phone && phone !== (me.phone ?? '')) payload.phone = phone
+      if (Object.keys(payload).length === 0) { toast({ title: 'No changes', description: 'Edit a field before saving.' }); return }
+      const user = await updateProfile(payload).unwrap()
       dispatch(setCredentials({ token: authToken, user }))
       toast({ title: "Profile Updated", description: "Your profile information has been successfully updated." })
-    } catch (error: unknown) { applyServerValidation(error, form.setError); toast({ title: "Update Failed", description: getErrorMessage(error, "Failed to update profile. Please try again."), variant: "destructive" }) }
+    } catch (error: unknown) { applyServerValidation(error, form.setError, { knownFields: ['full_name', 'phone'] }); toast({ title: "Update Failed", description: getErrorMessage(error, "Failed to update profile. Please try again."), variant: "destructive" }) }
   }
 
   const isFormDirty = form.formState.isDirty
@@ -139,7 +148,7 @@ const ProfilePage = () => {
             <div className="grid gap-6 md:grid-cols-2">
               <FormField control={form.control} name="full_name" render={({ field }) => (<FormItem><FormLabel className="text-sm font-medium">Full Name</FormLabel><FormControl><Input placeholder="Enter your full name" className="h-11" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel className="text-sm font-medium">Phone Number</FormLabel><FormControl><Input placeholder="Enter your phone number" className="h-11" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="email" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="text-sm font-medium">Email Address</FormLabel><FormControl><Input type="email" placeholder="Enter your email address" className="h-11" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <div className="space-y-2 md:col-span-2"><Label htmlFor="profile-email" className="text-sm font-medium">Email Address</Label><Input id="profile-email" type="email" className="h-11" value={me?.email ?? ''} readOnly disabled placeholder="No email on file" /><p className="text-xs text-muted-foreground">Email is managed by your sign-in provider.</p></div>
             </div>
             <div className="flex items-center justify-between pt-4 border-t">
               <div className="text-sm text-muted-foreground">{isFormDirty && "You have unsaved changes"}</div>

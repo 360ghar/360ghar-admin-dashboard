@@ -1,4 +1,4 @@
-import { AlertCircle, Clock, Edit2, Image as ImageIcon, TrendingUp } from 'lucide-react'
+import { AlertCircle, Clock, Edit2, Image as ImageIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,28 +14,19 @@ import {
   getPrescreenFlags,
   getPrescreenReason,
   getPrescreenResult,
-  isApprovalBoostActive,
 } from './moderationUtils'
+import { getListingModerationStatusColor } from '@/lib/statusColors'
 
 interface ModerationListingCardProps {
   listing: FlatmatesListing
   onReview: (listing: FlatmatesListing) => void
 }
 
-const getStatusBadge = (status: string) => {
-  const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-    pending_review: 'secondary',
-    live: 'default',
-    rejected: 'destructive',
-    paused: 'outline',
-    expired: 'outline',
-  }
-  return (
-    <Badge variant={variants[status] || 'outline'}>
-      {status.replace(/_/g, ' ').toUpperCase()}
-    </Badge>
-  )
-}
+const getStatusBadge = (status: FlatmatesListing['status']) => (
+  <Badge variant={getListingModerationStatusColor(status)}>
+    {status.replace(/_/g, ' ').toUpperCase()}
+  </Badge>
+)
 
 const getOverdueBadge = (createdAt: string) => {
   const created = parseServerTimestamp(createdAt)
@@ -58,7 +49,6 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
   const prescreenFlags = getPrescreenFlags(listing)
   const prescreenReason = getPrescreenReason(listing)
   const isFlagged = getPrescreenResult(listing) === 'flagged'
-  const isBoosted = isApprovalBoostActive(listing)
   const autoPauseReason = getAutoPauseReason(listing)
   const photoCount = getAiPrescreenPhotoCount(listing)
 
@@ -81,12 +71,6 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
                   AI FLAG
                 </Badge>
               )}
-              {isBoosted && (
-                <Badge variant="default" className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  BOOSTED
-                </Badge>
-              )}
               {autoPauseReason === 'stale_listing' && (
                 <Badge variant="outline">STALE — 60D INACTIVE</Badge>
               )}
@@ -94,7 +78,7 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
             <p className="text-sm text-muted-foreground">
               {listing.locality && <span>{listing.locality}</span>}
               {listing.city && <span>, {listing.city}</span>}
-              {listing.monthly_rent && (
+              {listing.monthly_rent != null && (
                 <span className="ml-2">• {formatCurrency(listing.monthly_rent)}/mo</span>
               )}
             </p>
@@ -114,7 +98,7 @@ export function ModerationListingCard({ listing, onReview }: ModerationListingCa
               <div className="h-48 overflow-hidden rounded-cohere-sm md:h-full md:min-h-[12rem]">
                 <TiltedCard
                   imageSrc={listing.main_image_url}
-                  altText={listing.title}
+                  altText={listing.title ?? 'Listing photo'}
                   containerHeight="100%"
                   containerWidth="100%"
                   imageHeight="100%"

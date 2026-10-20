@@ -1,6 +1,7 @@
 export type {
   FlatmatesListing,
   FlatmatesReport,
+  FlatmateAdminUser,
   ModerationAction,
   ReportModerationAction,
   ModerationQueueResponse,

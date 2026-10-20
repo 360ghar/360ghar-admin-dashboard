@@ -1,7 +1,9 @@
-import {useMemo, useState} from "react";
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
+import {useEffect, useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, IndianRupee } from "lucide-react";
 import { downloadCsv } from "@/features/pm/utils";
+import { PAYMENT_METHODS, getStatusLabel } from "@/features/pm/constants";
 import { formatCurrency } from "@/lib/format"
 import { formatDate, formatDateTime } from "@/lib/format";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
@@ -12,13 +14,17 @@ import RecordPaymentDialog from "@/features/pm/components/RecordPaymentDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
-import type { RentChargeWithTotals, RentPayment, RentChargeStatus } from "@/types/pm";
+import type { RentChargeWithTotals, RentPayment, RentChargeStatus, RentPaymentStatus } from "@/types/pm";
 import {
   useListRentChargesQuery,
-  useListRentPaymentsQuery} from "@/features/pm/api/pmApi";
+  useListRentPaymentsQuery,
+  useRejectRentPaymentMutation,
+  useSettleRentPaymentMutation} from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import CountUp from "@/components/reactbits/CountUp";
 import { PageHeader } from "@/components/ui/page-header";
@@ -30,7 +36,11 @@ export default function PmRentLedgerPage() {
 
   const [tab, setTab] = useState<"charges" | "payments">("charges");
   const [chargeStatus, setChargeStatus] = useState<RentChargeStatus | "">("");
+  const [paymentStatus, setPaymentStatus] = useState<RentPaymentStatus | "">("");
   const [limit, setLimit] = useState(50);
+  const { toast } = useToast();
+  const [settlePayment] = useSettleRentPaymentMutation();
+  const [rejectPayment] = useRejectRentPaymentMutation();
 
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedCharge, setSelectedCharge] = useState<RentChargeWithTotals | null>(null);
@@ -40,22 +50,31 @@ export default function PmRentLedgerPage() {
     setPaymentOpen(true);
   };
 
-  const chargesPager = useCursorPagination(`${chargeStatus}|${limit}|${ownerId}`);
-  const paymentsPager = useCursorPagination(`${limit}|${ownerId}`);
+  const chargesPager = useCursorPagination(pmCursorKey(ownerId, chargeStatus, limit));
+  const paymentsPager = useCursorPagination(pmCursorKey(ownerId, paymentStatus, limit));
 
   const charges = useListRentChargesQuery(
     { owner_id: ownerId, status: chargeStatus || undefined, limit, cursor: chargesPager.cursor },
     { skip: role === "agent" && !ownerId },
   );
 
-  const chargesDisplayData = charges.data?.items;
+  const chargesDisplayData = charges.currentData?.items;
 
   const payments = useListRentPaymentsQuery(
-    { owner_id: ownerId, limit, cursor: paymentsPager.cursor },
+    { owner_id: ownerId, status: paymentStatus || undefined, limit, cursor: paymentsPager.cursor },
     { skip: role === "agent" && !ownerId },
   );
 
-  const paymentsDisplayData = payments.data?.items;
+  const paymentsDisplayData = payments.currentData?.items;
+
+  // A charge selected under another owner, status, or page cannot receive a payment.
+  const activeCharge = selectedCharge && (!ownerId || selectedCharge.charge.owner_id === ownerId)
+    ? chargesDisplayData?.find((item) => item.charge.id === selectedCharge.charge.id) ?? null
+    : null;
+  useEffect(() => {
+    setSelectedCharge(null);
+    setPaymentOpen(false);
+  }, [ownerId, chargeStatus, limit, chargesPager.cursor]);
 
   const chargeTotals = useMemo(() => {
     const items = chargesDisplayData ?? [];
@@ -94,6 +113,14 @@ export default function PmRentLedgerPage() {
           <span className="text-sm">{formatCurrency(row.original.amount_due_total)}</span>
         )},
       {
+        id: "late_fee",
+        header: "Late fee",
+        cell: ({ row }) => (
+          <span className={row.original.charge.late_fee_assessed ? "text-sm font-medium" : "text-sm text-muted-foreground"}>
+            {row.original.charge.late_fee_assessed ? formatCurrency(row.original.charge.late_fee_assessed) : "—"}
+          </span>
+        )},
+      {
         id: "paid",
         header: "Paid",
         cell: ({ row }) => (
@@ -121,13 +148,28 @@ export default function PmRentLedgerPage() {
         header: "Amount",
         cell: ({ row }) => formatCurrency(row.original.amount_paid)},
       {
+        accessorKey: "status",
+        header: "Status",
+        // A tenant claim is pending until the owner settles it. Only settled payments count as income.
+        cell: ({ row }) => (
+          <Badge variant={row.original.status === "settled" ? "default" : "secondary"}>{row.original.status}</Badge>
+        )},
+      {
         accessorKey: "payment_method",
         header: "Method",
-        cell: ({ row }) => row.original.payment_method || "—"},
+        cell: ({ row }) => getStatusLabel(PAYMENT_METHODS, row.original.payment_method)},
       {
         accessorKey: "reference",
         header: "Reference",
         cell: ({ row }) => row.original.reference || "—"},
+      {
+        id: "charge",
+        header: "Charge",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            Charge #{row.original.charge_id} &bull; Lease #{row.original.lease_id}
+          </span>
+        )},
       {
         id: "receipt",
         header: "Receipt",
@@ -137,8 +179,50 @@ export default function PmRentLedgerPage() {
           ) : (
             "—"
           )},
+      {
+        // A tenant claim waits for staff: settle it (it then counts toward the charge) or reject it.
+        id: "actions",
+        header: "",
+        cell: ({ row }) =>
+          row.original.status === "pending" ? (
+            <div className="flex justify-end gap-2">
+              <ConfirmAlertDialog
+                title="Settle payment"
+                description={`Confirm the ${formatCurrency(row.original.amount_paid)} payment for charge #${row.original.charge_id}? It then counts toward the charge.`}
+                confirmLabel="Settle"
+                onConfirm={async () => {
+                  await settlePayment(row.original.id).unwrap();
+                  toast({ title: "Settled", description: "Payment settled." });
+                }}
+              >
+                {(openDialog) => (
+                  <Button size="sm" onClick={openDialog}>
+                    Settle
+                  </Button>
+                )}
+              </ConfirmAlertDialog>
+              <ConfirmAlertDialog
+                title="Reject payment"
+                description={`Reject the ${formatCurrency(row.original.amount_paid)} claim for charge #${row.original.charge_id}? The claim is removed and the charge stays unchanged.`}
+                confirmLabel="Reject"
+                variant="destructive"
+                onConfirm={async () => {
+                  await rejectPayment(row.original.id).unwrap();
+                  toast({ title: "Rejected", description: "Payment claim rejected." });
+                }}
+              >
+                {(openDialog) => (
+                  <Button size="sm" variant="destructive" onClick={openDialog}>
+                    Reject
+                  </Button>
+                )}
+              </ConfirmAlertDialog>
+            </div>
+          ) : null},
     ];
-  }, []);
+    // The dialogs live in the cells: keep this dependency list free of request state, or a cell remounts
+    // while its dialog is open and the dialog loses its error message.
+  }, [settlePayment, rejectPayment, toast]);
 
   const goPrev = () => chargesPager.prev();
   const goPrevPayments = () => paymentsPager.prev();
@@ -148,9 +232,9 @@ export default function PmRentLedgerPage() {
       <div className="space-y-6">
         <PageHeader
           title="Rent Ledger"
-          description="Generate charges and record manual payments + receipts."
+          description="Generate charges, record payments and receipts, and settle tenant claims."
           icon={IndianRupee}
-          actions={<GenerateChargesDialog ownerId={ownerId} />}
+          actions={<GenerateChargesDialog key={ownerId ?? 'all'} ownerId={ownerId} />}
         />
 
         <div className="inline-flex flex-wrap gap-1 rounded-cohere-md border border-cohere-card-border bg-card/40 p-1 backdrop-blur-md">
@@ -226,6 +310,7 @@ export default function PmRentLedgerPage() {
                     billing_month: c.charge.billing_month,
                     due_date: c.charge.due_date,
                     status: c.charge.status,
+                    late_fee_assessed: c.charge.late_fee_assessed,
                     amount_due_total: c.amount_due_total,
                     amount_paid_total: c.amount_paid_total,
                     outstanding: c.outstanding,
@@ -237,6 +322,7 @@ export default function PmRentLedgerPage() {
                     payment_id: p.id,
                     paid_at: p.paid_at,
                     amount_paid: p.amount_paid,
+                    status: p.status,
                     method: p.payment_method,
                     reference: p.reference,
                     notes: p.notes,
@@ -249,33 +335,35 @@ export default function PmRentLedgerPage() {
               }}
             >
               <Download className="mr-2 h-4 w-4" />
-              Export CSV
+              Export current page CSV
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             {tab === "charges" ? (
               <ChargesTab
-                charges={{ isLoading: charges.isLoading, isError: charges.isError, error: charges.error, refetch: () => { void charges.refetch() }, data: chargesDisplayData }}
+                charges={{ isLoading: (!charges.currentData && charges.isFetching), isError: charges.isError, error: charges.error, refetch: () => { void charges.refetch() }, data: chargesDisplayData }}
                 chargeColumns={chargeColumns}
                 chargeStatus={chargeStatus}
                 onChargeStatusChange={setChargeStatus}
                 limit={limit}
                 onLimitChange={setLimit}
                 canPrev={chargesPager.canPrev}
-                canNext={charges.data?.has_more ?? false}
+                canNext={charges.currentData?.has_more ?? false}
                 onPrev={goPrev}
-                onNext={() => charges.data && chargesPager.next(charges.data.next_cursor)}
+                onNext={() => charges.currentData && chargesPager.next(charges.currentData.next_cursor)}
                 onRecordPayment={openPayment}
               />
             ) : (
               <PaymentsTab
-                payments={{ isLoading: payments.isLoading, isError: payments.isError, error: payments.error, refetch: () => { void payments.refetch() }, data: paymentsDisplayData }}
+                payments={{ isLoading: (!payments.currentData && payments.isFetching), isError: payments.isError, error: payments.error, refetch: () => { void payments.refetch() }, data: paymentsDisplayData }}
                 paymentColumns={paymentColumns}
+                paymentStatus={paymentStatus}
+                onPaymentStatusChange={setPaymentStatus}
                 limit={limit}
                 canPrev={paymentsPager.canPrev}
-                canNext={payments.data?.has_more ?? false}
+                canNext={payments.currentData?.has_more ?? false}
                 onPrev={goPrevPayments}
-                onNext={() => payments.data && paymentsPager.next(payments.data.next_cursor)}
+                onNext={() => payments.currentData && paymentsPager.next(payments.currentData.next_cursor)}
               />
             )}
           </CardContent>
@@ -283,8 +371,8 @@ export default function PmRentLedgerPage() {
 
         <RecordPaymentDialog
           ownerId={ownerId}
-          charge={selectedCharge}
-          open={paymentOpen}
+          charge={activeCharge}
+          open={paymentOpen && Boolean(activeCharge)}
           onOpenChange={setPaymentOpen}
         />
       </div>

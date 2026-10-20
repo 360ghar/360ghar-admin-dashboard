@@ -93,29 +93,29 @@ export function buildActivityTrend(
 }
 
 export interface StatusQueryLike<T> {
-  data?: { total?: number; items?: T[] } | null
+  data?: { total?: number | null; items?: T[] } | null
   isLoading: boolean
   isError: boolean
 }
 
 /**
- * Contract: every status query is issued with `include_total: true` and the
- * backend returns the exact count in `total`. The `items.length` fallback
- * keeps a non-compliant backend from crashing the UI, but the caller should
- * treat a missing `total` as a contract violation (see useDashboardData).
+ * Exact status counts require `include_total: true`. A missing or failed count
+ * is unknown, never zero; a one-row sample cannot stand in for the total.
  */
 export function computeStatusBreakdown<T>(queries: ReadonlyArray<StatusQueryLike<T>>): {
-  totals: number[]
+  totals: Array<number | null>
   isLoading: boolean
   isError: boolean
 } {
-  const totals = queries.map((q) => q.data?.total ?? q.data?.items?.length ?? 0)
+  const totals = queries.map((q) =>
+    !q.isError && typeof q.data?.total === 'number' && Number.isFinite(q.data.total) && q.data.total >= 0
+      ? q.data.total
+      : null,
+  )
   return {
     totals,
-    // Surface an error if ANY status query failed — otherwise a single failed
-    // query is counted as 0 and silently corrupts the totals/percentages.
     isLoading: queries.some((q) => q.isLoading),
-    isError: queries.some((q) => q.isError),
+    isError: queries.some((q) => q.isError || (!q.isLoading && (q.data?.total === undefined || !Number.isFinite(q.data.total)))),
   }
 }
 
@@ -146,7 +146,8 @@ interface VisitRow {
   created_at?: string | null
   status?: string
   property?: { title?: string | null } | null
-  user?: { full_name?: string | null } | null
+  /** Visitor summary: `{ id, display_name, avatar_url }`. */
+  user?: { display_name?: string | null } | null
 }
 
 interface BookingRow {
@@ -172,7 +173,7 @@ export function visitToActivity(v: VisitRow): ActivityEntry | null {
     id: `visit-${v.id}`,
     kind: 'visit',
     title: v.property?.title ? `Visit · ${v.property.title}` : `Visit #${v.id}`,
-    subtitle: v.user?.full_name ?? undefined,
+    subtitle: v.user?.display_name ?? undefined,
     status: v.status,
     timestamp: v.created_at,
     href: `/visits/${v.id}`,

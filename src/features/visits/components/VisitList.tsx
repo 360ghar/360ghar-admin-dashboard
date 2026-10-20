@@ -1,19 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useGetAllVisitsQuery } from '@/features/visits/api/visitsApi'
 import type { VisitsQuery } from '@/features/visits/api/visitsApi'
-import type { Visit } from '@/types/api'
+import type { Visit, VisitStatus } from '@/types/api'
+import { VISIT_CONTEXT_LABELS, VISIT_STATUSES, isVisitStatus, visitAgentName, visitorName } from '@/features/visits/constants'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Link } from 'react-router-dom'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
+import { PAGE_SIZE_OPTIONS, usePageSizePreference } from '@/hooks/usePageSizePreference'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { formatDateTime } from '@/lib/format'
-import { useDebounce } from '@/hooks/useDebounce'
+import { useScopedDebounce } from '@/hooks/useScopedDebounce'
 import { ColumnDef } from '@tanstack/react-table'
 import { useFilterPersistence } from '@/hooks/useFilterPersistence'
 import { SortableHeader } from '@/components/ui/data-table'
@@ -25,53 +27,55 @@ import { Download } from 'lucide-react'
 import { downloadCsv, csvFilename } from '@/lib/csv'
 import { getVisitStatusColor, getVisitStatusLabel } from '@/lib/statusColors'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { scopedStorageKey } from '@/lib/storage'
+
+const allowedFilterValues = {
+  status: ['', ...VISIT_STATUSES],
+}
 
 const VisitList = () => {
   const { user: me, role } = useUserRole()
   const isMobile = useIsMobile()
 
-  const { filters, setFilters } = useFilterPersistence({
+  const { filters, setFilters, clearFilters } = useFilterPersistence({
     key: 'visits',
+    accountId: me?.supabase_user_id,
     defaultValue: {
       status: '',
       q: '',
     },
+    allowedValues: allowedFilterValues,
   })
 
-  const [status, setStatus] = useState(filters.status || '')
-  const [q, setQ] = useState(filters.q || '')
+  const { status, q } = filters
+  const statusFilter: VisitStatus | undefined = isVisitStatus(status) ? status : undefined
+  const setStatus = (value: string) => setFilters({ status: value })
+  const setQ = (value: string) => setFilters({ q: value })
 
-  useEffect(() => {
-    setFilters({ status, q })
-  }, [status, q, setFilters])
+  const dq = useScopedDebounce(q, me?.supabase_user_id)
 
-  const dq = useDebounce(q)
-
-  const [pageSize, setPageSize] = useState(10)
-  const pager = useCursorPagination(`${status}|${dq}|${pageSize}`)
+  const [pageSize, setPageSize] = usePageSizePreference({ key: 'visits', accountId: me?.supabase_user_id, defaultSize: 10, sizes: PAGE_SIZE_OPTIONS })
+  const pager = useCursorPagination(`${me?.supabase_user_id ?? ''}|${role ?? ''}|${me?.agent_id ?? ''}|${status}|${dq}|${pageSize}`)
 
   const params = useMemo(() => {
-    const base: VisitsQuery & { q?: string } = {}
-    if (status) base.status = status
+    const base: VisitsQuery = {}
+    if (statusFilter) base.status = statusFilter
     if (dq) base.q = dq
     if (role === 'agent' && me?.agent_id) base.agent_id = me.agent_id
     return base
-  }, [status, dq, role, me?.agent_id])
+  }, [statusFilter, dq, role, me?.agent_id])
 
-  const { data, isFetching, isLoading, error, refetch } = useGetAllVisitsQuery({ ...params, cursor: pager.cursor, limit: pageSize })
+  const { currentData: data, isFetching, isLoading, error, refetch } = useGetAllVisitsQuery({ ...params, cursor: pager.cursor, limit: pageSize })
 
   const activeFilterCount = (status ? 1 : 0) + (q ? 1 : 0)
-
-  const clearFilters = () => {
-    setStatus('')
-    setQ('')
-  }
 
   const handleExport = () => {
     const rows = (data?.items ?? []).map((v) => ({
       id: v.id,
       property_title: v.property?.title,
-      user_name: v.user?.full_name,
+      visitor: v.user?.display_name,
+      visit_context: v.visit_context,
+      agent: v.agents?.name,
       scheduled_date: v.scheduled_date,
       status: v.status,
       created_at: v.created_at,
@@ -88,7 +92,17 @@ const VisitList = () => {
     {
       accessorKey: 'user_id',
       header: ({ column }) => <SortableHeader column={column}>User</SortableHeader>,
-      cell: ({ row }) => row.original.user?.full_name ?? `#${row.original.user_id}`,
+      cell: ({ row }) => visitorName(row.original),
+    },
+    {
+      id: 'agent',
+      header: 'Agent',
+      cell: ({ row }) => visitAgentName(row.original) ?? '-',
+    },
+    {
+      accessorKey: 'visit_context',
+      header: 'Type',
+      cell: ({ row }) => row.original.visit_context ? VISIT_CONTEXT_LABELS[row.original.visit_context] : '-',
     },
     {
       accessorKey: 'scheduled_date',
@@ -123,7 +137,7 @@ const VisitList = () => {
             {visit.property?.title ?? `Property #${visit.property_id}`}
           </div>
           <div className="text-sm text-muted-foreground truncate">
-            {visit.user?.full_name ?? `User #${visit.user_id}`}
+            {visitorName(visit)}
           </div>
         </div>
         <Badge variant={getVisitStatusColor(visit.status)} className="shrink-0">
@@ -209,11 +223,12 @@ const VisitList = () => {
       ) : (
         <div className="space-y-4">
           <ResponsiveDataTable
+            enableColumnVisibility
             columns={columns}
             data={data.items}
             enableSorting
             mobileCardRender={renderCard}
-            viewStorageKey="visits-table"
+            viewStorageKey={me?.supabase_user_id ? scopedStorageKey('visits-table', me.supabase_user_id) : 'visits-table-anonymous'}
           />
           <CursorPager
             canPrev={pager.canPrev}

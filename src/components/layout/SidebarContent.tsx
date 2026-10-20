@@ -47,15 +47,13 @@ export const SidebarContent = ({ collapsed = false, onToggleCollapse }: SidebarC
             : []),
     ]
 
-    const adminToolsNav = byName('Admin Tools')
-
     const sections: NavSection[] = role === 'admin'
         ? [
             { items: [byName('Dashboard')] },
             { label: 'Properties', items: [byName('All Properties')] },
             { label: 'Engagement', items: engagementNav },
             { label: 'Property Management', items: [byName('Property Management')] },
-            { label: 'Admin', items: [byName('Users'), byName('Agents'), byName('Analytics'), adminToolsNav] },
+            { label: 'Admin', items: [byName('Users'), byName('Agents'), byName('Analytics'), byName('Admin Tools')] },
             { items: [profileItem] },
         ]
         : role === 'agent'

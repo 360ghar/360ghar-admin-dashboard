@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PAGE_SIZES } from "@/features/pm/constants";
+import { formatDateTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -77,8 +78,22 @@ export default function FormsTab({
         header: "Property",
         cell: ({ row }) => (
           <span className="text-sm">
-            {row.original.property_id ? `#${row.original.property_id}` : "Any"}
+            {row.original.property_id ? row.original.property_name || `#${row.original.property_id}` : "Any"}
           </span>
+        ),
+      },
+      {
+        id: "fields",
+        header: "Fields",
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.custom_fields?.length ?? 0}</span>
+        ),
+      },
+      {
+        accessorKey: "expires_at",
+        header: "Expires",
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.expires_at ? formatDateTime(row.original.expires_at) : "Never"}</span>
         ),
       },
       {

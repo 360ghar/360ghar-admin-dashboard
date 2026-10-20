@@ -28,7 +28,7 @@ const PropertiesPage = ({ mode }: Props) => {
   if (mode === 'edit') {
     const id = parseRouteId(params.id)
     if (id == null) return <Navigate to="/properties" replace />
-    return <PropertyForm id={id} onSuccess={(pid) => navigate(`/properties/${pid}`)} />
+    return <PropertyForm key={id} id={id} onSuccess={(pid) => navigate(`/properties/${pid}`)} />
   }
   if (mode === 'view') {
     const id = parseRouteId(params.id)
@@ -41,7 +41,7 @@ const PropertiesPage = ({ mode }: Props) => {
       <div className="space-y-8">
         <div className="space-y-4">
           <PageHeader
-            title="Properties"
+            title="All Properties"
             description={
               role === 'agent'
                 ? 'Manage properties assigned to you and track their performance'

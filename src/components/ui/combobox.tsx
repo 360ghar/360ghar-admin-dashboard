@@ -14,16 +14,17 @@ type Props<T extends string | number> = {
   placeholder?: string
   emptyText?: string
   className?: string
+  disabled?: boolean
 }
 
-export function Combobox<T extends string | number>({ items, value = '', onChange, placeholder = 'Search…', emptyText = 'No results', className }: Props<T>) {
+export function Combobox<T extends string | number>({ items, value = '', onChange, placeholder = 'Search…', emptyText = 'No results', className, disabled = false }: Props<T>) {
   const [open, setOpen] = React.useState(false)
   const selected = items.find((i) => String(i.value) === String(value))
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={disabled ? false : open} onOpenChange={(nextOpen) => { if (!disabled) setOpen(nextOpen) }}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className={cn('w-full justify-between', className)}>
+        <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className={cn('w-full justify-between', className)}>
           {selected ? selected.label : 'Select…'}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -35,7 +36,7 @@ export function Combobox<T extends string | number>({ items, value = '', onChang
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {items.map((item) => (
-                <CommandItem key={String(item.value)} onSelect={() => { onChange(item.value); setOpen(false) }}>
+                <CommandItem key={String(item.value)} onSelect={() => { if (disabled) return; onChange(item.value); setOpen(false) }}>
                   <Check className={cn('mr-2 h-4 w-4', String(item.value) === String(value) ? 'opacity-100' : 'opacity-0')} />
                   {item.label}
                 </CommandItem>

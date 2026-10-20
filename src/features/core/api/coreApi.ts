@@ -1,4 +1,5 @@
 import { api } from '@/store/api'
+import type { components } from '@/lib/api/schema.gen'
 import type {
   BugReport,
   BugReportCreate,
@@ -13,7 +14,6 @@ import type {
   AppUpdateUpdate,
   AppUpdatesQuery,
   HealthResponse,
-  AppConfig,
   PaginatedResponse,
 } from '@/types/api'
 import { API_BASE_URL } from '@/lib/config'
@@ -21,32 +21,14 @@ import { API_BASE_URL } from '@/lib/config'
 const apiBaseUrl = API_BASE_URL.replace(/\/$/, '')
 const apiRootUrl = apiBaseUrl.replace(/\/api\/v1$/, '')
 
-// FAQ types (matches backend app/schemas/core.py FAQ*).
-export interface Faq {
-  id: number
-  question: string
-  answer: string
-  category?: string | null
-  tags?: string[] | null
-  display_order: number
-  is_active: boolean
-  created_at: string
-  updated_at?: string | null
-}
-
-export interface FaqCreate {
-  question: string
-  answer: string
-  category?: string | null
-  tags?: string[] | null
-  display_order?: number | null
-  is_active?: boolean
-}
-
-export type FaqUpdate = Partial<FaqCreate>
+// FAQ types. `display_order` is an integer (default 0) and is never null.
+export type Faq = components['schemas']['FAQResponse']
+export type FaqCreate = components['schemas']['FAQCreate']
+export type FaqUpdate = components['schemas']['FAQUpdate']
 
 export interface FaqsQuery {
   category?: string
+  is_active?: boolean
   limit?: number
   cursor?: string | null
 }
@@ -87,11 +69,6 @@ export const coreApi = api.injectEndpoints({
           : [{ type: 'BugReport' as const, id: 'LIST' }],
     }),
 
-    getBugReport: builder.query<BugReport, number>({
-      query: (id) => `/bugs/${id}`,
-      providesTags: (res, _e, id) => [{ type: 'BugReport', id }]
-    }),
-
     updateBugReport: builder.mutation<BugReport, { id: number; data: BugReportUpdate }>({
       query: ({ id, data }) => ({
         url: `/bugs/${id}`,
@@ -123,11 +100,6 @@ export const coreApi = api.injectEndpoints({
               { type: 'Page' as const, id: 'LIST' },
             ]
           : [{ type: 'Page' as const, id: 'LIST' }],
-    }),
-
-    getPage: builder.query<Page, string>({
-      query: (uniqueName) => `/pages/${uniqueName}`,
-      providesTags: (res, _e, uniqueName) => [{ type: 'Page', id: uniqueName }]
     }),
 
     updatePage: builder.mutation<Page, { uniqueName: string; data: PageUpdate }>({
@@ -210,7 +182,7 @@ export const coreApi = api.injectEndpoints({
       invalidatesTags: (_res, _e, { id }) => [{ type: 'Faq', id }, { type: 'Faq', id: 'LIST' }],
     }),
 
-    deleteFaq: builder.mutation<{ message?: string }, number>({
+    deleteFaq: builder.mutation<void, number>({
       query: (id) => ({
         url: `/faqs/${id}`,
         method: 'DELETE',
@@ -218,14 +190,9 @@ export const coreApi = api.injectEndpoints({
       invalidatesTags: (_res, _e, id) => [{ type: 'Faq', id }, { type: 'Faq', id: 'LIST' }],
     }),
 
-    // Health Check
+    // Health Check. `/health` is a root route that OpenAPI does not describe (see HealthResponse).
     healthCheck: builder.query<HealthResponse, void>({
       query: () => ({ url: `${apiRootUrl}/health` })
-    }),
-
-    // Public Config
-    getConfig: builder.query<AppConfig, void>({
-      query: () => ({ url: `${apiRootUrl}/config` })
     }),
   }),
 })
@@ -234,11 +201,9 @@ export const {
   useCreateBugReportMutation,
   useCreateBugReportWithMediaMutation,
   useGetBugReportsQuery,
-  useGetBugReportQuery,
   useUpdateBugReportMutation,
   useCreatePageMutation,
   useGetPagesQuery,
-  useGetPageQuery,
   useUpdatePageMutation,
   useDeletePageMutation,
   useCreateAppUpdateMutation,
@@ -249,5 +214,4 @@ export const {
   useUpdateFaqMutation,
   useDeleteFaqMutation,
   useHealthCheckQuery,
-  useGetConfigQuery,
 } = coreApi

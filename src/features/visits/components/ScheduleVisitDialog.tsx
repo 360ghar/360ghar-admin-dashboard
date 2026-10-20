@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import { getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
 import { useToast } from '@/hooks/use-toast'
+import { useDebounce } from '@/hooks/useDebounce'
 import { scheduleVisitSchema, type ScheduleVisitFormValues } from '@/features/visits/validations'
 
 type ScheduleVisitFormData = ScheduleVisitFormValues
@@ -43,8 +45,11 @@ const ScheduleVisitDialog: React.FC<ScheduleVisitDialogProps> = ({
   })
 
   const [scheduleVisit, { isLoading: scheduling }] = useScheduleVisitMutation()
-  const { data: properties, isFetching: propertiesLoading } = useSearchPropertiesQuery(
-    { limit: 100 },
+  // The picker searches on the server: the first 100 rows of the catalogue would hide the rest.
+  const [propertySearch, setPropertySearch] = useState('')
+  const debouncedPropertySearch = useDebounce(propertySearch.trim(), 300)
+  const { currentData: properties, isFetching: propertiesLoading, error: propertiesError, refetch: refetchProperties } = useSearchPropertiesQuery(
+    { limit: 20, q: debouncedPropertySearch || undefined },
     { skip: !open },
   )
 
@@ -81,11 +86,23 @@ const ScheduleVisitDialog: React.FC<ScheduleVisitDialogProps> = ({
         </DialogHeader>
         <form onSubmit={(e) => void scheduleForm.handleSubmit(handleSubmit)(e)} className="space-y-4">
           <FormRootError form={scheduleForm} />
+          {propertiesError && (
+            <p role="alert" className="text-sm text-destructive">
+              Could not load properties. <Button type="button" variant="link" size="sm" onClick={() => { void refetchProperties() }}>Retry</Button>
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="property_id">Property</Label>
+            <Input
+              aria-label="Search properties"
+              placeholder="Search properties by title or place"
+              value={propertySearch}
+              onChange={(e) => setPropertySearch(e.target.value)}
+            />
             <Select
               value={scheduleForm.watch('property_id')?.toString() || undefined}
               onValueChange={(value) => scheduleForm.setValue('property_id', Number(value), { shouldValidate: true })}
+              disabled={propertiesLoading || Boolean(propertiesError)}
             >
               <SelectTrigger><SelectValue placeholder={propertiesLoading ? "Loading properties..." : "Select a property"} /></SelectTrigger>
               <SelectContent>
@@ -98,6 +115,9 @@ const ScheduleVisitDialog: React.FC<ScheduleVisitDialogProps> = ({
             </Select>
             {fieldErrors.property_id && (
               <p className="text-sm text-destructive">{fieldErrors.property_id.message}</p>
+            )}
+            {!propertiesLoading && !propertiesError && properties?.items.length === 0 && (
+              <p className="text-sm text-muted-foreground">{debouncedPropertySearch ? 'No properties match this search.' : 'No properties are available for a visit.'}</p>
             )}
           </div>
           <div className="space-y-2">
@@ -121,7 +141,7 @@ const ScheduleVisitDialog: React.FC<ScheduleVisitDialogProps> = ({
             />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" disabled={scheduling} className="flex-1">
+            <Button type="submit" disabled={scheduling || Boolean(propertiesError)} className="flex-1">
               {scheduling ? 'Scheduling...' : 'Schedule Visit'}
             </Button>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

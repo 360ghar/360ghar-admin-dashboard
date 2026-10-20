@@ -2,10 +2,14 @@ import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FileText, ShieldCheck, ShieldX } from "lucide-react";
 import { DecisionAlertDialog } from "@/features/pm/components/DecisionAlertDialog";
+import DocumentViewButton from "@/features/pm/components/DocumentViewButton";
 import {
   useGetApplicationQuery,
   useListPmDocumentsQuery,
 } from "@/features/pm/api/pmApi";
+import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
+import { useAppSelector } from "@/hooks/redux";
+import { useUserRole } from "@/hooks/useUserRole";
 import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +22,8 @@ import { PageHeader } from "@/components/ui/page-header";
 export default function PmApplicationDetailPage() {
   const { applicationId } = useParams();
   const applicationIdNum = Number(applicationId);
+  const selectedOwnerId = useAppSelector(selectSelectedOwnerId);
+  const { role } = useUserRole();
 
   const application = useGetApplicationQuery(applicationIdNum, {
     skip: !applicationIdNum,
@@ -25,21 +31,21 @@ export default function PmApplicationDetailPage() {
 
   const docs = useListPmDocumentsQuery(
     {
-      owner_id: application.data?.owner_id ?? undefined,
+      owner_id: application.currentData?.owner_id ?? undefined,
       rental_application_id: applicationIdNum,
       limit: 50,
     },
-    { skip: !application.data?.owner_id },
+    { skip: !application.currentData?.owner_id || Boolean(selectedOwnerId && application.currentData.owner_id !== selectedOwnerId) },
   );
 
   const answersJson = useMemo(() => {
-    if (!application.data?.answers) return null;
+    if (!application.currentData?.answers) return null;
     try {
-      return JSON.stringify(application.data.answers, null, 2);
+      return JSON.stringify(application.currentData.answers, null, 2);
     } catch {
       return null;
     }
-  }, [application.data?.answers]);
+  }, [application.currentData?.answers]);
 
   if (!applicationIdNum || Number.isNaN(applicationIdNum)) {
     return <EmptyState title="Invalid application id" />;
@@ -54,7 +60,7 @@ export default function PmApplicationDetailPage() {
     );
   }
 
-  if (application.isLoading) {
+  if ((!application.currentData && application.isFetching)) {
     return (
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
@@ -105,27 +111,31 @@ export default function PmApplicationDetailPage() {
     );
   }
 
+  if ((role === "agent" && !selectedOwnerId) || (selectedOwnerId && application.currentData && application.currentData.owner_id !== selectedOwnerId)) {
+    return <EmptyState title="Application is outside the selected owner" description="Select the application owner to view this record." />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Application #${application.data?.id ?? applicationIdNum}`}
-        description={`Form #${application.data?.form_id} • Property #${application.data?.property_id}`}
+        title={`Application #${application.currentData?.id ?? applicationIdNum}`}
+        description={`Form #${application.currentData?.form_id} • ${application.currentData?.property_name || `Property #${application.currentData?.property_id}`}`}
         breadcrumbs={[
           { label: "Applications", to: "/pm/applications" },
-          { label: `Application #${application.data?.id ?? applicationIdNum}` },
+          { label: `Application #${application.currentData?.id ?? applicationIdNum}` },
         ]}
         actions={
-          application.data ? (
+          application.currentData ? (
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">{application.data.status}</Badge>
+              <Badge variant="secondary">{application.currentData.status}</Badge>
               <DecisionAlertDialog
                 applicationId={applicationIdNum}
-                applicantName={application.data?.applicant_full_name ?? undefined}
+                applicantName={application.currentData?.applicant_full_name ?? undefined}
                 renderTrigger={({ openApprove, openReject, isLoading }) => (
                   <>
                     <Button
                       size="sm"
-                      disabled={isLoading || application.data?.status === "approved"}
+                      disabled={isLoading || application.currentData?.status === "approved"}
                       onClick={openApprove}
                     >
                       <ShieldCheck className="mr-2 h-4 w-4" />
@@ -134,7 +144,7 @@ export default function PmApplicationDetailPage() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      disabled={isLoading || application.data?.status === "rejected"}
+                      disabled={isLoading || application.currentData?.status === "rejected"}
                       onClick={openReject}
                     >
                       <ShieldX className="mr-2 h-4 w-4" />
@@ -154,26 +164,47 @@ export default function PmApplicationDetailPage() {
             <CardTitle className="text-base">Applicant</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {application.data ? (
+            {application.currentData ? (
               <>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Name</span>
-                  <span className="font-medium">{application.data.applicant_full_name || "—"}</span>
+                  <span className="font-medium">{application.currentData.applicant_full_name || "—"}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Phone</span>
-                  <span className="font-medium">{application.data.applicant_phone || "—"}</span>
+                  <span className="font-medium">{application.currentData.applicant_phone || "—"}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Email</span>
-                  <span className="font-medium">{application.data.applicant_email || "—"}</span>
+                  <span className="font-medium">{application.currentData.applicant_email || "—"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Property</span>
+                  <span className="text-right font-medium">
+                    {application.currentData.property_name || `#${application.currentData.property_id}`}
+                    {application.currentData.property_address ? (
+                      <span className="block text-xs font-normal text-muted-foreground">{application.currentData.property_address}</span>
+                    ) : null}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Submitted</span>
                   <span className="font-medium">
-                    {application.data.submitted_at ? formatDateTime(application.data.submitted_at) : "—"}
+                    {application.currentData.submitted_at ? formatDateTime(application.currentData.submitted_at) : "—"}
                   </span>
                 </div>
+                {application.currentData.decision_at ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Decided</span>
+                    <span className="font-medium">{formatDateTime(application.currentData.decision_at)}</span>
+                  </div>
+                ) : null}
+                {application.currentData.decision_notes ? (
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-muted-foreground">Decision notes</span>
+                    <span className="text-right font-medium">{application.currentData.decision_notes}</span>
+                  </div>
+                ) : null}
               </>
             ) : (
               <EmptyState title="Application not found" />
@@ -190,7 +221,7 @@ export default function PmApplicationDetailPage() {
               <Link to="/pm/leases">Create lease</Link>
             </Button>
             <Button asChild variant="outline" className="w-full justify-start">
-              <Link to={`/pm/properties/${application.data?.property_id ?? ""}`}>
+              <Link to={`/pm/properties/${application.currentData?.property_id ?? ""}`}>
                 Open property
               </Link>
             </Button>
@@ -224,14 +255,14 @@ export default function PmApplicationDetailPage() {
               error={docs.error}
               onRetry={() => { void docs.refetch(); }}
             />
-          ) : docs.isLoading ? (
+          ) : (!docs.currentData && docs.isFetching) ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-4/6" />
             </div>
-          ) : docs.data?.items?.length ? (
+          ) : docs.currentData?.items?.length ? (
             <div className="space-y-2">
-              {docs.data.items.map((d) => (
+              {docs.currentData.items.map((d) => (
                 <div key={d.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate font-medium">{d.title}</div>
@@ -239,12 +270,7 @@ export default function PmApplicationDetailPage() {
                       {d.document_type} &bull; Doc #{d.id}
                     </div>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <a href={d.file_url} target="_blank" rel="noreferrer">
-                      <FileText className="mr-2 h-4 w-4" />
-                      View
-                    </a>
-                  </Button>
+                  <DocumentViewButton fileUrl={d.file_url} icon={<FileText className="mr-2 h-4 w-4" />} />
                 </div>
               ))}
             </div>

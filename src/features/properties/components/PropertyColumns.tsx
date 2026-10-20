@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +16,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { Property } from '@/features/properties/api/propertiesApi'
 import type { PropertyStatus } from '@/types/pm'
 import { formatCurrency } from '@/lib/format'
-import { deriveNightlyRate } from '@/features/properties/lib/nightlyRate'
-import { SortableHeader } from '@/components/ui/data-table'
+import { purposePrice } from '@/features/properties/lib/price'
 import { PROPERTY_STATUS_OPTIONS, PropertyStatusBadge } from './PropertyStatusBadge'
 
 interface PropertyColumnsProps {
@@ -64,7 +64,7 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
   },
   {
     accessorKey: 'title',
-    header: ({ column }) => <SortableHeader column={column}>Property</SortableHeader>,
+    header: 'Property',
     cell: ({ row }) => (
       <div className="space-y-1">
         <div className="font-medium">{row.original.title}</div>
@@ -91,17 +91,12 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
   },
   {
     accessorKey: 'base_price',
-    header: ({ column }) => <SortableHeader column={column}>Price</SortableHeader>,
+    header: 'Price',
     cell: ({ row }) => {
-      const nightly = deriveNightlyRate(row.original)
+      const price = purposePrice(row.original)
       return (
         <div className="font-medium tabular-nums">
-          {row.original.base_price != null ? formatCurrency(row.original.base_price) : '—'}
-          {nightly != null && (
-            <div className="text-xs font-normal text-muted-foreground">
-              ≈ {formatCurrency(nightly)}/night
-            </div>
-          )}
+          {price.amount != null ? `${formatCurrency(price.amount)}${price.unit}` : '—'}
         </div>
       )
     },
@@ -156,11 +151,21 @@ const PropertyColumns = ({ setConfirmId, onSetStatus }: PropertyColumnsProps): C
 export { PropertyColumns }
 
 // Mobile card renderer for properties
-const renderPropertyCard = (property: Property, setConfirmId: (id: number | null) => void) => {
-  const nightly = deriveNightlyRate(property)
+const renderPropertyCard = (property: Property, options: {
+  setConfirmId: (id: number | null) => void
+  selected: boolean
+  onSelect: (selected: boolean) => void
+  onSetStatus: (id: number, status: PropertyStatus) => void
+}) => {
+  const { setConfirmId, selected, onSelect, onSetStatus } = options
+  const price = purposePrice(property)
   return (
   <Card className="p-4 transition-colors hover:bg-card/80">
-    <div className="flex gap-3">
+    <label className="mb-3 flex min-h-11 items-center gap-2 text-sm">
+      <Checkbox checked={selected} onCheckedChange={(checked) => onSelect(checked === true)} />
+      Select property
+    </label>
+    <div className="flex flex-wrap gap-3">
       <div className="w-24 h-24 flex-shrink-0 rounded-cohere-sm overflow-hidden bg-muted">
         {property.main_image_url ? (
           <img src={property.main_image_url} alt={property.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -171,10 +176,10 @@ const renderPropertyCard = (property: Property, setConfirmId: (id: number | null
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="font-medium truncate">{property.title}</h3>
-          <PropertyStatusBadge status={property.status} className="shrink-0" />
+      <div className="min-w-[7rem] flex-1">
+        <div className="mb-1 flex flex-col items-start gap-1">
+          <h3 className="w-full break-words font-medium leading-snug">{property.title}</h3>
+          <PropertyStatusBadge status={property.status} />
         </div>
 
         <div className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
@@ -199,17 +204,18 @@ const renderPropertyCard = (property: Property, setConfirmId: (id: number | null
         </div>
 
         <div className="font-semibold text-primary">
-          {property.base_price != null ? formatCurrency(property.base_price) : '—'}
-          {nightly != null && (
-            <div className="text-xs font-normal text-muted-foreground">
-              ≈ {formatCurrency(nightly)}/night
-            </div>
-          )}
+          {price.amount != null ? `${formatCurrency(price.amount)}${price.unit}` : '—'}
         </div>
       </div>
     </div>
 
-    <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
+    <div className="mt-3 flex flex-wrap justify-end gap-2 border-t pt-3">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="touch-icon" aria-label="Change property status"><MoreHorizontal className="h-5 w-5" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end"><StatusMenuItems id={property.id} current={property.status} onSetStatus={onSetStatus} /></DropdownMenuContent>
+      </DropdownMenu>
       <Button asChild variant="ghost" size="touch-icon" aria-label="View property">
         <Link to={`/properties/${property.id}/view`}>
           <Eye className="h-5 w-5" />

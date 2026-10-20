@@ -12,15 +12,18 @@ interface ActivityRowProps {
   className?: string
 }
 
-/** One activity line (type • status • amount [+ extra] — timestamp), shared across the PM activity feeds. */
+/** One activity line (title • status • amount [+ extra] — timestamp), shared across the PM activity feeds. */
 export function ActivityRow({ activity, timestamp, extra, className }: ActivityRowProps) {
   return (
     <div className={cn('flex items-center justify-between gap-4 text-sm', className)}>
       <div className="min-w-0">
-        <span className="font-medium">{activity.type}</span>
+        <span className="font-medium">{activity.title}</span>
         {activity.status ? <span className="text-muted-foreground"> • {activity.status}</span> : null}
         {activity.amount ? <span className="text-muted-foreground"> • {formatCurrency(activity.amount)}</span> : null}
         {extra}
+        {activity.description ? (
+          <div className="truncate text-xs text-muted-foreground">{activity.description}</div>
+        ) : null}
       </div>
       <div className="shrink-0 text-xs text-muted-foreground">{timestamp}</div>
     </div>

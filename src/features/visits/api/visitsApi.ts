@@ -1,33 +1,26 @@
 import { api } from '@/store/api'
 import type {
   Visit,
+  VisitComplete,
   VisitCreate,
-  VisitUpdate,
+  VisitStatus,
+  VisitsQuery as AllVisitsQuery,
   PaginatedResponse
 } from '@/types/api'
 
-export interface VisitsQuery {
-  cursor?: string | null
-  limit?: number
-  status?: string
-  agent_id?: number
-  property_id?: number
-  user_id?: number
-  q?: string
-  include_total?: boolean
-}
+/** Query of `GET /visits/all` (admin and agent). `q` searches property title, visitor name and agent name. */
+export type VisitsQuery = AllVisitsQuery
 
 /**
  * Cursor-based query args for the "current user's" visits endpoints.
- * The three list endpoints (`/visits`, `/visits/upcoming`, `/visits/past`)
- * all accept the same `{ cursor, limit }` shape; `/visits` also accepts an
- * optional `status` filter.
+ * `/visits` takes `{ cursor, limit, include_total, status }`; `/visits/upcoming`
+ * and `/visits/past` take no filter. There is no `context`, `upcoming` or `past` key.
  */
 export interface VisitsCursorQuery {
   cursor?: string | null
   limit?: number
   include_total?: boolean
-  status?: string
+  status?: VisitStatus
 }
 
 const DEFAULT_VISITS_LIMIT = 20
@@ -41,7 +34,11 @@ export const visitsApi = api.injectEndpoints({
         method: 'POST',
         body: data
       }),
-      invalidatesTags: [{type: 'Visit', id: 'LIST'}, {type: 'Property', id: 'LIST'}]
+      invalidatesTags: (_res, _error, { property_id }) => [
+        { type: 'Visit', id: 'LIST' },
+        { type: 'Property', id: property_id },
+        { type: 'Property', id: 'LIST' },
+      ]
     }),
 
     // Get current user's visits
@@ -64,37 +61,38 @@ export const visitsApi = api.injectEndpoints({
       providesTags: (_result, _error, arg) => [{type: 'Visit' as const, id: arg}]
     }),
 
-    // Update visit details
-    updateVisit: builder.mutation<Visit, { id: number; data: VisitUpdate }>({
-      query: ({ id, data }) => ({
-        url: `/visits/${id}`,
-        method: 'PUT',
-        body: data
-      }),
-      invalidatesTags: (res, _e, { id }) => [{ type: 'Visit', id }, { type: 'Visit', id: 'LIST' }]
-    }),
-
     // Reschedule a visit
-    rescheduleVisit: builder.mutation<Visit, { visitId: number; newDate: string; reason: string }>({
+    rescheduleVisit: builder.mutation<Visit, { visitId: number; newDate: string; reason?: string }>({
       query: ({ visitId, newDate, reason }) => ({
         url: `/visits/${visitId}/reschedule`,
         method: 'POST',
+        // `new_date` must carry a UTC offset (ISO 8601); a naive time is a 422.
         body: {
           new_date: newDate,
-          reason,
+          reason: reason || undefined,
         }
       }),
-      invalidatesTags: (res, _e, { visitId }) => [{ type: 'Visit', id: visitId }, { type: 'Visit', id: 'LIST' }]
+      invalidatesTags: (res, _e, { visitId }) => [
+        { type: 'Visit', id: visitId },
+        { type: 'Visit', id: 'LIST' },
+        ...(res ? [{ type: 'Property' as const, id: res.property_id }] : []),
+        { type: 'Property', id: 'LIST' },
+      ]
     }),
 
-    // Cancel a visit
+    // Cancel a visit. `reason` is required: 1 to 1000 characters after trimming.
     cancelVisit: builder.mutation<Visit, { visitId: number; reason: string }>({
       query: ({ visitId, ...data }) => ({
         url: `/visits/${visitId}/cancel`,
         method: 'POST',
         body: data
       }),
-      invalidatesTags: (res, _e, { visitId }) => [{ type: 'Visit', id: visitId }, { type: 'Visit', id: 'LIST' }]
+      invalidatesTags: (res, _e, { visitId }) => [
+        { type: 'Visit', id: visitId },
+        { type: 'Visit', id: 'LIST' },
+        ...(res ? [{ type: 'Property' as const, id: res.property_id }] : []),
+        { type: 'Property', id: 'LIST' },
+      ]
     }),
 
     // Get all visits (admin/agent view)
@@ -110,17 +108,21 @@ export const visitsApi = api.injectEndpoints({
               { type: 'Visit' as const, id: 'LIST' },
             ]
           : [{ type: 'Visit' as const, id: 'LIST' }],
-      extraOptions: { refetchOnFocus: true },
     }),
 
     // Complete visit (admin/agent)
-    completeVisit: builder.mutation<Visit, { visitId: number; notes?: string; feedback?: string }>({
+    completeVisit: builder.mutation<Visit, { visitId: number } & VisitComplete>({
       query: ({ visitId, ...data }) => ({
         url: `/visits/${visitId}/complete`,
         method: 'POST',
         body: data
       }),
-      invalidatesTags: (res, _e, { visitId }) => [{ type: 'Visit', id: visitId }, { type: 'Visit', id: 'LIST' }]
+      invalidatesTags: (res, _e, { visitId }) => [
+        { type: 'Visit', id: visitId },
+        { type: 'Visit', id: 'LIST' },
+        ...(res ? [{ type: 'Property' as const, id: res.property_id }] : []),
+        { type: 'Property', id: 'LIST' },
+      ]
     }),
 
   }),
@@ -130,7 +132,6 @@ export const {
   useScheduleVisitMutation,
   useGetUserVisitsQuery,
   useGetVisitQuery,
-  useUpdateVisitMutation,
   useRescheduleVisitMutation,
   useCancelVisitMutation,
   useGetAllVisitsQuery,

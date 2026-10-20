@@ -1,4 +1,5 @@
 import type { BlogPost, BlogPostStatus } from '@/types/blog'
+import { BLOG_POST_STATUSES } from '@/types/blog'
 
 /**
  * Display metadata for each blog lifecycle status.
@@ -31,31 +32,24 @@ export const BLOG_STATUS_META: Record<
   },
 }
 
-/**
- * Resolve a post's effective status. Newer posts carry `status`; legacy posts
- * only have the boolean `active` flag, in which case we map it to the closest
- * lifecycle status (published / draft).
- */
-export function resolveBlogStatus(post: Pick<BlogPost, 'status' | 'active'>): BlogPostStatus {
-  if (post.status && BLOG_STATUS_META[post.status as BlogPostStatus]) {
-    return post.status as BlogPostStatus
-  }
-  return post.active ? 'published' : 'draft'
+export function isBlogPostStatus(value: string | null | undefined): value is BlogPostStatus {
+  return value != null && (BLOG_POST_STATUSES as readonly string[]).includes(value)
 }
 
 /**
- * Tailwind classes for a status badge. Falls back to the "draft" styling
- * when the status string is unknown to keep the UI defensive.
+ * A post's status, exactly as the backend sends it. `status` is never null on the backend, but the
+ * response schema types it as a plain string, so an unknown value reads as null instead of a real status.
  */
-export function blogStatusBadgeClass(status: string): string {
-  return (
-    BLOG_STATUS_META[status as BlogPostStatus]?.className ?? BLOG_STATUS_META.draft.className
-  )
+export function resolveBlogStatus(post: Pick<BlogPost, 'status'>): BlogPostStatus | null {
+  return isBlogPostStatus(post.status) ? post.status : null
 }
 
-/** Human-readable label for a status. Falls back to a capitalized version of the raw value. */
-export function blogStatusLabel(status: string): string {
-  const meta = BLOG_STATUS_META[status as BlogPostStatus]
-  if (meta) return meta.label
-  return status.charAt(0).toUpperCase() + status.slice(1)
+/** Tailwind classes for a status badge. An unknown status gets the neutral draft styling. */
+export function blogStatusBadgeClass(status: string | null | undefined): string {
+  return isBlogPostStatus(status) ? BLOG_STATUS_META[status].className : BLOG_STATUS_META.draft.className
+}
+
+/** Human-readable label for a status. An unknown status reads "Unknown". */
+export function blogStatusLabel(status: string | null | undefined): string {
+  return isBlogPostStatus(status) ? BLOG_STATUS_META[status].label : 'Unknown'
 }

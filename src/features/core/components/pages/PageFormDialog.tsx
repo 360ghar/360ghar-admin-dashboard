@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { getErrorMessage } from '@/lib/errors'
+import { getErrorCode, getErrorMessage } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
 import { useCreatePageMutation, useUpdatePageMutation } from '@/features/core/api/coreApi'
 import { useToast } from '@/hooks/use-toast'
 import { cmsPageSchema, type CmsPageFormValues } from '@/features/core/validations'
 import type { Page, PageCreate, PageUpdate } from '@/types/api'
+import { PAGE_FORMATS, PAGE_FORMAT_LABELS, isPageFormat } from '@/features/core/constants'
 
 // Backwards-compatible alias used by the parent page; the canonical type
 // now lives in @/features/core/validations as CmsPageFormValues.
@@ -32,7 +33,8 @@ interface PageFormDialogProps {
 
 const generateSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-const parseCustomConfig = (value?: string) => (value ? safeJsonObject(value) : undefined)
+/** A JSON object, or null for blank text. The schema has already rejected text that is not a JSON object. */
+const parseCustomConfig = (value?: string) => (value?.trim() ? safeJsonObject(value) : null)
 
 const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, editingPage, formData, setFormData, onSuccess }) => {
   const { toast } = useToast()
@@ -50,24 +52,49 @@ const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, edi
 
   const handleSubmit = async (values: PageFormValues) => {
     form.clearErrors()
+    // The schema refines `format` to the PageFormat enum.
+    if (!isPageFormat(values.format)) return
+    const customConfig = parseCustomConfig(values.custom_config_text)
     try {
       if (editingPage) {
-        const updateData: PageUpdate = { title: values.title, content: values.content, format: values.format, is_active: values.is_active, is_draft: values.is_draft }
-        const updateConfig = parseCustomConfig(values.custom_config_text)
-        if (updateConfig) updateData.custom_config = updateConfig
+        // PUT is PATCH-style: a blank config box sends null, which clears the stored object. null is not allowed on the other fields.
+        const updateData: PageUpdate = {
+          title: values.title,
+          content: values.content,
+          format: values.format,
+          is_active: values.is_active,
+          is_draft: values.is_draft,
+          is_private: values.is_private,
+          custom_config: customConfig,
+        }
         await updatePage({ uniqueName: editingPage.unique_name, data: updateData }).unwrap()
         toast({ title: 'Success', description: 'Page updated successfully' })
       } else {
-        const createData: PageCreate = { unique_name: values.unique_name, title: values.title, content: values.content, format: values.format, is_active: values.is_active, is_draft: values.is_draft }
-        const createConfig = parseCustomConfig(values.custom_config_text)
-        if (createConfig) createData.custom_config = createConfig
+        const createData: PageCreate = {
+          unique_name: values.unique_name,
+          title: values.title,
+          content: values.content,
+          format: values.format,
+          is_active: values.is_active,
+          is_draft: values.is_draft,
+          is_private: values.is_private,
+        }
+        if (customConfig) createData.custom_config = customConfig
         await createPage(createData).unwrap()
         toast({ title: 'Success', description: 'Page created successfully' })
       }
       setFormData(values)
       onOpenChange(false)
       onSuccess()
-    } catch (error: unknown) { applyServerValidation(error, form.setError); toast({ title: 'Error', description: getErrorMessage(error, 'Failed to save page'), variant: 'destructive' }) }
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 'PAGE_EXISTS') {
+        // A page with this name exists, possibly a deleted one. Deleted pages stay listed: open it and set it active again.
+        form.setError('unique_name', { type: 'server', message: 'A page with this name already exists. Deleted pages stay in the list: edit it and make it active again.' })
+      } else {
+        applyServerValidation(error, form.setError)
+      }
+      toast({ title: 'Error', description: getErrorMessage(error, 'Failed to save page'), variant: 'destructive' })
+    }
   }
 
   return (
@@ -92,7 +119,7 @@ const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, edi
               <FormField control={form.control} name="format" render={({ field }) => (
                 <FormItem><FormLabel>Format</FormLabel><Select value={field.value} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent><SelectItem value="html">HTML</SelectItem><SelectItem value="markdown">Markdown</SelectItem></SelectContent>
+                  <SelectContent>{PAGE_FORMATS.map((format) => (<SelectItem key={format} value={format}>{PAGE_FORMAT_LABELS[format]}</SelectItem>))}</SelectContent>
                 </Select><FormMessage /></FormItem>
               )} />
               <div />
@@ -109,6 +136,9 @@ const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, edi
               )} />
               <FormField control={form.control} name="is_draft" render={({ field }) => (
                 <FormItem className="flex items-center space-x-2"><FormControl><input type="checkbox" id="is_draft" checked={field.value} onChange={field.onChange} className="h-4 w-4" /></FormControl><Label htmlFor="is_draft">Save as draft</Label></FormItem>
+              )} />
+              <FormField control={form.control} name="is_private" render={({ field }) => (
+                <FormItem className="flex items-center space-x-2"><FormControl><input type="checkbox" id="is_private" checked={field.value} onChange={field.onChange} className="h-4 w-4" /></FormControl><Label htmlFor="is_private">Private (hidden from the public page)</Label></FormItem>
               )} />
             </div>
             <DialogFooter>

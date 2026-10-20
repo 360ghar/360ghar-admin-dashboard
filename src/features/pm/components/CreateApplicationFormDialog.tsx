@@ -1,17 +1,20 @@
 import { useState } from 'react'
-import { safeJsonObject } from '@/lib/json'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
-import type { RentalApplicationFormCreate } from '@/types/pm'
+import { localInputToServerTimestamp } from '@/lib/dateTime'
+import type { ApplicationFieldType, PmProperty, RentalApplicationFormCreate } from '@/types/pm'
 import { useCreateApplicationFormMutation } from '@/features/pm/api/pmApi'
-import { usePmPropertyOptions } from '@/features/pm/hooks/usePmPropertyOptions'
-import { Plus } from 'lucide-react'
+import { PmPropertyPicker } from '@/features/pm/components/PmPropertyPicker'
+import { APPLICATION_FIELD_TYPES } from '@/features/pm/constants'
+import { buildCustomFields, emptyFieldRow, type FieldRow } from '@/features/pm/applicationFields'
+import { Textarea } from '@/components/ui/textarea'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface CreateApplicationFormDialogProps {
   ownerId: number | null
@@ -28,29 +31,25 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
   const [createOpen, setCreateOpen] = useState(false)
   const [title, setTitle] = useState('Rental Application')
   const [description, setDescription] = useState('')
-  const [propertyId, setPropertyId] = useState<string>('')
+  const [selectedProperty, setSelectedProperty] = useState<PmProperty | null>(null)
   const [applicationFeeAmount, setApplicationFeeAmount] = useState('')
-  const [questionsJson, setQuestionsJson] = useState('{}')
-
-  const properties = usePmPropertyOptions(ownerId, { enabled: createOpen && !isAgentWithoutOwner })
+  const [expiresAt, setExpiresAt] = useState('')
+  const [rows, setRows] = useState<FieldRow[]>([])
+  const [nextKey, setNextKey] = useState(1)
 
   const [createForm, createState] = useCreateApplicationFormMutation()
 
+  const updateRow = (key: number, patch: Partial<FieldRow>) =>
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)))
+
   const submitCreateForm = async () => {
-    const questions = questionsJson ? safeJsonObject(questionsJson) : undefined
-    if (questionsJson && questions === null) {
-      toast({
-        title: 'Invalid JSON',
-        description: 'Questions must be a valid JSON object.',
-        variant: 'destructive',
-      })
+    const built = buildCustomFields(rows)
+    if ('error' in built) {
+      toast({ title: 'Check the questions', description: built.error, variant: 'destructive' })
       return
     }
 
-    const selectedPropertyOwnerId = (properties.data?.items ?? []).find(
-      (p) => String(p.id) === String(propertyId),
-    )?.owner_id
-    const effectiveOwnerId = ownerId ?? selectedPropertyOwnerId ?? null
+    const effectiveOwnerId = ownerId ?? selectedProperty?.owner_id ?? null
     if (!effectiveOwnerId) {
       toast({
         title: 'Select an owner',
@@ -62,13 +61,14 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
 
     const payload: RentalApplicationFormCreate = {
       owner_id: effectiveOwnerId,
-      property_id: propertyId ? Number(propertyId) : undefined,
+      property_id: selectedProperty?.id,
       title,
       description: description || undefined,
       application_fee_amount: applicationFeeAmount
         ? Number(applicationFeeAmount)
         : undefined,
-      questions,
+      custom_fields: built.fields.length ? built.fields : undefined,
+      expires_at: localInputToServerTimestamp(expiresAt) ?? undefined,
     }
 
     try {
@@ -90,9 +90,10 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
     if (!open) {
       setTitle('Rental Application')
       setDescription('')
-      setPropertyId('')
+      setSelectedProperty(null)
       setApplicationFeeAmount('')
-      setQuestionsJson('{}')
+      setExpiresAt('')
+      setRows([])
     }
   }
 
@@ -104,9 +105,10 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
           Create form
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create application form</DialogTitle>
+          <DialogDescription className="sr-only">Set up an application form and its questions.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
@@ -125,44 +127,111 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
           </div>
           <div className="space-y-2">
             <Label>Property (optional)</Label>
-            <Select value={propertyId || 'any'} onValueChange={(v) => setPropertyId(v === 'any' ? '' : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Any property" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any</SelectItem>
-                {properties.isLoading ? (
-                  <SelectItem value="loading" disabled>Loading properties…</SelectItem>
-                ) : properties.isError ? (
-                  <SelectItem value="error" disabled>Failed to load properties</SelectItem>
-                ) : (
-                  (properties.data?.items ?? []).map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      #{p.id} • {p.title}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <PmPropertyPicker
+              ownerId={ownerId}
+              enabled={createOpen && !isAgentWithoutOwner}
+              selected={selectedProperty}
+              onSelect={setSelectedProperty}
+              clearLabel="Any property"
+            />
           </div>
           <div className="space-y-2">
             <Label>Application fee (optional)</Label>
             <Input
+              type="number"
+              min={0}
+              step="0.01"
               value={applicationFeeAmount}
               onChange={(e) => setApplicationFeeAmount(e.target.value)}
               placeholder="e.g. 500"
             />
           </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label>Questions (JSON)</Label>
-            <Textarea
-              value={questionsJson}
-              onChange={(e) => setQuestionsJson(e.target.value)}
-              rows={10}
-            />
-            <div className="text-xs text-muted-foreground">
-              MVP stores answers JSON only. Build UI templates in Phase 2.
+          <div className="space-y-2">
+            <Label>Closes at (optional)</Label>
+            <Input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+          </div>
+
+          <div className="space-y-3 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <Label>Questions</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRows((current) => [...current, emptyFieldRow(nextKey)])
+                  setNextKey((k) => k + 1)
+                }}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Add question
+              </Button>
             </div>
+            {rows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No extra questions. The form still collects the applicant name, phone and email.
+              </p>
+            ) : null}
+            {rows.map((row, index) => (
+              <div key={row.key} className="grid gap-3 rounded-cohere-md border border-cohere-card-border p-3 md:grid-cols-[1fr_180px_auto]">
+                <div className="space-y-1">
+                  <Label htmlFor={`question-label-${row.key}`}>Question {index + 1}</Label>
+                  <Input
+                    id={`question-label-${row.key}`}
+                    value={row.label}
+                    maxLength={200}
+                    onChange={(e) => updateRow(row.key, { label: e.target.value })}
+                    placeholder="e.g. Current employer"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Answer type</Label>
+                  <Select
+                    value={row.field_type}
+                    onValueChange={(v) => updateRow(row.key, { field_type: v as ApplicationFieldType })}
+                  >
+                    <SelectTrigger aria-label={`Answer type of question ${index + 1}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {APPLICATION_FIELD_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={row.is_required}
+                      onCheckedChange={(v) => updateRow(row.key, { is_required: v === true })}
+                      aria-label={`Question ${index + 1} is required`}
+                    />
+                    Required
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label={`Remove question ${index + 1}`}
+                    onClick={() => setRows((current) => current.filter((r) => r.key !== row.key))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {row.field_type === 'select' ? (
+                  <div className="space-y-1 md:col-span-3">
+                    <Label htmlFor={`question-options-${row.key}`}>Choices (one per line)</Label>
+                    <Textarea
+                      id={`question-options-${row.key}`}
+                      rows={3}
+                      value={row.options}
+                      onChange={(e) => updateRow(row.key, { options: e.target.value })}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">

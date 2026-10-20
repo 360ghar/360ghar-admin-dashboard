@@ -2,8 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft } from 'lucide-react'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 import { supabase } from '@/lib/supabase'
 import { mapSupabaseAuthError } from '@/lib/authErrors'
@@ -14,14 +12,9 @@ import { clearCredentials, setCredentials } from '@/features/auth/slices/authSli
 import { signupSchema, otpStepSchema, setPasswordStepSchema, type SignupFormValues, type OtpStepFormValues, type SetPasswordStepFormValues } from '@/features/auth/validations'
 import { useResendTimer } from '@/hooks/useResendTimer'
 
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { PasswordInput } from '@/components/auth/PasswordInput'
-import { OtpInput } from '@/components/auth/OtpInput'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { AuthBrandingPanel } from '@/components/auth/AuthBrandingPanel'
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout'
+import { SignupOtpStep, SignupPasswordStep, SignupRegistrationStep } from '../components/SignupSteps'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -38,7 +31,7 @@ export default function SignupPage() {
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { terms_accepted: false },
+    defaultValues: { full_name: '', email: '', phone: '', terms_accepted: false },
   })
 
   const otpForm = useForm<OtpStepFormValues>({
@@ -165,15 +158,16 @@ export default function SignupPage() {
       if (error) throw error
 
       const { data: sessionData } = await sb.auth.getSession()
-      const accessToken = sessionData.session?.access_token
-      if (!accessToken) {
+      const session = sessionData.session
+      const accessToken = session?.access_token
+      if (!session || !accessToken) {
         setErrorMessage('Session expired. Please sign in.')
         isLoginInProgress.current = false
         return
       }
 
-      const { user, status } = await fetchUserProfileWithStatus(accessToken)
-      if (user) {
+      const { user, status } = await fetchUserProfileWithStatus(accessToken, session.user.id)
+      if (user?.is_active && (user.role === 'admin' || user.role === 'agent')) {
         dispatch(setCredentials({ token: accessToken, user }))
         isLoginInProgress.current = false
         navigate('/dashboard', { replace: true })
@@ -237,290 +231,36 @@ export default function SignupPage() {
           'Real-time bookings and visits',
         ]}
       />
-
       <AuthCardLayout
         title={step === 'form' ? 'Agent Sign Up' : step === 'otp' ? 'Verify Your Email' : 'Set Password'}
-        subtitle={
-          step === 'form'
-            ? 'Create your agent account'
-            : step === 'otp'
-              ? 'Enter the 6-digit code sent to your email'
-              : 'Choose a strong password for your account'
-        }
+        subtitle={step === 'form' ? 'Create your agent account' : step === 'otp' ? 'Enter the 6-digit code sent to your email' : 'Choose a strong password for your account'}
         errorMessage={errorMessage}
         infoMessage={successMessage}
-        footer={
-          <div className="text-center pt-2 text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </div>
-        }
+        footer={<div className="pt-2 text-center text-sm text-muted-foreground">Already have an account? <Link to="/login" className="text-primary hover:underline">Sign in</Link></div>}
       >
-
-            {/* Step 1: Registration form */}
-            {step === 'form' && (
-              <Form {...form}>
-                <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-5">
-                  <FormField
-                    control={form.control}
-                    name="full_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Full Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="John Doe"
-                            autoComplete="name"
-                            className="h-11"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            inputMode="email"
-                            autoComplete="username"
-                            placeholder="you@example.com"
-                            className="h-11"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Phone</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            inputMode="tel"
-                            autoComplete="tel"
-                            placeholder="+91XXXXXXXXXX"
-                            className="h-11"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="terms_accepted"
-                    render={({ field }) => (
-                      <FormItem className="space-y-2">
-                        <div className="flex items-start gap-2">
-                          <FormControl>
-                            <Checkbox
-                              id="terms_accepted"
-                              className="mt-0.5"
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormLabel htmlFor="terms_accepted" className="text-sm font-normal text-muted-foreground leading-snug">
-                            I agree to the{' '}
-                            <a
-                              href="https://360ghar.com/policies/terms-of-service"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              Terms &amp; Conditions
-                            </a>{' '}
-                            and{' '}
-                            <a
-                              href="https://360ghar.com/policies/privacy-policy"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              Privacy Policy
-                            </a>
-                          </FormLabel>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="pt-2">
-                    <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Sending code...
-                        </>
-                      ) : (
-                        'Send Verification Code'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            )}
-
-            {/* Step 2: OTP verification */}
-            {step === 'otp' && (
-              <Form {...otpForm}>
-                <form onSubmit={(e) => void otpForm.handleSubmit(handleOtpSubmit)(e)} className="space-y-5">
-                  <FormField
-                    control={otpForm.control}
-                    name="otp"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">6-Digit Code</FormLabel>
-                        <FormControl>
-                          <OtpInput
-                            placeholder="Enter the code"
-                            className="h-11 text-center text-lg tracking-widest"
-                            autoFocus
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1 h-11"
-                      onClick={backToForm}
-                      disabled={isSubmitting}
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="flex-1 h-11 text-base font-medium"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Verifying...
-                        </>
-                      ) : (
-                        'Verify Code'
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="text-center text-sm">
-                    <button
-                      type="button"
-                      onClick={() => void handleResendOtp()}
-                      disabled={isSubmitting || !resendTimer.canResend}
-                      className="text-primary hover:underline disabled:no-underline disabled:opacity-50 disabled:text-muted-foreground"
-                    >
-                      {resendTimer.isActive ? `Resend code in ${resendTimer.secondsLeft}s` : 'Resend code'}
-                    </button>
-                  </div>
-                </form>
-              </Form>
-            )}
-
-            {/* Step 3: Set password */}
-            {step === 'setPassword' && (
-              <Form {...passwordForm}>
-                <form onSubmit={(e) => void passwordForm.handleSubmit(handleSetPassword)(e)} className="space-y-5">
-                  <FormField
-                    control={passwordForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Password</FormLabel>
-                        <FormControl>
-                          <PasswordInput
-                            show={showPassword}
-                            onToggleShow={() => setShowPassword((s) => !s)}
-                            autoComplete="new-password"
-                            placeholder="Create a password"
-                            className="h-11"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={passwordForm.control}
-                    name="confirm_password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Confirm Password</FormLabel>
-                        <FormControl>
-                          <PasswordInput
-                            show={showConfirmPassword}
-                            onToggleShow={() => setShowConfirmPassword((s) => !s)}
-                            autoComplete="new-password"
-                            placeholder="Re-enter password"
-                            className="h-11"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1 h-11"
-                      onClick={backToOtp}
-                      disabled={isSubmitting}
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="flex-1 h-11 text-base font-medium"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Setting up...
-                        </>
-                      ) : (
-                        'Create Account'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            )}
-
+        {step === 'form' && <SignupRegistrationStep form={form} onSubmit={onSubmit} isSubmitting={isSubmitting} />}
+        {step === 'otp' && (
+          <SignupOtpStep
+            form={otpForm}
+            onSubmit={handleOtpSubmit}
+            isSubmitting={isSubmitting}
+            onBack={backToForm}
+            onResend={() => void handleResendOtp()}
+            resendTimer={resendTimer}
+          />
+        )}
+        {step === 'setPassword' && (
+          <SignupPasswordStep
+            form={passwordForm}
+            onSubmit={handleSetPassword}
+            isSubmitting={isSubmitting}
+            onBack={backToOtp}
+            showPassword={showPassword}
+            showConfirmPassword={showConfirmPassword}
+            onTogglePassword={() => setShowPassword((value) => !value)}
+            onToggleConfirmPassword={() => setShowConfirmPassword((value) => !value)}
+          />
+        )}
       </AuthCardLayout>
     </div>
   )

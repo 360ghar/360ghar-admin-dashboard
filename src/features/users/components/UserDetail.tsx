@@ -15,6 +15,13 @@ import { FormRootError } from '@/components/ui/form-root-error'
 import { useGetUserNotificationsQuery } from '@/features/core/api/notificationsApi'
 import { Label } from '@/components/ui/label'
 import { getErrorMessage } from '@/lib/errors'
+import type { AdminUserUpdate } from '@/types'
+import {
+  NOTIFICATION_TYPE_KEYS,
+  NOTIFICATION_TYPE_LABELS,
+  isNotificationTypeKey,
+  type NotificationTypeKey,
+} from '@/features/core/notificationTypes'
 import { applyServerValidation } from '@/lib/formErrors'
 import { formatDateTime } from '@/lib/format'
 import { userDetailSchema, type UserDetailFormValues } from '@/features/users/validations'
@@ -42,13 +49,13 @@ const UserDetail = ({ id }: { id: number }) => {
   } = useGetUserNotificationsQuery(id, { skip: skip || role !== 'admin' })
   const notifItems = notifications?.items ?? []
 
-  const [notifType, setNotifType] = useState<string>('promotion_generic')
+  const [notifType, setNotifType] = useState<NotificationTypeKey>('promotion_generic')
   const [notifTitle, setNotifTitle] = useState<string>('Message from 360 Ghar')
   const [notifBody, setNotifBody] = useState<string>('')
 
   const form = useForm<UserDetailFormValues>({
     resolver: zodResolver(userDetailSchema),
-    defaultValues: { full_name: '', phone: '', email: '', is_active: true },
+    defaultValues: { full_name: '', phone: '', is_active: true },
   })
   const { reset } = form
 
@@ -57,20 +64,35 @@ const UserDetail = ({ id }: { id: number }) => {
       reset({
         full_name: data.full_name || '',
         phone: data.phone || '',
-        email: data.email || '',
-        is_active: data.is_active ?? true,
+        is_active: data.is_active,
       })
     }
   }, [data, reset])
 
+  const isAdmin = role === 'admin'
+
   const onSubmit = async (values: UserDetailFormValues) => {
     form.clearErrors()
+    if (!data) return
+    // Admin write (`AdminUserUpdate`): send only what changed. No email or bio (the backend rejects both).
+    // A blank phone is never sent, `full_name` cannot be blank, and `is_active` is admin only
+    // (an agent that sends it gets 403 ADMIN_REQUIRED).
+    const payload: AdminUserUpdate = {}
+    const fullName = values.full_name?.trim() ?? ''
+    const phone = values.phone?.trim() ?? ''
+    if (fullName && fullName !== (data.full_name ?? '')) payload.full_name = fullName
+    if (phone && phone !== (data.phone ?? '')) payload.phone = phone
+    if (isAdmin && values.is_active !== undefined && values.is_active !== data.is_active) payload.is_active = values.is_active
+    if (Object.keys(payload).length === 0) {
+      toast({ title: 'No changes', description: 'Edit a field before saving.' })
+      return
+    }
     try {
-      await update({ id, data: values }).unwrap()
+      await update({ id, data: payload }).unwrap()
       toast({ title: 'Saved', description: 'User updated' })
     } catch (e: unknown) {
       applyServerValidation(e, form.setError, {
-        knownFields: ['full_name', 'phone', 'email', 'is_active'],
+        knownFields: ['full_name', 'phone', 'is_active'],
       })
       toast({ title: 'Failed', description: getErrorMessage(e, 'Please try again'), variant: 'destructive' })
     }
@@ -82,13 +104,28 @@ const UserDetail = ({ id }: { id: number }) => {
       return
     }
     try {
-      await sendNotification({
+      const result = await sendNotification({
         userId: id,
         typeKey: notifType,
         title: notifTitle,
         body: notifBody,
       }).unwrap()
-      toast({ title: 'Notification sent', description: 'The user will receive this notification shortly.' })
+      // The send answers 200 even when a channel failed or the user opted out. Report what happened.
+      const channels = Object.entries(result.channels)
+      const delivered = channels.filter(([, status]) => status.ok === true).map(([name]) => name)
+      const failed = channels.filter(([, status]) => status.ok === false)
+      if (result.error || delivered.length === 0) {
+        toast({
+          title: 'Not delivered',
+          description: result.error
+            ?? (failed.length > 0
+              ? failed.map(([name, status]) => `${name}: ${status.error ?? 'failed'}`).join(', ')
+              : 'No channel delivered this notification.'),
+          variant: 'destructive',
+        })
+        return
+      }
+      toast({ title: 'Notification sent', description: `Delivered by ${delivered.join(', ')}.` })
       setNotifBody('')
       void refetchNotifications()
     } catch (e: unknown) {
@@ -141,9 +178,9 @@ const UserDetail = ({ id }: { id: number }) => {
             <Badge variant={data.is_active ? 'default' : 'secondary'}>
               {data.is_active ? 'Active' : 'Inactive'}
             </Badge>
-            {data.agent?.name || data.agent?.user?.full_name ? (
+            {data.agent?.name ? (
               <Badge variant="outline">
-                Agent: {data.agent?.name || data.agent?.user?.full_name}
+                Agent: {data.agent.name}
               </Badge>
             ) : null}
           </div>
@@ -183,43 +220,32 @@ const UserDetail = ({ id }: { id: number }) => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="is_active"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select
-                      onValueChange={(v) => field.onChange(v === 'true')}
-                      value={field.value ? 'true' : 'false'}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="true">Active</SelectItem>
-                        <SelectItem value="false">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isAdmin && (
+                <FormField
+                  control={form.control}
+                  name="is_active"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(v === 'true')}
+                        value={field.value ? 'true' : 'false'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="true">Active</SelectItem>
+                          <SelectItem value="false">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <div className="md:col-span-2 flex justify-end">
                 <Button type="submit" disabled={updateState.isLoading || isFetching}>
                   {updateState.isLoading ? 'Saving…' : 'Save'}
@@ -239,7 +265,7 @@ const UserDetail = ({ id }: { id: number }) => {
             <AssignAgent
               userId={id}
               currentAgentId={data.agent_id}
-              currentAgentLabel={data.agent?.name || data.agent?.user?.full_name}
+              currentAgentLabel={data.agent?.name}
             />
           </CardContent>
         </Card>
@@ -254,18 +280,14 @@ const UserDetail = ({ id }: { id: number }) => {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <Label>Notification type</Label>
-                <Select value={notifType} onValueChange={setNotifType}>
+                <Select value={notifType} onValueChange={(value) => { if (isNotificationTypeKey(value)) setNotifType(value) }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="booking_confirmed">Booking confirmed</SelectItem>
-                    <SelectItem value="payment_failed">Payment failed</SelectItem>
-                    <SelectItem value="promotion_generic">Promotion</SelectItem>
-                    <SelectItem value="discount_offer">Discount offer</SelectItem>
-                    <SelectItem value="visit_reminder">Visit reminder</SelectItem>
-                    <SelectItem value="property_recommendation">Property recommendation</SelectItem>
-                    <SelectItem value="admin_broadcast">Admin broadcast</SelectItem>
+                    {NOTIFICATION_TYPE_KEYS.map((key) => (
+                      <SelectItem key={key} value={key}>{NOTIFICATION_TYPE_LABELS[key]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -342,12 +364,11 @@ const UserDetail = ({ id }: { id: number }) => {
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-3">
                       {n.body ?? ''}
                     </p>
-                    {n.audience_type && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Audience: {n.audience_type}
-                        {n.topic ? ` • topic: ${n.topic}` : ''}
-                      </p>
-                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {n.type && isNotificationTypeKey(n.type) ? NOTIFICATION_TYPE_LABELS[n.type] : 'Notification'}
+                      {' • '}
+                      {n.read_at ? `read ${formatDateTime(n.read_at)}` : 'unread'}
+                    </p>
                   </div>
                 ))}
               </div>

@@ -65,15 +65,15 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     <div className="mb-4">
       <label className="text-sm font-medium mb-1 block">Price Range</label>
       <div className="grid grid-cols-2 gap-2">
-        <Input type="number" placeholder="Min" value={filters.priceMin} onChange={(e) => setFilters({ priceMin: e.target.value })} />
-        <Input type="number" placeholder="Max" value={filters.priceMax} onChange={(e) => setFilters({ priceMax: e.target.value })} />
+        <Input type="number" min={0} max={9999999999.99} step="any" placeholder="Min" value={filters.priceMin} onChange={(e) => setFilters({ priceMin: e.target.value })} />
+        <Input type="number" min={0} max={9999999999.99} step="any" placeholder="Max" value={filters.priceMax} onChange={(e) => setFilters({ priceMax: e.target.value })} />
       </div>
     </div>
     <div className="mb-4">
       <label className="text-sm font-medium mb-1 block">Bedrooms</label>
       <div className="grid grid-cols-2 gap-2">
-        <Input type="number" placeholder="Min" value={filters.bedroomsMin} onChange={(e) => setFilters({ bedroomsMin: e.target.value })} />
-        <Input type="number" placeholder="Max" value={filters.bedroomsMax} onChange={(e) => setFilters({ bedroomsMax: e.target.value })} />
+        <Input type="number" min={0} max={50} step={1} placeholder="Min" value={filters.bedroomsMin} onChange={(e) => setFilters({ bedroomsMin: e.target.value })} />
+        <Input type="number" min={0} max={50} step={1} placeholder="Max" value={filters.bedroomsMax} onChange={(e) => setFilters({ bedroomsMax: e.target.value })} />
       </div>
     </div>
     <div className="mb-4">
@@ -90,16 +90,12 @@ const FilterControls: React.FC<FilterControlsProps> = ({
             {amenities.map((amenity) => (
               <div key={amenity.id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
                 <Checkbox id={`amenity-${amenity.id}`} checked={selectedAmenities.includes(amenity.id)} onCheckedChange={() => handleAmenityToggle(amenity.id)} />
-                <label htmlFor={`amenity-${amenity.id}`} className="text-sm leading-none flex-1 cursor-pointer">{amenity.title || amenity.name}</label>
+                <label htmlFor={`amenity-${amenity.id}`} className="text-sm leading-none flex-1 cursor-pointer">{amenity.title}</label>
               </div>
             ))}
           </div>
         </SheetContent>
       </Sheet>
-    </div>
-    <div className="mb-4">
-      <label className="text-sm font-medium mb-1 block">Search Radius</label>
-      <Input type="number" placeholder="Radius (km)" value={filters.radius} onChange={(e) => setFilters({ radius: e.target.value })} />
     </div>
     <div className="mb-4">
       <label className="text-sm font-medium mb-1 block">Furnishing</label>
@@ -133,7 +129,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     </div>
     <div className="mb-4">
       <label className="text-sm font-medium mb-1 block">Min Windows</label>
-      <Input type="number" min={0} placeholder="Min windows" value={filters.windowsMin} onChange={(e) => setFilters({ windowsMin: e.target.value })} />
+      <Input type="number" min={0} max={100} step={1} placeholder="Min windows" value={filters.windowsMin} onChange={(e) => setFilters({ windowsMin: e.target.value })} />
     </div>
     <div className="mb-4">
       <label className="flex items-center gap-2 text-sm font-medium">

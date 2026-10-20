@@ -34,7 +34,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 
 interface PropertyStatusCardProps {
   data: PropertyStatusSlice[]
-  total: number
+  total: number | null
   isLoading: boolean
   isError: boolean
   onRetry: () => void
@@ -42,7 +42,7 @@ interface PropertyStatusCardProps {
 }
 
 export function PropertyStatusCard({ data, total, isLoading, isError, onRetry, className }: PropertyStatusCardProps) {
-  const slices = data.filter((slice) => slice.count > 0)
+  const slices = data.filter((slice): slice is PropertyStatusSlice & { count: number } => slice.count !== null && slice.count > 0)
 
   return (
     <Card className={cn('rounded-cohere-md border-cohere-card-border card-glow', className)}>
@@ -55,8 +55,18 @@ export function PropertyStatusCard({ data, total, isLoading, isError, onRetry, c
             <Skeleton className="h-40 w-40 rounded-full" />
             <Skeleton className="h-4 w-40" />
           </div>
-        ) : isError ? (
-          <ErrorState title="Couldn't load status breakdown" onRetry={onRetry} />
+        ) : isError || total === null ? (
+          <div className="space-y-3">
+            <ErrorState title="Some property counts are unavailable" onRetry={onRetry} />
+            <ul className="space-y-1.5" aria-label="Available property counts">
+              {data.map((slice) => (
+                <li key={slice.value} className="flex justify-between gap-3 text-sm">
+                  <span>{slice.label}</span>
+                  <span>{slice.count === null ? 'Unavailable' : formatNumber(slice.count)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : total === 0 ? (
           <EmptyState
             icon={<Building2 className="h-8 w-8" />}
@@ -116,12 +126,15 @@ interface ActivityTrendCardProps {
   trend: TrendBucket[]
   isLoading: boolean
   isError: boolean
+  isPartialError: boolean
   onRetry: () => void
   className?: string
 }
 
-export function ActivityTrendCard({ trend, isLoading, isError, onRetry, className }: ActivityTrendCardProps) {
+export function ActivityTrendCard({ trend, isLoading, isError, isPartialError, onRetry, className }: ActivityTrendCardProps) {
   const hasData = trend.some((bucket) => bucket.visits > 0 || bucket.bookings > 0)
+  const totalVisits = trend.reduce((sum, bucket) => sum + bucket.visits, 0)
+  const totalBookings = trend.reduce((sum, bucket) => sum + bucket.bookings, 0)
 
   return (
     <Card className={cn('rounded-cohere-md border-cohere-card-border card-glow', className)}>
@@ -133,6 +146,8 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
           <Skeleton className="h-[260px] w-full" />
         ) : isError ? (
           <ErrorState title="Couldn't load activity" onRetry={onRetry} />
+        ) : !hasData && isPartialError ? (
+          <ErrorState title="Some activity is unavailable" onRetry={onRetry} />
         ) : !hasData ? (
           <EmptyState
             icon={<CalendarRange className="h-8 w-8" />}
@@ -141,7 +156,8 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
           />
         ) : (
           <>
-            <div className="h-[260px]">
+            {isPartialError && <p role="status" className="mb-3 text-sm text-destructive">One activity source failed. The chart is incomplete. <button className="underline" onClick={onRetry}>Retry</button></p>}
+            <div className="h-[260px]" aria-hidden="true">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trend} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_COLOR} />
@@ -157,6 +173,34 @@ export function ActivityTrendCard({ trend, isLoading, isError, onRetry, classNam
               <LegendDot color={VISIT_COLOR} label="Visits" />
               <LegendDot color={BOOKING_COLOR} label="Bookings" />
             </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {isPartialError ? 'Available activity' : 'Last 7 days'}: {formatNumber(totalVisits)} visits and {formatNumber(totalBookings)} bookings.
+              {isPartialError && ' Counts may be incomplete.'}
+            </p>
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer text-foreground">View daily counts</summary>
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full text-left">
+                  <caption className="sr-only">Visits and bookings by day</caption>
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th scope="col" className="py-1 font-medium">Day</th>
+                      <th scope="col" className="py-1 text-right font-medium">Visits</th>
+                      <th scope="col" className="py-1 text-right font-medium">Bookings</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trend.map((bucket) => (
+                      <tr key={bucket.key} className="border-b border-border/50 last:border-0">
+                        <th scope="row" className="py-1 font-normal">{bucket.label}</th>
+                        <td className="py-1 text-right tabular-nums">{formatNumber(bucket.visits)}</td>
+                        <td className="py-1 text-right tabular-nums">{formatNumber(bucket.bookings)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           </>
         )}
       </CardContent>

@@ -14,6 +14,7 @@ import { HealthIndicator } from '@/components/common/HealthIndicator'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import { useEffect, useState } from 'react'
+import { confirmActiveUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 const TopBar = () => {
   const user = useAppSelector(selectCurrentUser)
@@ -38,16 +39,23 @@ const TopBar = () => {
   const showOwnerSelector = location.pathname.startsWith('/pm') && (role === 'admin' || role === 'agent')
 
   const logout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut()
+    try {
+      if (supabase) await supabase.auth.signOut()
+    } catch {
+      try {
+        await supabase?.auth.signOut({ scope: 'local' })
+      } catch {
+        // Local Redux state is cleared below even if Supabase is unavailable.
+      }
+    } finally {
+      dispatch(clearCredentials())
+      navigate('/login', { replace: true })
     }
-    dispatch(clearCredentials())
-    navigate('/login', { replace: true })
   }
 
   return (
-    <header className="flex items-center justify-between border-b border-cohere-card-border bg-card/60 px-4 backdrop-blur-xl md:px-6 py-3 md:py-4">
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="flex min-w-0 items-center justify-between gap-2 border-b border-cohere-card-border bg-card/60 px-2 py-2 backdrop-blur-xl sm:px-4 md:px-6 md:py-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* Full nav on mobile is BottomNav "More" — avoid a second identical sheet here. */}
         {showOwnerSelector && <OwnerSelector />}
         <span className="hidden sm:block text-sm font-medium text-muted-foreground truncate">
@@ -55,7 +63,7 @@ const TopBar = () => {
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-3">
         <Button
           variant="outline"
           onClick={() => setPaletteOpen(true)}
@@ -64,7 +72,7 @@ const TopBar = () => {
         >
           <Search className="h-4 w-4" />
           <span>Search</span>
-          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
+          <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">⌘K</kbd>
         </Button>
         <Button
           variant="ghost"
@@ -77,12 +85,12 @@ const TopBar = () => {
         </Button>
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
         <NotificationCenter />
-        <HealthIndicator />
+        <div className="hidden sm:block"><HealthIndicator /></div>
         <ModeToggle />
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-3 rounded-full px-3 py-2 h-auto hover:bg-accent">
+            <Button variant="ghost" aria-label="Account menu" className="flex items-center gap-3 rounded-full px-1 py-1 h-auto hover:bg-accent md:px-3 md:py-2">
               <Avatar className="h-9 w-9 ring-2 ring-primary/10">
                 <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
                   {getInitials(user?.full_name)}
@@ -119,7 +127,7 @@ const TopBar = () => {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void logout()} className="flex items-center gap-2 text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400">
+            <DropdownMenuItem onClick={() => { if (confirmActiveUnsavedChanges()) void logout() }} className="flex items-center gap-2 text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400">
               <LogOut className="h-4 w-4" />
               Logout
             </DropdownMenuItem>

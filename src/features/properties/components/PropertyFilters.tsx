@@ -14,7 +14,7 @@ import FilterControls from './PropertyFilterControls'
 export interface PropertyFiltersState {
   q: string; city: string; locality: string; propertyType: string; purpose: string; status: string
   priceMin: string; priceMax: string; bedroomsMin: string; bedroomsMax: string
-  amenities: number[]; radius: string; sortBy: string; showFilters: boolean
+  amenities: number[]; sortBy: string; showFilters: boolean
   furnishing: string; kitchenType: string; ventilationType: string; windowsMin: string; hasLift: boolean
 }
 
@@ -107,18 +107,17 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                   {amenities.map((amenity) => (
                     <div key={amenity.id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
                       <Checkbox id={`amenity-${amenity.id}`} checked={selectedAmenities.includes(amenity.id)} onCheckedChange={() => handleAmenityToggle(amenity.id)} />
-                      <label htmlFor={`amenity-${amenity.id}`} className="text-sm leading-none flex-1 cursor-pointer">{amenity.title || amenity.name}</label>
+                      <label htmlFor={`amenity-${amenity.id}`} className="text-sm leading-none flex-1 cursor-pointer">{amenity.title}</label>
                     </div>
                   ))}
                 </div>
               </SheetContent>
             </Sheet>
           </div>
-          <Input type="number" placeholder="Search Radius (km)" value={filters.radius} onChange={(e) => setFilters({ radius: e.target.value })} />
-          <Input type="number" placeholder="Min Price" value={filters.priceMin} onChange={(e) => setFilters({ priceMin: e.target.value })} />
-          <Input type="number" placeholder="Max Price" value={filters.priceMax} onChange={(e) => setFilters({ priceMax: e.target.value })} />
-          <Input type="number" placeholder="Min Bedrooms" value={filters.bedroomsMin} onChange={(e) => setFilters({ bedroomsMin: e.target.value })} />
-          <Input type="number" placeholder="Max Bedrooms" value={filters.bedroomsMax} onChange={(e) => setFilters({ bedroomsMax: e.target.value })} />
+          <Input type="number" min={0} max={9999999999.99} step="any" placeholder="Min Price" value={filters.priceMin} onChange={(e) => setFilters({ priceMin: e.target.value })} />
+          <Input type="number" min={0} max={9999999999.99} step="any" placeholder="Max Price" value={filters.priceMax} onChange={(e) => setFilters({ priceMax: e.target.value })} />
+          <Input type="number" min={0} max={50} step={1} placeholder="Min Bedrooms" value={filters.bedroomsMin} onChange={(e) => setFilters({ bedroomsMin: e.target.value })} />
+          <Input type="number" min={0} max={50} step={1} placeholder="Max Bedrooms" value={filters.bedroomsMax} onChange={(e) => setFilters({ bedroomsMax: e.target.value })} />
           <Select value={filters.furnishing || 'all'} onValueChange={(v) => setFilters({ furnishing: v === 'all' ? '' : v })}>
             <SelectTrigger><SelectValue placeholder="Furnishing" /></SelectTrigger>
             <SelectContent>
@@ -140,7 +139,7 @@ const PropertyFilters: React.FC<PropertyFiltersProps> = ({
               {VENTILATION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Input type="number" min={0} placeholder="Min Windows" value={filters.windowsMin} onChange={(e) => setFilters({ windowsMin: e.target.value })} />
+          <Input type="number" min={0} max={100} step={1} placeholder="Min Windows" value={filters.windowsMin} onChange={(e) => setFilters({ windowsMin: e.target.value })} />
           <label className="flex items-center gap-2 text-sm font-medium">
             <Checkbox checked={filters.hasLift} onCheckedChange={(v) => setFilters({ hasLift: !!v })} />
             Has lift

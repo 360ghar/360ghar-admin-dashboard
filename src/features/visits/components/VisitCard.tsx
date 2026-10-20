@@ -13,6 +13,7 @@ import { getVisitStatusColor, getVisitStatusLabel } from '@/lib/statusColors'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import TiltedCard from '@/components/reactbits/TiltedCard'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
+import { VISIT_CONTEXT_LABELS, counterpartyName, visitAgentName, visitorName } from '@/features/visits/constants'
 
 interface VisitCardProps {
   visit: Visit
@@ -20,7 +21,8 @@ interface VisitCardProps {
   isUser: boolean
   onComplete: (visit: Visit) => void
   onReschedule: (visitId: number, newDate: string) => void
-  onCancel: (visitId: number) => void
+  /** `reason` is required by the backend (1 to 1000 characters). */
+  onCancel: (visitId: number, reason: string) => void
 }
 
 /** 1x1 transparent GIF so the tilt layer stays invisible when no photo exists. */
@@ -52,6 +54,7 @@ const VisitCard = ({
   }, [])
 
   const [rescheduleDate, setRescheduleDate] = useState(serverTimestampToLocalInput(visit.scheduled_date) || '')
+  const [cancelReason, setCancelReason] = useState('')
 
   const cardBody = (
     <Card ref={cardRef} className="w-full">
@@ -72,12 +75,18 @@ const VisitCard = ({
                 {!isUser && (
                   <p className="text-sm text-muted-foreground">
                     <User className="h-4 w-4 inline mr-1" />
-                    {visit.user?.full_name || `User #${visit.user_id}`}
+                    {visitorName(visit)}
                   </p>
                 )}
-                {visit.agent && (
+                {visit.visit_context === 'flatmate_meet' && (
                   <p className="text-sm text-muted-foreground">
-                    Agent: {visit.agent.user?.full_name || visit.agent.name || `Agent #${visit.agent_id ?? visit.agent.id}`}
+                    {VISIT_CONTEXT_LABELS.flatmate_meet}
+                    {counterpartyName(visit) ? ` with ${counterpartyName(visit)}` : ''}
+                  </p>
+                )}
+                {visitAgentName(visit) && (
+                  <p className="text-sm text-muted-foreground">
+                    Agent: {visitAgentName(visit)}
                   </p>
                 )}
                 {visit.special_requirements && (
@@ -131,15 +140,25 @@ const VisitCard = ({
                       >
                         Confirm Reschedule
                       </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor={`cancel-reason-${visit.id}`}>Cancellation reason</Label>
+                        <Input
+                          id={`cancel-reason-${visit.id}`}
+                          value={cancelReason}
+                          maxLength={1000}
+                          placeholder="Why is this visit cancelled?"
+                          onChange={(e) => setCancelReason(e.target.value)}
+                        />
+                      </div>
                       <ConfirmAlertDialog
                         title="Cancel Visit"
                         description="Are you sure you want to cancel this visit?"
                         confirmLabel="Cancel Visit"
                         variant="destructive"
-                        onConfirm={() => onCancel(visit.id)}
+                        onConfirm={() => onCancel(visit.id, cancelReason.trim())}
                       >
                         {(openDialog) => (
-                          <Button onClick={openDialog} variant="destructive" className="w-full">
+                          <Button onClick={openDialog} variant="destructive" className="w-full" disabled={!cancelReason.trim()}>
                             Cancel Visit
                           </Button>
                         )}
@@ -159,7 +178,7 @@ const VisitCard = ({
 
   return (
     <TiltedCard
-      imageSrc={visit.property?.main_image_url || TRANSPARENT_PIXEL}
+      imageSrc={visit.property?.main_image_url ?? TRANSPARENT_PIXEL}
       altText={visit.property?.title || 'Property visit'}
       containerHeight={`${cardHeight}px`}
       containerWidth="100%"

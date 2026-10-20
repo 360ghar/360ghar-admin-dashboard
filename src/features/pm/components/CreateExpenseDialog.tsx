@@ -1,13 +1,12 @@
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { DocumentType, ExpenseCreate } from "@/types/pm";
+import type { DocumentType, ExpenseCreate, PmProperty } from "@/types/pm";
 import {
   useCreatePmExpenseMutation,
   useUploadPmDocumentMutation,
 } from "@/features/pm/api/pmApi";
-import { usePmPropertyOptions } from "@/features/pm/hooks/usePmPropertyOptions";
-import { PmPropertySelectItems } from "@/features/pm/components/PmPropertySelectItems";
+import { PmPropertyPicker } from "@/features/pm/components/PmPropertyPicker";
 import { EXPENSE_CATEGORIES } from "@/features/pm/constants";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -56,12 +55,14 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
   const [open, setOpen] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
-  const properties = usePmPropertyOptions(ownerId, { enabled: open && !(role === "agent" && !ownerId) });
+  // The picked property: its owner owns the expense when no owner is selected in the top bar.
+  const [selectedProperty, setSelectedProperty] = useState<PmProperty | null>(null);
 
   const form = useForm<PmExpenseCreateForm>({
     resolver: zodResolver(pmExpenseCreateSchema),
     defaultValues: {
       property_id: "",
+      title: "",
       category: "maintenance",
       amount: "",
       expense_date: "",
@@ -75,6 +76,7 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
       setOpen(isOpen);
       if (!isOpen) {
         form.reset();
+        setSelectedProperty(null);
         setReceiptFile(null);
       }
     },
@@ -83,10 +85,7 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
 
   const onSubmit = async (values: PmExpenseCreateForm) => {
     try {
-      const selectedPropertyOwnerId = (properties.data?.items ?? []).find(
-        (p) => String(p.id) === values.property_id,
-      )?.owner_id;
-      const effectiveOwnerId = ownerId ?? selectedPropertyOwnerId ?? null;
+      const effectiveOwnerId = ownerId ?? selectedProperty?.owner_id ?? null;
 
       let receiptDocumentId: number | undefined;
       if (receiptFile) {
@@ -104,6 +103,7 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
       const payload: ExpenseCreate = {
         owner_id: effectiveOwnerId || undefined,
         property_id: Number(values.property_id),
+        title: values.title || undefined,
         category: values.category,
         amount: Number(values.amount),
         expense_date: values.expense_date,
@@ -142,16 +142,26 @@ export default function CreateExpenseDialog({ ownerId }: CreateExpenseDialogProp
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Property</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select property…" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <PmPropertySelectItems properties={properties} />
-                    </SelectContent>
-                  </Select>
+                  <PmPropertyPicker
+                    ownerId={ownerId}
+                    enabled={open && !(role === "agent" && !ownerId)}
+                    selected={selectedProperty}
+                    onSelect={(property) => {
+                      setSelectedProperty(property);
+                      field.onChange(property ? String(property.id) : "");
+                    }}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Title (optional)</FormLabel>
+                  <FormControl><Input maxLength={200} placeholder="e.g. Plumber visit" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

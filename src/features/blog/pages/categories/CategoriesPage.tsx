@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { toast } from '@/hooks/use-toast'
-import { useGetBlogCategoriesQuery, useDeleteBlogCategoryMutation } from '@/features/blog/api/blogsApi'
+import { useListAllBlogCategoriesQuery, useDeleteBlogCategoryMutation } from '@/features/blog/api/blogsApi'
 import { Plus, Edit2, Trash2, Folder, FileText } from 'lucide-react'
 import { getErrorMessage } from '@/lib/errors'
 import { formatDate } from '@/lib/format'
@@ -22,10 +22,8 @@ const CategoriesPage = () => {
   const [editingCategory, setEditingCategory] = useState<BlogCategory | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
-  const { data: categoriesData, isFetching, error, refetch } = useGetBlogCategoriesQuery({ limit: 100 })
-  // Exact total via a COUNT-style query (limit=1 + include_total), so the
-  // "N categories total" label is never derived from the bounded list sample.
-  const { data: categoriesTotal } = useGetBlogCategoriesQuery({ limit: 1, include_total: true })
+  // Every category: follows next_cursor, so no category past the first page is hidden from the table or the total.
+  const { data: categories, isFetching, error, refetch } = useListAllBlogCategoriesQuery()
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteBlogCategoryMutation()
 
   const handleDeleteCategory = useCallback(async (category: BlogCategory) => {
@@ -80,19 +78,21 @@ const CategoriesPage = () => {
         }
       />
       <Card className="p-6">
-        {isFetching ? <LoadingState type="card" rows={5} /> : error ? (
+        {error ? (
           <ErrorState title="Failed to load categories" error={error} onRetry={() => { void refetch() }} />
-        ) : !categoriesData?.items?.length ? (
+        ) : isFetching && !categories ? (
+          <LoadingState type="card" rows={5} />
+        ) : !categories?.length ? (
           <EmptyState icon={<Folder className="h-12 w-12" />} title="No categories found" description="Create your first category to organize blog posts." action={{ label: 'New Category', onClick: () => setIsCreateDialogOpen(true) }} />
         ) : (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">{categoriesTotal?.total ?? '…'} categories total</div>
-            <DataTable columns={columns} data={categoriesData.items} />
+            <div className="text-sm text-muted-foreground">{categories.length} categories total</div>
+            <DataTable columns={columns} data={categories} />
           </div>
         )}
       </Card>
-      <CategoryFormDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} onSuccess={() => { setIsCreateDialogOpen(false); void refetch() }} />
-      {editingCategory && <CategoryFormDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} editingCategory={editingCategory} onSuccess={() => { setEditingCategory(null); setIsEditDialogOpen(false); void refetch() }} />}
+      <CategoryFormDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} onSuccess={() => setIsCreateDialogOpen(false)} />
+      {editingCategory && <CategoryFormDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} editingCategory={editingCategory} onSuccess={() => { setEditingCategory(null); setIsEditDialogOpen(false) }} />}
     </div>
   )
 }

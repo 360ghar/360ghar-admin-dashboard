@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -7,11 +7,13 @@ import { PageHeader } from '@/components/ui/page-header'
 import FadeContent from '@/components/reactbits/FadeContent'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
+import { LoadingState } from '@/components/ui/loading-state'
 import BlogList from '../components/BlogList'
-import BlogEditor from '../components/BlogEditor'
-import BlogEdit from '../components/BlogEdit'
-import BlogDetail from '../components/BlogDetail'
-import BlogGenerateDialog from '../components/BlogGenerateDialog'
+
+const BlogEditor = lazy(() => import('../components/BlogEditor'))
+const BlogEdit = lazy(() => import('../components/BlogEdit'))
+const BlogDetail = lazy(() => import('../components/BlogDetail'))
+const BlogGenerateDialog = lazy(() => import('../components/BlogGenerateDialog'))
 
 type Props = { mode?: 'create' | 'detail' | 'edit' }
 
@@ -22,15 +24,15 @@ const BlogsPage = ({ mode }: Props) => {
   const [isGenerateOpen, setIsGenerateOpen] = useState(false)
 
   if (mode === 'create') {
-    return <BlogEditor onSuccess={(slug) => navigate(`/blogs/${slug}`)} />
+    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEditor onSuccess={(slug) => navigate(`/blogs/${slug}`)} /></Suspense>
   }
   if (mode === 'detail') {
     const identifier = params.identifier as string
-    return <BlogDetail identifier={identifier} />
+    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogDetail identifier={identifier} /></Suspense>
   }
   if (mode === 'edit') {
     const identifier = params.identifier as string
-    return <BlogEdit identifier={identifier} onSuccess={(slug) => navigate(`/blogs/${slug}`)} />
+    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEdit key={identifier} identifier={identifier} onSuccess={(slug) => navigate(`/blogs/${slug}`)} /></Suspense>
   }
 
   const quickManagementCards = (
@@ -73,7 +75,11 @@ const BlogsPage = ({ mode }: Props) => {
 
   return (
     <ErrorBoundary>
-      <BlogGenerateDialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen} />
+      {isGenerateOpen && (
+        <Suspense fallback={<LoadingState type="card" rows={3} />}>
+          <BlogGenerateDialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen} />
+        </Suspense>
+      )}
       <div className="space-y-8">
         <PageHeader
           title="Blog Posts"

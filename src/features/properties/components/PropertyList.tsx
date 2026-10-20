@@ -1,29 +1,15 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useUserRole } from '@/hooks/useUserRole'
-import { useDeletePropertyMutation, useSearchPropertiesQuery, useUpdatePropertyMutation, type PropertySearchParams, type Property } from '@/features/properties/api/propertiesApi'
+import { useDeletePropertyMutation, useSearchPropertiesQuery, useUpdatePropertyMutation, type Property } from '@/features/properties/api/propertiesApi'
 import type { PropertyStatus } from '@/types/pm'
-import { useGetAmenitiesQuery } from '@/features/core/api/amenitiesApi'
 import { Card } from '@/components/ui/card'
 import { ResponsiveDataTable } from '@/components/ui/responsive-data-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useNavigate } from 'react-router-dom'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useToast } from '@/hooks/use-toast'
-import { useDebounce } from '@/hooks/useDebounce'
-import { useFilterPersistence } from '@/hooks/useFilterPersistence'
-import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import type { ColumnDef } from '@tanstack/react-table'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import type { ColumnDef, OnChangeFn, RowSelectionState } from '@tanstack/react-table'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -34,161 +20,44 @@ import { PropertyFilters, type PropertyFiltersState } from '@/features/propertie
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { downloadCsv, csvFilename } from '@/lib/csv'
+import { scopedStorageKey } from '@/lib/storage'
+import { usePropertyListQuery } from '@/features/properties/hooks/usePropertyListQuery'
+
+const propertyRowId = (property: Property) => String(property.id)
+const EMPTY_SELECTION: RowSelectionState = {}
 
 const PropertyList = () => {
   const { user, role } = useUserRole()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
 
-  // Filter persistence - add new fields
-  const { filters, setFilters, clearFilters, hasActiveFilters } = useFilterPersistence({
-    key: 'properties',
-    defaultValue: {
-      q: '',
-      city: '',
-      locality: '',
-      propertyType: '',
-      purpose: '',
-      status: '',
-      priceMin: '',
-      priceMax: '',
-      bedroomsMin: '',
-      bedroomsMax: '',
-      amenities: [] as number[],
-      radius: '',
-      sortBy: 'newest',
-      showFilters: false,
-      furnishing: '',
-      kitchenType: '',
-      ventilationType: '',
-      windowsMin: '',
-      hasLift: false
-    }
-  })
-
-  const [selectedAmenities, setSelectedAmenities] = useState<number[]>(filters.amenities || [])
-
-  useEffect(() => {
-    setFilters({ amenities: selectedAmenities })
-  }, [selectedAmenities, setFilters])
-
-  const { data: amenitiesData } = useGetAmenitiesQuery()
-
-  const amenities = useMemo(() => amenitiesData || [], [amenitiesData])
-
-  const handleAmenityToggle = (amenityId: number) => {
-    setSelectedAmenities(prev =>
-      prev.includes(amenityId)
-        ? prev.filter(id => id !== amenityId)
-        : [...prev, amenityId]
-    )
-  }
-
-  // clearFilters only resets persisted filter state; amenities live in local state that
-  // re-writes into filters via the effect above — clear both or amenities stick.
-  const handleClearFilters = useCallback(() => {
-    clearFilters()
-    setSelectedAmenities([])
-  }, [clearFilters])
-
+  const {
+    filters, setFilters, clearFilters, hasActiveFilters,
+    selectedAmenities, amenities, handleAmenityToggle, activeFilterCount,
+    waitingForAmenities, amenitiesError, refetchAmenities,
+    pageSize, setPageSize, pager, params,
+  } = usePropertyListQuery(user?.supabase_user_id, role, user?.agent_id)
   const [confirmId, setConfirmId] = useState<number | null>(null)
-  const [selectedRows, setSelectedRows] = useState<Property[]>([])
+  const [selectionState, setSelectionState] = useState<{ scope: string; rows: RowSelectionState }>({ scope: '', rows: {} })
   const { toast } = useToast()
-  const [pageSize, setPageSize] = useState(20)
 
-  // Debounced search terms (must be declared before pager resetKey)
-  const dq = useDebounce(filters.q, 300)
-  const dcity = useDebounce(filters.city, 300)
-  const dlocality = useDebounce(filters.locality, 300)
-
-  const pager = useCursorPagination(
-    [
-      dq, dcity, dlocality,
-      filters.propertyType, filters.purpose, filters.status,
-      filters.priceMin, filters.priceMax,
-      filters.bedroomsMin, filters.bedroomsMax,
-      selectedAmenities.join(','), filters.radius,
-      filters.sortBy, pageSize,
-      filters.furnishing, filters.kitchenType, filters.ventilationType,
-      filters.windowsMin, String(filters.hasLift),
-    ].join('|'),
-  )
-
-  const params = useMemo((): PropertySearchParams => {
-    const base: PropertySearchParams = {
-      cursor: pager.cursor,
-      limit: pageSize,
-      sort_by: filters.sortBy,
-    }
-
-    if (dq) base.q = dq
-    if (dcity) base.city = dcity
-    if (dlocality) base.locality = dlocality
-    if (filters.propertyType) base.property_type = [filters.propertyType]
-    if (filters.purpose) base.purpose = filters.purpose
-    if (filters.status) base.status = filters.status
-    if (filters.priceMin !== '' && !Number.isNaN(Number(filters.priceMin))) base.price_min = Number(filters.priceMin)
-    if (filters.priceMax !== '' && !Number.isNaN(Number(filters.priceMax))) base.price_max = Number(filters.priceMax)
-    if (filters.bedroomsMin !== '' && !Number.isNaN(Number(filters.bedroomsMin))) base.bedrooms_min = Number(filters.bedroomsMin)
-    if (filters.bedroomsMax !== '' && !Number.isNaN(Number(filters.bedroomsMax))) base.bedrooms_max = Number(filters.bedroomsMax)
-    if (selectedAmenities.length > 0) {
-      const selectedAmenityTitles = selectedAmenities
-        .map((amenityId) => amenities.find((amenity) => amenity.id === amenityId))
-        .map((amenity) => amenity?.title || amenity?.name)
-        .filter((value): value is string => Boolean(value))
-      if (selectedAmenityTitles.length > 0) {
-        base.amenities = selectedAmenityTitles
-      }
-    }
-    if (filters.radius !== '' && !Number.isNaN(Number(filters.radius))) base.radius = Number(filters.radius)
-    if (filters.furnishing) base.furnishing = [filters.furnishing]
-    // Backend strips the 'any' kitchen sentinel — the UI "Any Kitchen" filter means omit.
-    if (filters.kitchenType && filters.kitchenType !== 'any') base.kitchen_type = [filters.kitchenType]
-    if (filters.ventilationType) base.ventilation_type = [filters.ventilationType]
-    if (filters.windowsMin !== '' && !Number.isNaN(Number(filters.windowsMin))) base.windows_min = Number(filters.windowsMin)
-    if (filters.hasLift) base.has_lift = true
-
-    if (role === 'agent' && user?.agent_id) base.exclude_swiped = false
-
-    return base
-  }, [
-    pager.cursor,
-    pageSize,
-    filters.sortBy,
-    dq,
-    dcity,
-    dlocality,
-    filters.propertyType,
-    filters.purpose,
-    filters.status,
-    filters.priceMin,
-    filters.priceMax,
-    filters.bedroomsMin,
-    filters.bedroomsMax,
-    selectedAmenities,
-    amenities,
-    filters.radius,
-    filters.furnishing,
-    filters.kitchenType,
-    filters.ventilationType,
-    filters.windowsMin,
-    filters.hasLift,
-    role,
-    user?.agent_id
-  ])
-
-  const { data, isFetching, error, refetch } = useSearchPropertiesQuery(params)
+  const { currentData: data, isLoading, isFetching, error, refetch } = useSearchPropertiesQuery(params, { skip: waitingForAmenities })
+  const selectionScope = `${user?.supabase_user_id ?? ''}|${JSON.stringify(params)}`
+  const rawSelection = selectionState.scope === selectionScope ? selectionState.rows : EMPTY_SELECTION
+  const selectedRows = useMemo(() => (data?.items ?? []).filter((row) => rawSelection[propertyRowId(row)]), [data?.items, rawSelection])
+  const rowSelection = useMemo<RowSelectionState>(() => Object.fromEntries(selectedRows.map((row) => [propertyRowId(row), true])), [selectedRows])
+  const updateSelection: OnChangeFn<RowSelectionState> = useCallback((updater) => {
+    setSelectionState({
+      scope: selectionScope,
+      rows: typeof updater === 'function' ? updater(rowSelection) : updater,
+    })
+  }, [selectionScope, rowSelection])
   const [del] = useDeletePropertyMutation()
   const [updateProperty] = useUpdatePropertyMutation()
 
   const handleDelete = useCallback(async (id: number) => {
-    try {
-      await del(id).unwrap()
-      toast({ title: 'Deleted', description: 'Property removed' })
-      setConfirmId(null)
-    } catch (e: unknown) {
-      toast({ title: 'Failed', description: getErrorMessage(e, 'Try again'), variant: 'destructive' })
-    }
+    await del(id).unwrap()
+    toast({ title: 'Deleted', description: 'Property removed' })
   }, [del, toast])
 
   const handleBulkDelete = useCallback(async () => {
@@ -197,16 +66,15 @@ const PropertyList = () => {
       selectedRows.map((row) => del(row.id).unwrap())
     )
     const fulfilled = results.filter((r) => r.status === 'fulfilled').length
-    const rejected = results.length - fulfilled
-    if (rejected === 0) {
+    const failedRows = selectedRows.filter((_, index) => results[index].status === 'rejected')
+    if (failedRows.length === 0) {
       toast({ title: 'Deleted', description: `${fulfilled} propert${fulfilled === 1 ? 'y' : 'ies'} removed` })
-    } else if (fulfilled === 0) {
-      toast({ title: 'Failed', description: `Could not delete ${rejected} propert${rejected === 1 ? 'y' : 'ies'}`, variant: 'destructive' })
-    } else {
-      toast({ title: 'Partial success', description: `${fulfilled} deleted, ${rejected} failed`, variant: 'destructive' })
+      setSelectionState({ scope: selectionScope, rows: {} })
+      return
     }
-    setSelectedRows([])
-  }, [del, selectedRows, toast])
+    setSelectionState({ scope: selectionScope, rows: Object.fromEntries(failedRows.map((row) => [propertyRowId(row), true])) })
+    throw new Error(`Could not delete property ${failedRows.map((row) => `#${row.id}`).join(', ')}. Retry the selected records.`)
+  }, [del, selectedRows, selectionScope, toast])
 
   const handleSetStatus = useCallback(async (id: number, status: PropertyStatus) => {
     try {
@@ -242,14 +110,14 @@ const PropertyList = () => {
           <Checkbox
             checked={table.getIsAllRowsSelected()}
             onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
-            aria-label="Select all"
+            aria-label="Select all properties on this page"
           />
         ),
         cell: ({ row }) => (
           <Checkbox
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
+            aria-label={`Select property ${row.original.title}`}
           />
         ),
         enableSorting: false,
@@ -259,39 +127,16 @@ const PropertyList = () => {
     [handleSetStatus]
   )
 
-  // Count active filters
-  const activeFilterCount = [
-    filters.city,
-    filters.locality,
-    filters.propertyType,
-    filters.purpose,
-    filters.status,
-    filters.priceMin,
-    filters.priceMax,
-    filters.bedroomsMin,
-    filters.bedroomsMax,
-    filters.radius,
-    filters.furnishing,
-    filters.kitchenType,
-    filters.ventilationType,
-    filters.windowsMin,
-    filters.hasLift ? 'hasLift' : '',
-    selectedAmenities.length > 0 ? 'amenities' : '',
-  ].filter(Boolean).length
-
-  // Amenities can be active even when other defaults match after a partial clear.
-  const filtersActive = hasActiveFilters || selectedAmenities.length > 0
-
   return (
     <div className="space-y-6">
       {/* Search and Filters */}
       <Card className="p-4 md:p-6">
         <div className="space-y-4">
           <PropertyFilters
-            filters={filters as unknown as PropertyFiltersState}
-            setFilters={(patch) => setFilters(patch as Partial<typeof filters>)}
-            clearFilters={handleClearFilters}
-            hasActiveFilters={filtersActive}
+            filters={filters satisfies PropertyFiltersState}
+            setFilters={setFilters}
+            clearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
             selectedAmenities={selectedAmenities}
             handleAmenityToggle={handleAmenityToggle}
             amenities={amenities}
@@ -300,8 +145,8 @@ const PropertyList = () => {
             onPageSizeChange={(size) => { setPageSize(size) }}
           />
           <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={isFetching} className="gap-2">
-              <Download className="h-4 w-4" />Export
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={!data?.items?.length} className="gap-2">
+              <Download className="h-4 w-4" />Export current page
             </Button>
           </div>
         </div>
@@ -309,9 +154,13 @@ const PropertyList = () => {
 
       {/* Results */}
       <Card className="p-4 md:p-6">
-        {isFetching ? (
+        {waitingForAmenities && amenitiesError ? (
+            <ErrorState title="Failed to load amenity filters" error={amenitiesError} onRetry={() => void refetchAmenities()} />
+          ) : waitingForAmenities ? (
+            <LoadingState type={isMobile ? 'cards' : 'table'} rows={5} />
+          ) : isLoading || (isFetching && !data) ? (
             <LoadingState type={isMobile ? 'cards' : 'card'} rows={5} />
-          ) : error ? (
+          ) : error && !data?.items?.length ? (
             <ErrorState
               title="Failed to load properties"
               error={error}
@@ -321,18 +170,20 @@ const PropertyList = () => {
             <EmptyState
               title="No properties found"
               description={
-                filtersActive
+                hasActiveFilters
                   ? 'Try adjusting your filters to see more results'
                   : 'Get started by creating your first property'
               }
               action={
-                filtersActive
-                  ? { label: 'Clear Filters', onClick: handleClearFilters, variant: 'outline' }
+                hasActiveFilters
+                  ? { label: 'Clear Filters', onClick: clearFilters, variant: 'outline' }
                   : { label: 'Create Property', onClick: () => navigate('/properties/new') }
               }
             />
           ) : (
             <div className="space-y-4">
+              {isFetching && <p role="status" className="text-sm text-muted-foreground">Updating properties…</p>}
+              {error && <p role="alert" className="text-sm text-destructive">Refresh failed. Showing the last result for these filters. <Button variant="link" size="sm" onClick={() => void refetch()}>Retry</Button></p>}
               {selectedRows.length > 0 && (
                 <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/60 p-3 backdrop-blur-md">
                   <span className="text-sm font-medium">
@@ -359,7 +210,7 @@ const PropertyList = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedRows([])}
+                    onClick={() => setSelectionState({ scope: selectionScope, rows: {} })}
                   >
                     Clear
                   </Button>
@@ -368,10 +219,23 @@ const PropertyList = () => {
               <ResponsiveDataTable
                 columns={columns}
                 data={data.items}
-                mobileCardRender={(property) => renderPropertyCard(property, setConfirmId)}
-                enableSorting
+                enableColumnVisibility
+                viewStorageKey={user?.supabase_user_id ? scopedStorageKey('properties-view', user.supabase_user_id) : 'properties-view-anonymous'}
+                mobileCardRender={(property) => renderPropertyCard(property, {
+                  setConfirmId,
+                  selected: Boolean(rowSelection[propertyRowId(property)]),
+                  onSelect: (selected) => updateSelection((previous) => {
+                    const next = { ...previous }
+                    if (selected) next[propertyRowId(property)] = true
+                    else delete next[propertyRowId(property)]
+                    return next
+                  }),
+                  onSetStatus: (id, status) => { void handleSetStatus(id, status) },
+                })}
                 enableRowSelection
-                onSelectionChange={setSelectedRows}
+                getRowId={propertyRowId}
+                rowSelection={rowSelection}
+                onRowSelectionChange={updateSelection}
               />
               <CursorPager
                 canPrev={pager.canPrev}
@@ -385,30 +249,15 @@ const PropertyList = () => {
           )}
         </Card>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!confirmId} onOpenChange={() => setConfirmId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the property and remove it from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (confirmId) {
-                  void handleDelete(confirmId)
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmAlertDialog
+        open={confirmId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmId(null) }}
+        title="Delete property?"
+        description="This permanently deletes the property and its listing."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => confirmId === null ? Promise.resolve() : handleDelete(confirmId)}
+      />
     </div>
   )
 }

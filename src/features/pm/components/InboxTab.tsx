@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
+import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import CursorPager from "@/components/ui/cursor-pager";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,7 +15,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useDecideApplicationMutation } from "@/features/pm/api/pmApi";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
-import { PAGE_SIZES, TENANT_STATUSES } from "@/features/pm/constants";
+import { APPLICATION_STATUSES, PAGE_SIZES } from "@/features/pm/constants";
 import {
   Select,
   SelectContent,
@@ -24,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { RentalApplication, TenantStatus } from "@/types/pm";
+import type { RentalApplication, RentalApplicationDecision, RentalApplicationStatus } from "@/types/pm";
 
 interface InboxTabProps {
   applicationsData?: RentalApplication[];
@@ -36,14 +35,16 @@ interface InboxTabProps {
   appsCanNext: boolean;
   onAppsPrev: () => void;
   onAppsNext: () => void;
-  status: TenantStatus | "";
-  onStatusChange: (status: TenantStatus | "") => void;
+  status: RentalApplicationStatus | "";
+  onStatusChange: (status: RentalApplicationStatus | "") => void;
+  /** The form the inbox is filtered to, from the `form_id` URL parameter. */
+  formId: number | null;
+  onClearForm: () => void;
   appsLimitValue: number;
   onAppsLimitChange: (limit: number) => void;
   decideIsLoading: boolean;
   onApprove: (application: RentalApplication) => void;
   onReject: (application: RentalApplication) => void;
-  onDeleteApplication: (applicationId: number) => Promise<void>;
 }
 
 export default function InboxTab({
@@ -58,27 +59,30 @@ export default function InboxTab({
   onAppsNext,
   status,
   onStatusChange,
+  formId,
+  onClearForm,
   appsLimitValue,
   onAppsLimitChange,
   decideIsLoading,
   onApprove,
   onReject,
-  onDeleteApplication,
 }: InboxTabProps) {
-  const [selectedRows, setSelectedRows] = useState<RentalApplication[]>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkPending, setBulkPending] = useState(false);
+  const selectedRows = (applicationsData ?? []).filter((app) => rowSelection[String(app.id)]);
   const { toast } = useToast();
-  const [decideApplication, decideState] = useDecideApplicationMutation();
+  const [decideApplication] = useDecideApplicationMutation();
 
   const handleBulkDecision = async (type: 'approve' | 'reject') => {
     if (selectedRows.length === 0) return;
-    const decision: TenantStatus = type === 'approve' ? 'approved' : 'rejected';
-    const results = await Promise.allSettled(
-      selectedRows.map((app) =>
-        decideApplication({ application_id: app.id, payload: { decision } }).unwrap(),
-      ),
-    );
+    setBulkPending(true);
+    const decision: RentalApplicationDecision['decision'] = type === 'approve' ? 'approved' : 'rejected';
+    const results = await Promise.allSettled(selectedRows.map((app) =>
+      decideApplication({ application_id: app.id, payload: { decision } }).unwrap(),
+    ));
     const fulfilled = results.filter((r) => r.status === 'fulfilled').length;
-    const rejected = results.length - fulfilled;
+    const failedRows = selectedRows.filter((_app, index) => results[index].status === 'rejected');
+    const rejected = failedRows.length;
     const firstError = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')?.reason as unknown;
     if (rejected === 0) {
       toast({
@@ -94,11 +98,12 @@ export default function InboxTab({
     } else {
       toast({
         title: 'Partial success',
-        description: `${fulfilled} ${decision}, ${rejected} failed`,
+        description: `${fulfilled} ${decision}, ${rejected} failed: ${failedRows.map((app) => `#${app.id}`).join(', ')}`,
         variant: 'destructive',
       });
     }
-    setSelectedRows([]);
+    setRowSelection(Object.fromEntries(failedRows.map((app) => [String(app.id), true])));
+    setBulkPending(false);
   };
 
   const appColumns = useMemo<ColumnDef<RentalApplication>[]>(() => {
@@ -128,7 +133,7 @@ export default function InboxTab({
           <div className="min-w-0">
             <div className="truncate font-medium">#{row.original.id}</div>
             <div className="truncate text-xs text-muted-foreground">
-              Form #{row.original.form_id} &bull; Property #{row.original.property_id}
+              Form #{row.original.form_id} &bull; {row.original.property_name || `Property #${row.original.property_id}`}
             </div>
           </div>
         ),
@@ -181,24 +186,11 @@ export default function InboxTab({
             >
               Reject
             </Button>
-            <ConfirmAlertDialog
-              title="Delete Application"
-              description={`Are you sure you want to delete application #${row.original.id}? This action cannot be undone.`}
-              confirmLabel="Delete"
-              variant="destructive"
-              onConfirm={() => onDeleteApplication(row.original.id)}
-            >
-              {(openDialog) => (
-                <Button variant="destructive" size="sm" onClick={openDialog}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </ConfirmAlertDialog>
           </div>
         ),
       },
     ];
-  }, [decideIsLoading, onApprove, onReject, onDeleteApplication]);
+  }, [decideIsLoading, onApprove, onReject]);
 
   return (
     <Card>
@@ -212,14 +204,14 @@ export default function InboxTab({
         <div className="grid gap-3 md:grid-cols-3">
           <Select
             value={status || "all"}
-            onValueChange={(v) => onStatusChange(v === "all" ? "" : (v as TenantStatus))}
+            onValueChange={(v) => onStatusChange(v === "all" ? "" : (v as RentalApplicationStatus))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              {TENANT_STATUSES.filter((s) => ["applicant", "approved", "rejected"].includes(s.value)).map((s) => (
+              {APPLICATION_STATUSES.map((s) => (
                 <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
               ))}
             </SelectContent>
@@ -239,6 +231,16 @@ export default function InboxTab({
           </Select>
         </div>
 
+        {formId !== null ? (
+          <div className="flex items-center gap-2 text-sm">
+            <Badge variant="secondary">Form #{formId}</Badge>
+            <Button variant="ghost" size="sm" onClick={onClearForm} aria-label="Show every form">
+              <X className="mr-1 h-3 w-3" />
+              Clear form filter
+            </Button>
+          </div>
+        ) : null}
+
         {applicationsIsError ? (
           <ErrorState title="Failed to load applications" onRetry={() => { void applicationsRefetch(); }} />
         ) : applicationsIsLoading ? (
@@ -252,7 +254,7 @@ export default function InboxTab({
                 </span>
                 <Button
                   size="sm"
-                  disabled={decideState.isLoading}
+                  disabled={bulkPending}
                   onClick={() => { void handleBulkDecision('approve') }}
                 >
                   Approve Selected
@@ -260,7 +262,7 @@ export default function InboxTab({
                 <Button
                   size="sm"
                   variant="destructive"
-                  disabled={decideState.isLoading}
+                  disabled={bulkPending}
                   onClick={() => { void handleBulkDecision('reject') }}
                 >
                   Reject Selected
@@ -268,7 +270,7 @@ export default function InboxTab({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedRows([])}
+                  onClick={() => setRowSelection({})}
                 >
                   Clear
                 </Button>
@@ -278,7 +280,9 @@ export default function InboxTab({
               columns={appColumns}
               data={applicationsData}
               enableRowSelection
-              onSelectionChange={setSelectedRows}
+              getRowId={(row) => String(row.id)}
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
             />
             <CursorPager
               canPrev={appsCanPrev}

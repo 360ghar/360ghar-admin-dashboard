@@ -1,180 +1,88 @@
-import { useMemo, useState, useEffect } from 'react'
-import { useCancelBookingMutation, useGetAllBookingsQuery } from '@/features/bookings/api/bookingsApi'
-import type { BookingsQuery } from '@/features/bookings/api/bookingsApi'
+import { useEffect, useMemo, useState } from 'react'
+import type { RowSelectionState } from '@tanstack/react-table'
+import { useCancelBookingMutation } from '@/features/bookings/api/bookingsApi'
+import { bookingColumns, renderBookingCard } from '@/features/bookings/components/BookingListPresentation'
+import { useBookingListData } from '@/features/bookings/hooks/useBookingListData'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { SortableHeader } from '@/components/ui/data-table'
 import { ResponsiveDataTable } from '@/components/ui/responsive-data-table'
 import { MobileFilters, FilterSection } from '@/components/ui/mobile-filters'
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Link } from 'react-router-dom'
 import CursorPager from '@/components/ui/cursor-pager'
-import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
-import { useDebounce } from '@/hooks/useDebounce'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { formatCurrency, formatDate } from '@/lib/format'
 import { getErrorMessage } from '@/lib/errors'
 import { Download } from 'lucide-react'
 import { downloadCsv, csvFilename } from '@/lib/csv'
-import { ColumnDef } from '@tanstack/react-table'
-import { useFilterPersistence } from '@/hooks/useFilterPersistence'
-import type { Booking } from '@/types/api'
-import { getBookingStatusColor, getBookingPaymentStatusColor } from '@/lib/statusColors'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { scopedStorageKey } from '@/lib/storage'
 
 const BookingList = () => {
   const { toast } = useToast()
   const isMobile = useIsMobile()
   const [cancelBooking] = useCancelBookingMutation()
-  const [selectedRows, setSelectedRows] = useState<Booking[]>([])
-
-  const bookingColumns = useMemo<ColumnDef<Booking>[]>(() => [
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllRowsSelected()}
-          onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
-      enableSorting: false,
-    },
-    {
-      accessorKey: 'id',
-      header: ({ column }) => <SortableHeader column={column}>Ref</SortableHeader>,
-    },
-    {
-      accessorKey: 'property',
-      header: 'Property',
-      cell: ({ row }) => row.original.property?.title ?? '-',
-    },
-    {
-      accessorKey: 'user',
-      header: 'User',
-      cell: ({ row }) => row.original.user?.full_name ?? '-',
-    },
-    {
-      accessorKey: 'check_in_date',
-      header: ({ column }) => <SortableHeader column={column}>Check-in/out</SortableHeader>,
-      cell: ({ row }) => {
-        const checkIn = row.original.check_in_date
-        const checkOut = row.original.check_out_date
-        if (!checkIn || !checkOut) return '-'
-        return `${formatDate(checkIn)} – ${formatDate(checkOut)}`
-      },
-    },
-    {
-      accessorKey: 'amount',
-      header: 'Amount',
-      cell: ({ row }) => {
-        const amount = row.original.total_amount
-        return amount ? formatCurrency(amount) : '-'
-      },
-    },
-    {
-      accessorKey: 'booking_status',
-      header: 'Status',
-      cell: ({ row }) => {
-        const status = row.original.booking_status ?? 'unknown'
-        return <Badge variant={getBookingStatusColor(status)}>{status}</Badge>
-      },
-    },
-    {
-      accessorKey: 'payment_status',
-      header: ({ column }) => <SortableHeader column={column}>Payment</SortableHeader>,
-      cell: ({ row }) => {
-        const status = row.original.payment_status ?? 'unknown'
-        return <Badge variant={getBookingPaymentStatusColor(status)}>{status}</Badge>
-      },
-    },
-    {
-      id: 'actions',
-      cell: ({ row }) => (
-        <Button variant="outline" size="sm" asChild>
-          <Link to={`/bookings/${row.original.id}`}>View</Link>
-        </Button>
-      ),
-    },
-  ], [])
-
-  const handleBulkCancel = async () => {
-    if (selectedRows.length === 0) return
-    const results = await Promise.allSettled(
-      selectedRows.map((b) => cancelBooking({ bookingId: b.id, reason: 'Cancelled by staff' }).unwrap()),
-    )
-    const fulfilled = results.filter((r) => r.status === 'fulfilled').length
-    const rejected = results.length - fulfilled
-    const firstError = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')?.reason as unknown
-    if (rejected === 0) {
-      toast({ title: 'Cancelled', description: `${fulfilled} booking${fulfilled === 1 ? '' : 's'} cancelled` })
-    } else if (fulfilled === 0) {
-      toast({ title: 'Failed', description: getErrorMessage(firstError, `Could not cancel ${rejected} booking${rejected === 1 ? '' : 's'}`), variant: 'destructive' })
-    } else {
-      toast({ title: 'Partial success', description: `${fulfilled} cancelled, ${rejected} failed`, variant: 'destructive' })
-    }
-    setSelectedRows([])
-  }
-
-  const { filters, setFilters } = useFilterPersistence({
-    key: 'bookings',
-    defaultValue: {
-      status: '',
-      paymentStatus: '',
-      q: '',
-    },
-  })
-
-  const [status, setStatus] = useState(filters.status || '')
-  const [paymentStatus, setPaymentStatus] = useState(filters.paymentStatus || '')
-  const [q, setQ] = useState(filters.q || '')
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const {
+    accountId,
+    filters: { status, paymentStatus, q },
+    setStatus,
+    setPaymentStatus,
+    setQ,
+    clearFilters,
+    pageSize,
+    setPageSize,
+    pager,
+    query,
+    activeFilterCount,
+  } = useBookingListData()
+  const { currentData: data, isFetching, isLoading, error, refetch } = query
+  const selectedVisibleRows = useMemo(() => (data?.items ?? []).filter((booking) =>
+    rowSelection[String(booking.id)]
+  ), [data?.items, rowSelection])
 
   useEffect(() => {
-    setFilters({ status, paymentStatus, q })
-  }, [status, paymentStatus, q, setFilters])
+    const visibleIds = new Set((data?.items ?? []).map((booking) => String(booking.id)))
+    setRowSelection((previous) => {
+      const retained = Object.fromEntries(Object.entries(previous).filter(([id]) => visibleIds.has(id)))
+      return Object.keys(retained).length === Object.keys(previous).length ? previous : retained
+    })
+  }, [data?.items])
 
-  const dq = useDebounce(q)
-
-  const [pageSize, setPageSize] = useState(10)
-  const pager = useCursorPagination(`${status}|${paymentStatus}|${dq}|${pageSize}`)
-
-  const params = useMemo(() => {
-    const base: BookingsQuery & { q?: string; payment_status?: string } = {}
-    if (status) base.status = status
-    if (paymentStatus) base.payment_status = paymentStatus
-    if (dq) base.q = dq
-    return base
-  }, [status, paymentStatus, dq])
-
-  const { data, isFetching, isLoading, error, refetch } = useGetAllBookingsQuery({ ...params, cursor: pager.cursor, limit: pageSize })
-
-  const activeFilterCount = (status ? 1 : 0) + (paymentStatus ? 1 : 0) + (q ? 1 : 0)
-
-  const clearAll = () => {
-    setStatus('')
-    setPaymentStatus('')
-    setQ('')
+  const handleBulkCancel = async () => {
+    if (selectedVisibleRows.length === 0) return
+    const results = await Promise.allSettled(
+      selectedVisibleRows.map((b) => cancelBooking({ booking_id: b.id, reason: 'Cancelled by staff' }).unwrap()),
+    )
+    const fulfilled = results.filter((r) => r.status === 'fulfilled').length
+    const failedRows = selectedVisibleRows.filter((_booking, index) => results[index].status === 'rejected')
+    const rejected = failedRows.length
+    const failedIds = failedRows.map((booking) => `#${booking.id}`).join(', ')
+    const firstError = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')?.reason as unknown
+    setRowSelection(Object.fromEntries(failedRows.map((booking) => [String(booking.id), true])))
+    if (rejected === 0) {
+      toast({ title: 'Cancelled', description: `${fulfilled} booking${fulfilled === 1 ? '' : 's'} cancelled` })
+      return
+    }
+    const failureMessage = getErrorMessage(firstError, `Could not cancel ${rejected} booking${rejected === 1 ? '' : 's'}`)
+    toast({
+      title: fulfilled === 0 ? 'Failed' : 'Partial success',
+      description: `${fulfilled} cancelled, ${rejected} failed (${failedIds}). ${failureMessage}`,
+      variant: 'destructive',
+    })
+    throw new Error(`Could not cancel ${failedIds}. Retry the selected booking${rejected === 1 ? '' : 's'}.`)
   }
+
+  const clearAll = clearFilters
 
   const handleExport = () => {
     const rows = (data?.items ?? []).map((b) => ({
       id: b.id,
       property_title: b.property?.title,
-      user_name: b.user?.full_name,
+      guest_name: b.guest?.display_name ?? b.primary_guest_name,
       check_in_date: b.check_in_date,
       check_out_date: b.check_out_date,
       booking_status: b.booking_status,
@@ -184,38 +92,6 @@ const BookingList = () => {
     }))
     downloadCsv(csvFilename('bookings'), rows)
   }
-
-  const renderCard = (booking: Booking) => (
-    <Card className="p-4 space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-medium truncate">{booking.property?.title ?? `Booking #${booking.id}`}</div>
-          <div className="text-sm text-muted-foreground truncate">{booking.user?.full_name ?? '—'}</div>
-        </div>
-        <Badge variant={getBookingStatusColor(booking.booking_status ?? '')} className="shrink-0">
-          {booking.booking_status ?? 'unknown'}
-        </Badge>
-      </div>
-      <div className="text-xs text-muted-foreground">
-        {booking.check_in_date && booking.check_out_date
-          ? `${formatDate(booking.check_in_date)} – ${formatDate(booking.check_out_date)}`
-          : '—'}
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {booking.total_amount != null ? formatCurrency(booking.total_amount) : '—'}
-        </span>
-        <Badge variant={getBookingPaymentStatusColor(booking.payment_status ?? '')}>
-          {booking.payment_status ?? '—'}
-        </Badge>
-      </div>
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" asChild>
-          <Link to={`/bookings/${booking.id}`}>View</Link>
-        </Button>
-      </div>
-    </Card>
-  )
 
   return (
     <Card className="p-4 md:p-6">
@@ -240,7 +116,6 @@ const BookingList = () => {
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
               <SelectItem value="partial">Partial</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
               <SelectItem value="refunded">Refunded</SelectItem>
             </SelectContent>
@@ -278,8 +153,7 @@ const BookingList = () => {
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="paid">Paid</SelectItem>
                   <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
                   <SelectItem value="refunded">Refunded</SelectItem>
                 </SelectContent>
               </Select>
@@ -305,12 +179,12 @@ const BookingList = () => {
         />
       ) : (
         <div className="space-y-4">
-          {selectedRows.length > 0 && (
+          {selectedVisibleRows.length > 0 && (
             <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-cohere-md border border-cohere-card-border bg-card/60 p-3 backdrop-blur-md">
-              <span className="text-sm font-medium">{selectedRows.length} selected</span>
+              <span className="text-sm font-medium">{selectedVisibleRows.length} selected</span>
               <ConfirmAlertDialog
                 title="Cancel selected bookings?"
-                description={`This will cancel ${selectedRows.length} booking${selectedRows.length === 1 ? '' : 's'}. This action cannot be undone.`}
+                description={`This will cancel ${selectedVisibleRows.length} booking${selectedVisibleRows.length === 1 ? '' : 's'}. This action cannot be undone.`}
                 confirmLabel="Cancel bookings"
                 variant="destructive"
                 onConfirm={handleBulkCancel}
@@ -321,17 +195,20 @@ const BookingList = () => {
                   </Button>
                 )}
               </ConfirmAlertDialog>
-              <Button variant="outline" size="sm" onClick={() => setSelectedRows([])}>Clear</Button>
+              <Button variant="outline" size="sm" onClick={() => setRowSelection({})}>Clear</Button>
             </div>
           )}
-          <ResponsiveDataTable
+            <ResponsiveDataTable
+              enableColumnVisibility
             columns={bookingColumns}
             data={data.items}
             enableSorting
             enableRowSelection
-            onSelectionChange={setSelectedRows}
-            mobileCardRender={renderCard}
-            viewStorageKey="bookings-table"
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            getRowId={(booking) => String(booking.id)}
+            mobileCardRender={renderBookingCard}
+            viewStorageKey={accountId ? scopedStorageKey('bookings-table', accountId) : 'bookings-table-anonymous'}
           />
           <CursorPager
             canPrev={pager.canPrev}

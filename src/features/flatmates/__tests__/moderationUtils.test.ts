@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { User } from '@/types/api'
+import type { FlatmateAdminUser } from '@/types/api'
 import type { FlatmatesListing } from '../types'
 import {
   getAiPrescreenPhotoCount,
-  getApprovalBoost,
+  getPrescreenFlags,
   getAutoPauseReason,
   getOwnerLifestyle,
-  isApprovalBoostActive,
 } from '../components/moderationUtils'
 
 const makeListing = (overrides: Partial<FlatmatesListing> = {}): FlatmatesListing => ({
@@ -15,99 +14,40 @@ const makeListing = (overrides: Partial<FlatmatesListing> = {}): FlatmatesListin
   owner_id: 10,
   title: 'Test listing',
   status: 'pending_review',
+  moderation_status: 'pending_review',
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
   ...overrides,
 })
 
-const makeUser = (overrides: Partial<User> = {}): User => ({
+const makeUser = (overrides: Partial<FlatmateAdminUser> = {}): FlatmateAdminUser => ({
   id: 10,
   email: 'owner@example.com',
   full_name: 'Test Owner',
-  role: 'user',
-  is_active: true,
-  is_verified: true,
-  supabase_user_id: 'supabase-id',
-  created_at: '2025-01-01T00:00:00Z',
-  updated_at: '2025-01-01T00:00:00Z',
   ...overrides,
 })
 
-describe('getApprovalBoost', () => {
-  it('returns null when listing_preferences is missing', () => {
-    expect(getApprovalBoost(makeListing())).toBeNull()
-  })
-
-  it('returns null when boost fields are absent', () => {
-    expect(getApprovalBoost(makeListing({ listing_preferences: { foo: 'bar' } }))).toBeNull()
-  })
-
-  it('parses boost when present', () => {
-    const boost = getApprovalBoost(
-      makeListing({
-        listing_preferences: {
-          approval_boost_granted_at: '2025-01-01T00:00:00Z',
-          boosted_until: '2025-02-01T00:00:00Z',
-          boost_reason: 'high engagement',
-        },
-      })
-    )
-    expect(boost).toEqual({
-      grantedAt: '2025-01-01T00:00:00Z',
-      until: '2025-02-01T00:00:00Z',
-      reason: 'high engagement',
-    })
-  })
-
-  it('omits reason when it is not a non-empty string', () => {
-    const boost = getApprovalBoost(
-      makeListing({
-        listing_preferences: {
-          approval_boost_granted_at: '2025-01-01T00:00:00Z',
-          boosted_until: '2025-02-01T00:00:00Z',
-          boost_reason: 123,
-        },
-      })
-    )
-    expect(boost).toEqual({
-      grantedAt: '2025-01-01T00:00:00Z',
-      until: '2025-02-01T00:00:00Z',
-      reason: undefined,
-    })
-  })
-})
-
-describe('isApprovalBoostActive', () => {
-  it('is active when boosted_until is in the future', () => {
-    const future = new Date(Date.now() + 86_400_000).toISOString()
+describe('getPrescreenFlags', () => {
+  it('reads flags from the typed top-level field and drops entries without a code', () => {
     expect(
-      isApprovalBoostActive(
+      getPrescreenFlags(
         makeListing({
-          listing_preferences: {
-            approval_boost_granted_at: '2025-01-01T00:00:00Z',
-            boosted_until: future,
-          },
+          ai_prescreen_flags: [
+            { code: 'contact_in_text', severity: 'high', field: 'description', matched_term: '98xxxx' },
+            { severity: 'warning' },
+          ],
         })
       )
-    ).toBe(true)
+    ).toEqual([
+      { code: 'contact_in_text', severity: 'high', reason: undefined, field: 'description', matched_term: '98xxxx' },
+    ])
   })
 
-  it('is not active when boosted_until is in the past', () => {
-    const past = new Date(Date.now() - 86_400_000).toISOString()
+  it('falls back to the listing_preferences copy and returns [] when there are no flags', () => {
     expect(
-      isApprovalBoostActive(
-        makeListing({
-          listing_preferences: {
-            approval_boost_granted_at: '2025-01-01T00:00:00Z',
-            boosted_until: past,
-          },
-        })
-      )
-    ).toBe(false)
-  })
-
-  it('is not active when boost is missing', () => {
-    expect(isApprovalBoostActive(makeListing())).toBe(false)
+      getPrescreenFlags(makeListing({ ai_prescreen_flags: undefined, listing_preferences: { ai_prescreen_flags: [{ code: 'x' }] } }))
+    ).toHaveLength(1)
+    expect(getPrescreenFlags(makeListing({ ai_prescreen_flags: undefined }))).toEqual([])
   })
 })
 

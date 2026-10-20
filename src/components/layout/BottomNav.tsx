@@ -5,6 +5,7 @@ import { SidebarContent } from './SidebarContent'
 import { cn } from '@/lib/utils'
 import { useUserRole } from '@/hooks/useUserRole'
 import { filterByRole, NAV_ROUTES, type NavRoute } from './navConfig'
+import { useEffect, useState } from 'react'
 
 // Derive the mobile tab bar from the shared nav config (Dashboard, Properties,
 // Visits, PM) so it can never drift from the sidebar / command palette.
@@ -26,12 +27,17 @@ const staffNavItems: NavRoute[] = (() => {
 
 const BottomNav = () => {
   const location = useLocation()
+  const [moreOpen, setMoreOpen] = useState(false)
   const { role } = useUserRole()
   const isStaff = role === 'admin' || role === 'agent'
   const profileHref = role === 'agent' ? '/agents/me' : '/profile'
   const navItems = isStaff
     ? staffNavItems
     : [{ name: 'Profile', href: profileHref, icon: User }]
+
+  useEffect(() => {
+    setMoreOpen(false)
+  }, [location.pathname, location.search])
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -52,40 +58,48 @@ const BottomNav = () => {
   }
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-cohere-card-border bg-card/80 backdrop-blur-xl pb-safe-bottom">
-      <div className="flex items-stretch justify-around">
+    <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-cohere-card-border bg-card/80 backdrop-blur-xl pb-safe-bottom">
+      <div className="flex items-stretch justify-around overflow-x-auto">
         {navItems.map((item) => {
           const active = isActive(item.href)
           return (
             <Link
-              key={item.name}
+              key={item.href}
               to={item.href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors',
+                'flex min-w-max flex-1 flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] transition-colors',
                 active
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <item.icon className={cn('h-5 w-5', active && 'text-primary drop-shadow-[0_0_8px_hsl(var(--cohere-action-blue)/0.6)]')} />
-              <span className={cn('text-[10px] font-medium', active && 'text-primary')}>
+              <span className={cn('text-xs font-medium', active && 'text-primary')}>
                 {item.name}
               </span>
             </Link>
           )
         })}
 
-        <Sheet>
+        <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
           <SheetTrigger asChild>
             <button
               type="button"
-              className="flex flex-1 flex-col items-center justify-center gap-1 py-2 min-h-[56px] text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="More navigation"
+              className="flex min-w-max flex-1 flex-col items-center justify-center gap-1 px-2 py-2 min-h-[56px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <MoreHorizontal className="h-5 w-5" />
-              <span className="text-[10px] font-medium">More</span>
+              <span className="text-xs font-medium">More</span>
             </button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-[85vh] rounded-t-xl">
+          <SheetContent
+            side="bottom"
+            className="h-[85vh] rounded-t-xl"
+            onClickCapture={(event) => {
+              if (event.target instanceof Element && event.target.closest('a[href]')) setMoreOpen(false)
+            }}
+          >
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation Menu</SheetTitle>
             </SheetHeader>

@@ -50,6 +50,7 @@ export default function ExpenseEditForm({
   const form = useForm<PmExpenseUpdateForm>({
     resolver: zodResolver(pmExpenseUpdateSchema),
     defaultValues: {
+      title: expense.title || "",
       category: expense.category,
       amount: String(expense.amount),
       expense_date: expense.expense_date,
@@ -59,19 +60,25 @@ export default function ExpenseEditForm({
   });
 
   const save = async (values: PmExpenseUpdateForm) => {
+    form.clearErrors();
     try {
       let receiptDocumentId: number | undefined;
       if (receiptFile) {
         receiptDocumentId = await onUploadReceipt(receiptFile);
       }
-      const payload: ExpenseUpdate = {
-        category: values.category,
-        amount: Number(values.amount),
-        expense_date: values.expense_date,
-        description: values.description,
-        notes: values.notes,
-        receipt_document_id: receiptDocumentId,
-      };
+      // PATCH: only the keys the user changed. An emptied title, description or notes is sent as null to clear it.
+      const payload: ExpenseUpdate = {};
+      if (values.title !== (expense.title ?? "")) payload.title = values.title || null;
+      if (values.category !== expense.category) payload.category = values.category;
+      if (Number(values.amount) !== expense.amount) payload.amount = Number(values.amount);
+      if (values.expense_date !== expense.expense_date) payload.expense_date = values.expense_date;
+      if (values.description !== (expense.description ?? "")) payload.description = values.description || null;
+      if (values.notes !== (expense.notes ?? "")) payload.notes = values.notes || null;
+      if (receiptDocumentId !== undefined) payload.receipt_document_id = receiptDocumentId;
+      if (Object.keys(payload).length === 0) {
+        toast({ title: "No changes", description: "Nothing was changed." });
+        return;
+      }
       await onSubmit(payload);
       toast({ title: "Updated", description: "Expense updated." });
     } catch (e: unknown) {
@@ -90,6 +97,19 @@ export default function ExpenseEditForm({
         <form onSubmit={(e) => void form.handleSubmit(save)(e)} className="space-y-4">
           <FormRootError form={form} />
           <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Title (optional)</FormLabel>
+                  <FormControl>
+                    <Input maxLength={200} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="category"

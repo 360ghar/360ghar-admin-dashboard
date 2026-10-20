@@ -4,16 +4,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import CountUp from '@/components/reactbits/CountUp'
 import { usePropertyStatusBreakdown } from '@/features/core/hooks/useDashboardData'
 import { formatNumber } from '@/lib/format'
+import { Button } from '@/components/ui/button'
 
 interface Tile {
   label: string
-  value: number
+  value: number | null
   icon: ComponentType<{ className?: string }>
 }
 
 export function PropertyQuickStats() {
-  const { data, total, isLoading } = usePropertyStatusBreakdown()
-  const byStatus = (value: string) => data.find((slice) => slice.value === value)?.count ?? 0
+  const { data, total, isLoading, isError, refetch } = usePropertyStatusBreakdown()
+  const byStatus = (value: string) => data.find((slice) => slice.value === value)?.count ?? null
 
   const tiles: Tile[] = [
     { label: 'Total Properties', value: total, icon: Home },
@@ -38,6 +39,8 @@ export function PropertyQuickStats() {
               <p className="text-sm text-muted-foreground">{tile.label}</p>
               {isLoading ? (
                 <Skeleton className="mt-1 h-7 w-16" />
+              ) : tile.value === null ? (
+                <p className="text-sm text-destructive">Unavailable</p>
               ) : (
                 <CountUp
                   to={tile.value}
@@ -50,6 +53,7 @@ export function PropertyQuickStats() {
           </div>
         )
       })}
+      {isError && <div role="status" className="text-sm text-destructive md:col-span-2 lg:col-span-4">Some property counts could not load. <Button variant="link" size="sm" onClick={refetch}>Retry</Button></div>}
     </div>
   )
 }

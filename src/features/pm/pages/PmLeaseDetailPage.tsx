@@ -2,8 +2,11 @@ import { Link, useParams } from "react-router-dom";
 import UploadSignedDialog from "@/features/pm/components/UploadSignedDialog";
 import RenewLeaseDialog from "@/features/pm/components/RenewLeaseDialog";
 import TerminateLeaseDialog from "@/features/pm/components/TerminateLeaseDialog";
-import { TERMINATABLE_LEASE_STATUSES } from "@/features/pm/constants";
+import { LEASE_STATUSES, RENEWABLE_LEASE_STATUSES, TERMINATABLE_LEASE_STATUSES, getStatusLabel } from "@/features/pm/constants";
 import { useGetPmLeaseQuery } from "@/features/pm/api/pmApi";
+import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
+import { useAppSelector } from "@/hooks/redux";
+import { useUserRole } from "@/hooks/useUserRole";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +19,13 @@ import { PageHeader } from "@/components/ui/page-header";
 export default function PmLeaseDetailPage() {
   const { leaseId } = useParams();
   const leaseIdNum = Number(leaseId);
+  const selectedOwnerId = useAppSelector(selectSelectedOwnerId);
+  const { role } = useUserRole();
 
   const lease = useGetPmLeaseQuery(leaseIdNum, { skip: !leaseIdNum });
 
-  const canTerminate = lease.data ? TERMINATABLE_LEASE_STATUSES.includes(lease.data.status) : false;
+  const canTerminate = lease.currentData ? TERMINATABLE_LEASE_STATUSES.includes(lease.currentData.status) : false;
+  const canRenew = lease.currentData ? RENEWABLE_LEASE_STATUSES.includes(lease.currentData.status) : false;
 
   if (!leaseIdNum || Number.isNaN(leaseIdNum)) {
     return <EmptyState title="Invalid lease id" />;
@@ -34,7 +40,7 @@ export default function PmLeaseDetailPage() {
     );
   }
 
-  if (lease.isLoading) {
+  if ((!lease.currentData && lease.isFetching)) {
     return (
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
@@ -74,36 +80,45 @@ export default function PmLeaseDetailPage() {
     );
   }
 
+  if ((role === "agent" && !selectedOwnerId) || (selectedOwnerId && lease.currentData && lease.currentData.owner_id !== selectedOwnerId)) {
+    return <EmptyState title="Lease is outside the selected owner" description="Select the lease owner to view this record." />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Lease #${lease.data?.id ?? leaseIdNum}`}
-        description={`Property #${lease.data?.property_id} • Owner #${lease.data?.owner_id}`}
+        title={`Lease #${lease.currentData?.id ?? leaseIdNum}`}
+        description={`Property #${lease.currentData?.property_id} • Owner #${lease.currentData?.owner_id}`}
         breadcrumbs={[
           { label: "Leases", to: "/pm/leases" },
-          { label: `Lease #${lease.data?.id ?? leaseIdNum}` },
+          { label: `Lease #${lease.currentData?.id ?? leaseIdNum}` },
         ]}
         actions={
           <div className="flex items-center gap-2">
-            {lease.data ? <Badge variant="secondary">{lease.data.status}</Badge> : null}
-            {lease.data ? (
+            {lease.currentData ? <Badge variant="secondary">{getStatusLabel(LEASE_STATUSES, lease.currentData.status)}</Badge> : null}
+            {lease.currentData ? (
               <UploadSignedDialog
-                leaseId={lease.data.id}
-                ownerId={lease.data.owner_id}
-                propertyId={lease.data.property_id}
+                leaseId={lease.currentData.id}
+                ownerId={lease.currentData.owner_id}
+                propertyId={lease.currentData.property_id}
               />
             ) : null}
-            {lease.data ? (
-              <RenewLeaseDialog leaseId={lease.data.id} />
+            {lease.currentData ? (
+              <RenewLeaseDialog leaseId={lease.currentData.id} canRenew={canRenew} />
             ) : null}
             <TerminateLeaseDialog
               leaseId={leaseIdNum}
-              tenantName={lease.data?.tenant_name ?? undefined}
+              tenantName={lease.currentData?.tenant_name ?? undefined}
               canTerminate={canTerminate}
             />
-            {lease.data && !canTerminate && lease.data.status !== "terminated" ? (
+            {lease.currentData && !canTerminate && lease.currentData.status !== "terminated" ? (
               <span className="text-xs text-muted-foreground">
                 Only active, expiring-soon, or pending-signature leases can be terminated.
+              </span>
+            ) : null}
+            {lease.currentData && !canRenew ? (
+              <span className="text-xs text-muted-foreground">
+                Only active or expiring-soon leases can be renewed.
               </span>
             ) : null}
           </div>
@@ -116,58 +131,68 @@ export default function PmLeaseDetailPage() {
             <CardTitle className="text-base">Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {lease.data ? (
+            {lease.currentData ? (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Tenant</span>
                   <span className="font-medium">
-                    {lease.data.tenant_name || lease.data.tenant_phone || "—"}
+                    {lease.currentData.tenant_name || lease.currentData.tenant_phone || "—"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Term</span>
                   <span className="font-medium">
-                    {formatDate(lease.data.start_date)} →{" "}
-                    {formatDate(lease.data.end_date)}
+                    {formatDate(lease.currentData.start_date)} →{" "}
+                    {formatDate(lease.currentData.end_date)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Monthly rent</span>
                   <span className="font-medium">
-                    {formatCurrency(lease.data.monthly_rent)}
+                    {formatCurrency(lease.currentData.monthly_rent)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Security deposit</span>
                   <span className="font-medium">
-                    {formatCurrency(lease.data.security_deposit)}
+                    {formatCurrency(lease.currentData.security_deposit)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Due day</span>
-                  <span className="font-medium">{lease.data.payment_due_day}</span>
+                  <span className="font-medium">{lease.currentData.payment_due_day}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Grace period</span>
-                  <span className="font-medium">{lease.data.grace_period_days} days</span>
+                  <span className="font-medium">{lease.currentData.grace_period_days} days</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Late fee</span>
+                  <span className="font-medium">
+                    {lease.currentData.late_fee_amount
+                      ? `${formatCurrency(lease.currentData.late_fee_amount)} fixed`
+                      : lease.currentData.late_fee_percentage
+                        ? `${lease.currentData.late_fee_percentage}% of rent`
+                        : "None"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Lease document</span>
-                  {lease.data.lease_document_id ? (
-                    <span className="font-medium">Document #{lease.data.lease_document_id}</span>
+                  {lease.currentData.lease_document_id ? (
+                    <span className="font-medium">Document #{lease.currentData.lease_document_id}</span>
                   ) : (
                     <span className="text-muted-foreground">Not uploaded</span>
                   )}
                 </div>
-                {lease.data.status === "terminated" ? (
+                {lease.currentData.status === "terminated" ? (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Terminated on</span>
-                      <span className="font-medium">{formatDate(lease.data.termination_date, "—")}</span>
+                      <span className="font-medium">{formatDate(lease.currentData.termination_date, "—")}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Termination reason</span>
-                      <span className="font-medium">{lease.data.termination_reason || "—"}</span>
+                      <span className="font-medium">{lease.currentData.termination_reason || "—"}</span>
                     </div>
                   </>
                 ) : null}
@@ -183,16 +208,16 @@ export default function PmLeaseDetailPage() {
             <CardTitle className="text-base">Quick Links</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {lease.isLoading ? (
+            {(!lease.currentData && lease.isFetching) ? (
               <div className="space-y-2">
                 <Skeleton className="h-9 w-full" />
                 <Skeleton className="h-9 w-full" />
                 <Skeleton className="h-9 w-full" />
               </div>
-            ) : lease.data ? (
+            ) : lease.currentData ? (
               <>
                 <Button asChild variant="outline" className="w-full justify-start">
-                  <Link to={`/pm/properties/${lease.data.property_id}`}>Open property</Link>
+                  <Link to={`/pm/properties/${lease.currentData.property_id}`}>Open property</Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full justify-start">
                   <Link to="/pm/rent-ledger">Open rent ledger</Link>

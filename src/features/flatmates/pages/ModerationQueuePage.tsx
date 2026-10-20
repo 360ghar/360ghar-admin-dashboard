@@ -26,7 +26,7 @@ export function ModerationQueuePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const pager = useCursorPagination()
-  const { data, isLoading, error, refetch } = useGetPendingListingsQuery({
+  const { currentData: data, isLoading, isFetching, error, refetch } = useGetPendingListingsQuery({
     status: 'pending_review',
     cursor: pager.cursor,
     limit: 20,
@@ -62,7 +62,7 @@ export function ModerationQueuePage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || (isFetching && !data)) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingState type="spinner" />
@@ -117,7 +117,7 @@ export function ModerationQueuePage() {
         canPrev={pager.canPrev}
         onNext={() => pager.next(data?.next_cursor ?? null)}
         onPrev={pager.prev}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       <ModerationActionDialog

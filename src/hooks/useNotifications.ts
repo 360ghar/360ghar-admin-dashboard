@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { selectCurrentUser } from '@/features/auth/slices/authSlice'
 import { useAppSelector } from '@/hooks/redux'
-import { readJSON, writeJSON } from '@/lib/storage'
+import { readVersionedJSON, removeStored, scopedStorageKey, writeVersionedJSON } from '@/lib/storage'
 import {
-  useGetUserNotificationsQuery,
+  useGetMyNotificationsQuery,
   useMarkDeliveryOpenedMutation,
-  type UserNotificationLogEntry,
+  type NotificationItem as ServerNotification,
 } from '@/features/core/api/notificationsApi'
+import { isNotificationTypeKey, type NotificationTypeKey } from '@/features/core/notificationTypes'
 
 // ---------------------------------------------------------------------------
 // Unified notification type that normalises server + local notifications
@@ -51,7 +52,7 @@ export interface NotificationItem {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const LOCAL_STORAGE_KEY = 'notifications_local'
+const localNotificationsKey = (accountId: string) => scopedStorageKey('notifications_local', accountId)
 
 const isNotificationItem = (value: unknown): value is NotificationItem => {
   if (typeof value !== 'object' || value === null) return false
@@ -68,41 +69,73 @@ const isNotificationItem = (value: unknown): value is NotificationItem => {
   )
 }
 
-const isNotificationItemArray = (value: unknown): value is NotificationItem[] =>
-  Array.isArray(value) && value.every(isNotificationItem)
+const isLocalNotificationItemArray = (value: unknown): value is NotificationItem[] =>
+  Array.isArray(value) && value.every((item) => isNotificationItem(item) && item.source === 'local')
 
-function loadLocalNotifications(): NotificationItem[] {
-  return readJSON<NotificationItem[]>(LOCAL_STORAGE_KEY, [], isNotificationItemArray)
+function loadLocalNotifications(accountId: string): NotificationItem[] {
+  return readVersionedJSON(localNotificationsKey(accountId), 1, isLocalNotificationItemArray) ?? []
 }
 
-function saveLocalNotifications(items: NotificationItem[]) {
-  writeJSON(LOCAL_STORAGE_KEY, items)
+function saveLocalNotifications(accountId: string, items: NotificationItem[]) {
+  // Keep arbitrary payloads and transactional notifications out of storage.
+  const safeItems = items
+    .filter((item) => item.source === 'local' &&
+      (item.type === 'general' || item.type === 'system_message' || item.type === 'marketing'))
+    .map(({ id, rawId, source, type, title, message, isRead, createdAt, expiresAt }) =>
+    ({ id, rawId, source, type, title, message, isRead, createdAt, expiresAt }))
+  writeVersionedJSON(localNotificationsKey(accountId), 1, safeItems, 7 * 24 * 60 * 60 * 1000)
 }
 
-/** Map audience_type / topic from the server entry to a local NotificationType. */
-function inferType(entry: UserNotificationLogEntry): NotificationType {
-  const topic = entry.topic?.toLowerCase() ?? ''
-  const audience = entry.audience_type?.toLowerCase() ?? ''
-  if (topic.includes('visit') || audience.includes('visit')) return 'visit_reminder'
-  if (topic.includes('booking') || audience.includes('booking')) return 'booking_update'
-  if (topic.includes('payment') || audience.includes('payment')) return 'payment_received'
-  if (topic.includes('property') || audience.includes('property')) return 'property_available'
-  if (topic.includes('market') || audience.includes('market')) return 'marketing'
-  if (topic.includes('system')) return 'system_message'
-  return 'general'
+/**
+ * Category of each backend notification type. Typed over the full `type_key`
+ * union: a key the backend adds fails the type check until it is placed here.
+ */
+const TYPE_CATEGORY: Record<NotificationTypeKey, NotificationType> = {
+  booking_confirmed: 'booking_update',
+  payment_failed: 'booking_update',
+  document_approved: 'system_message',
+  chat_message: 'general',
+  password_changed: 'system_message',
+  security_alert: 'system_message',
+  app_update: 'system_message',
+  policy_update: 'system_message',
+  promotion_generic: 'marketing',
+  discount_offer: 'marketing',
+  win_back: 'marketing',
+  upsell_suggestion: 'marketing',
+  onboarding_nudge: 'marketing',
+  visit_reminder: 'visit_reminder',
+  property_recommendation: 'property_available',
+  daily_digest: 'marketing',
+  flatmate_new_message: 'general',
+  flatmate_new_match: 'general',
+  flatmate_listing_approved: 'property_available',
+  flatmate_listing_rejected: 'property_available',
+  flatmate_account_suspended: 'system_message',
+  flatmate_account_warned: 'system_message',
+  flatmate_report_actioned: 'system_message',
+  flatmate_report_dismissed: 'system_message',
+  flatmate_visit_scheduled: 'visit_reminder',
+  flatmate_visit_confirmed: 'visit_reminder',
+  admin_broadcast: 'system_message',
 }
 
-/** Convert a server UserNotificationLogEntry into a NotificationItem. */
-function toNotificationItem(entry: UserNotificationLogEntry): NotificationItem {
+/** Category from the backend `type` field. A missing or unknown type is `general`. */
+function categoryOf(type: string | null | undefined): NotificationType {
+  return type && isNotificationTypeKey(type) ? TYPE_CATEGORY[type] : 'general'
+}
+
+/** Convert a server inbox row into a NotificationItem. `id` is the delivery id. */
+function toNotificationItem(entry: ServerNotification): NotificationItem {
   return {
     id: `server:${entry.id}`,
     rawId: entry.id,
     source: 'server',
-    type: inferType(entry),
+    type: categoryOf(entry.type),
     title: entry.title,
     message: entry.body,
-    data: entry.data,
-    isRead: entry.opened === true || entry.is_read === true,
+    data: entry.data ?? undefined,
+    isRead: entry.read_at != null,
     createdAt: entry.created_at ?? new Date().toISOString(),
   }
 }
@@ -125,15 +158,37 @@ interface UseNotificationsReturn {
 
 export const useNotifications = (): UseNotificationsReturn => {
   const currentUser = useAppSelector(selectCurrentUser)
+  const accountId = currentUser?.supabase_user_id ?? null
   const { toast } = useToast()
 
   // ---- Local-only notifications (persisted in localStorage) ----
-  const [localNotifications, setLocalNotifications] = useState<NotificationItem[]>(loadLocalNotifications)
+  const [localState, setLocalState] = useState<{ accountId: string | null; items: NotificationItem[] }>(() => ({
+    accountId,
+    items: accountId ? loadLocalNotifications(accountId) : [],
+  }))
+  const localNotifications = useMemo(
+    () => localState.accountId === accountId ? localState.items : [],
+    [accountId, localState],
+  )
+  const setLocalNotifications = useCallback((update: (items: NotificationItem[]) => NotificationItem[]) => {
+    setLocalState((previous) => {
+      if (previous.accountId !== accountId) return previous
+      return { accountId, items: update(previous.items) }
+    })
+  }, [accountId])
+
+  useEffect(() => {
+    setLocalState({ accountId, items: accountId ? loadLocalNotifications(accountId) : [] })
+  }, [accountId])
 
   // Persist local notifications whenever they change
   useEffect(() => {
-    saveLocalNotifications(localNotifications)
-  }, [localNotifications])
+    if (accountId && localState.accountId === accountId) saveLocalNotifications(accountId, localState.items)
+  }, [accountId, localState])
+
+  useEffect(() => {
+    if (!accountId) removeStored('notifications_local')
+  }, [accountId])
 
   // Auto-remove expired local notifications every minute
   useEffect(() => {
@@ -147,22 +202,20 @@ export const useNotifications = (): UseNotificationsReturn => {
       )
     }, 60000)
     return () => clearInterval(interval)
-  }, [])
+  }, [setLocalNotifications])
 
   // ---- Server notifications via RTK Query ----
-  const userId = currentUser?.id
-
+  // The signed-in user's own inbox. Row ids are delivery ids, the value the `opened` route takes.
   const {
-    data: serverNotifications,
+    currentData: serverNotifications,
     isFetching,
-  } = useGetUserNotificationsQuery(
-    { userId: userId!, limit: 50, cursor: null },
-    { skip: !userId },
-  )
+  } = useGetMyNotificationsQuery({ limit: 50 }, { skip: !accountId })
 
   // Track which server notification IDs we have already marked as opened
   // so we can reflect that locally without waiting for a refetch.
   const [openedServerIds, setOpenedServerIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => setOpenedServerIds(new Set()), [accountId])
 
   const [markDeliveryOpened] = useMarkDeliveryOpenedMutation()
 
@@ -205,12 +258,12 @@ export const useNotifications = (): UseNotificationsReturn => {
         const rawId = id.replace('server:', '')
         // Optimistically mark as read
         setOpenedServerIds((prev) => new Set(prev).add(rawId))
-        markDeliveryOpened({ deliveryId: rawId }).catch(() => {
+        void markDeliveryOpened({ deliveryId: rawId }).unwrap().catch(() => {
           // Best-effort: silently ignore failures for analytics-style calls
         })
       }
     },
-    [markDeliveryOpened],
+    [markDeliveryOpened, setLocalNotifications],
   )
 
   const markAllAsRead = useCallback(() => {
@@ -234,7 +287,7 @@ export const useNotifications = (): UseNotificationsReturn => {
     }
     setOpenedServerIds(newOpened)
     void Promise.allSettled(promises)
-  }, [notifications, openedServerIds, markDeliveryOpened])
+  }, [notifications, openedServerIds, markDeliveryOpened, setLocalNotifications])
 
   const addNotification = useCallback(
     (notification: Omit<NotificationItem, 'id' | 'rawId' | 'source' | 'isRead' | 'createdAt'>) => {
@@ -258,7 +311,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         })
       }
     },
-    [toast],
+    [toast, setLocalNotifications],
   )
 
   const removeNotification = useCallback(
@@ -269,7 +322,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         setLocalNotifications((prev) => prev.filter((n) => n.id !== id))
       }
     },
-    [],
+    [setLocalNotifications],
   )
 
   return {

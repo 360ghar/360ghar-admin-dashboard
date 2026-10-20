@@ -43,7 +43,6 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
     cancelled: cancelledQ.data?.total ?? 0,
   }), [totalQ.data, pendingQ.data, confirmedQ.data, completedQ.data, cancelledQ.data])
 
-  const statsFetching = totalQ.isFetching || pendingQ.isFetching || confirmedQ.isFetching || completedQ.isFetching || cancelledQ.isFetching
   const statsError = totalQ.isError || pendingQ.isError || confirmedQ.isError || completedQ.isError || cancelledQ.isError
 
   if (mode === 'detail') return <BookingDetail id={Number(params.id)} />
@@ -101,25 +100,25 @@ const BookingsPage = ({ mode }: { mode?: 'detail' }) => {
               <StatCard
                 icon={<CalendarCheck className="h-4 w-4 text-primary" />}
                 label="Total Bookings"
-                value={statsFetching ? '…' : counts.total}
+                value={totalQ.isError ? '—' : totalQ.isFetching && !totalQ.data ? '…' : counts.total}
                 tone="bg-primary/10"
               />
               <StatCard
                 icon={<CalendarClock className="h-4 w-4 text-cohere-action-blue" />}
                 label="Upcoming"
-                value={statsFetching ? '…' : counts.upcoming}
+                value={pendingQ.isError || confirmedQ.isError ? '—' : (pendingQ.isFetching && !pendingQ.data) || (confirmedQ.isFetching && !confirmedQ.data) ? '…' : counts.upcoming}
                 tone="bg-cohere-action-blue/10"
               />
               <StatCard
                 icon={<CheckCircle2 className="h-4 w-4 text-cohere-deep-green" />}
                 label="Completed"
-                value={statsFetching ? '…' : counts.completed}
+                value={completedQ.isError ? '—' : completedQ.isFetching && !completedQ.data ? '…' : counts.completed}
                 tone="bg-cohere-deep-green/15"
               />
               <StatCard
                 icon={<XCircle className="h-4 w-4 text-destructive" />}
                 label="Cancelled"
-                value={statsFetching ? '…' : counts.cancelled}
+                value={cancelledQ.isError ? '—' : cancelledQ.isFetching && !cancelledQ.data ? '…' : counts.cancelled}
                 tone="bg-destructive/10"
               />
             </FadeContent>

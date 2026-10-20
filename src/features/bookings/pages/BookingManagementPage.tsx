@@ -8,28 +8,35 @@ import { useUserRole } from '@/hooks/useUserRole'
 import {
   useGetUserBookingsQuery,
   useCancelBookingMutation,
-  useProcessPaymentMutation,
   useAddReviewMutation,
   useGetAllBookingsQuery
 } from '@/features/bookings/api/bookingsApi'
+import { useNavigate } from 'react-router-dom'
+import { BOOKING_STATUSES, bookingStatusLabel, isBookingStatus } from '@/features/bookings/constants'
 import { CalendarIcon, Clock, Check, AlertCircle } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
-import type { Booking, BookingReview } from '@/types/api'
+import type { Booking, BookingReview, BookingStaff, BookingStatus } from '@/types/api'
 import { getErrorMessage } from '@/lib/errors'
 import { BookingCard } from '@/features/bookings/components/BookingCard'
 import { CreateBookingDialog } from '@/features/bookings/components/CreateBookingDialog'
 import FadeContent from '@/components/reactbits/FadeContent'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useCursorPagination } from '@/hooks/useCursorPagination'
+import CursorPager from '@/components/ui/cursor-pager'
 
 const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const { user, isUser } = useUserRole()
   const { toast } = useToast()
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const navigate = useNavigate()
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  // `/bookings/all` searches on the server (`q`: reference, guest name, guest email, property title).
+  const debouncedQuery = useDebounce(searchQuery.trim(), 300)
 
   // API calls
-  const { data: userBookings, isLoading: userBookingsLoading, isError: userBookingsError, refetch: refetchUserBookings } = useGetUserBookingsQuery(
+  const { currentData: userBookings, isLoading: userBookingsLoading, isFetching: userBookingsFetching, isError: userBookingsError, refetch: refetchUserBookings } = useGetUserBookingsQuery(
     { limit: 100 },
     { skip: !isUser },
   )
@@ -43,28 +50,33 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
   const confirmedBookingsQ = useGetUserBookingsQuery({ limit: 1, include_total: true, status: 'confirmed' }, { skip: skipBookingStats })
   const completedBookingsQ = useGetUserBookingsQuery({ limit: 1, include_total: true, status: 'completed' }, { skip: skipBookingStats })
 
-  const bookingStatsFetching = totalBookingsQ.isFetching || pendingBookingsQ.isFetching || confirmedBookingsQ.isFetching || completedBookingsQ.isFetching
   const bookingStats = {
-    total: totalBookingsQ.data?.total ?? 0,
-    upcoming: (pendingBookingsQ.data?.total ?? 0) + (confirmedBookingsQ.data?.total ?? 0),
-    completed: completedBookingsQ.data?.total ?? 0,
+    total: totalBookingsQ.isError ? '—' : totalBookingsQ.data?.total ?? '…',
+    upcoming: pendingBookingsQ.isError || confirmedBookingsQ.isError
+      ? '—'
+      : pendingBookingsQ.data?.total != null && confirmedBookingsQ.data?.total != null
+        ? pendingBookingsQ.data.total + confirmedBookingsQ.data.total
+        : '…',
+    completed: completedBookingsQ.isError ? '—' : completedBookingsQ.data?.total ?? '…',
   }
 
-  // Admin/Agent view
-  const { data: allBookings, isLoading: allBookingsLoading, isError: allBookingsError, refetch: refetchAllBookings } = useGetAllBookingsQuery(
-    { status: statusFilter === 'all' ? undefined : statusFilter },
+  // Admin/Agent view. The list is cursor-paginated (20 per page): follow next_cursor with the pager below.
+  // A cursor is bound to its filters, so the pager resets when a filter changes.
+  const allPager = useCursorPagination(`${user?.supabase_user_id ?? ''}|${statusFilter}|${debouncedQuery}`)
+  const { currentData: allBookings, isLoading: allBookingsLoading, isFetching: allBookingsFetching, isError: allBookingsError, refetch: refetchAllBookings } = useGetAllBookingsQuery(
+    { status: statusFilter === 'all' ? undefined : statusFilter, q: debouncedQuery || undefined, cursor: allPager.cursor },
     { skip: !user || isUser },
   )
 
   // Mutations
   const [cancelBooking] = useCancelBookingMutation()
-  const [processPayment] = useProcessPaymentMutation()
   const [addReview] = useAddReviewMutation()
 
-  const bookings = isUser ? userBookings?.items || [] : allBookings?.items || []
+  const bookings: Array<Booking | BookingStaff> = isUser ? userBookings?.items || [] : allBookings?.items || []
 
+  // Staff search runs on the server. The own-bookings list has no `q`, so it filters the loaded page.
   const filteredBookings = bookings.filter(booking => {
-    if (searchQuery) {
+    if (isUser && searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
         (booking.property?.title?.toLowerCase().includes(query) ?? false) ||
@@ -75,54 +87,25 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
     return true
   })
 
-  const handleCancelBooking = async (bookingId: number) => {
+  const handleCancelBooking = async (bookingId: number, reason: string) => {
     try {
-      await cancelBooking({ bookingId, reason: 'Cancelled by user' }).unwrap()
-      toast({ title: 'Booking Cancelled', description: 'Your booking has been cancelled successfully.' })
-      void refetchUserBookings()
-      void refetchAllBookings()
+      await cancelBooking({ booking_id: bookingId, reason }).unwrap()
+      toast({ title: 'Booking Cancelled', description: 'The booking has been cancelled.' })
     } catch (error) {
       toast({ title: 'Cancellation Failed', description: getErrorMessage(error, 'Failed to cancel booking. Please try again.'), variant: 'destructive' })
     }
   }
 
-  const handleProcessPayment = async (booking: Booking) => {
-    try {
-      await processPayment({
-        bookingId: booking.id,
-        paymentData: {
-          payment_method: 'card',
-          transaction_id: `txn_${Date.now()}`,
-          amount: booking.total_amount,
-        },
-      }).unwrap()
-      toast({
-        title: 'Payment Processed',
-        description: 'Payment has been processed successfully.',
-      })
-      void refetchUserBookings()
-      void refetchAllBookings()
-    } catch (error) {
-      toast({
-        title: 'Payment Failed',
-        description: getErrorMessage(error, 'Failed to process payment. Please try again.'),
-        variant: 'destructive',
-      })
-    }
-  }
+  // A manual payment needs a method and a transaction id entered by the admin. Open the booking to record it.
+  const handleRecordPayment = (booking: Booking | BookingStaff) => { navigate(`/bookings/${booking.id}`) }
 
-  const handleAddReview = async (bookingId: number, review: BookingReview) => {
+  const handleAddReview = async (bookingId: number, review: Omit<BookingReview, 'booking_id'>) => {
     try {
-      await addReview({
-        bookingId,
-        reviewData: review,
-      }).unwrap()
+      await addReview({ booking_id: bookingId, ...review }).unwrap()
       toast({
         title: 'Review Added',
         description: 'Thank you for your review!',
       })
-      void refetchUserBookings()
-      void refetchAllBookings()
     } catch (error) {
       toast({
         title: 'Review Failed',
@@ -144,20 +127,14 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
           description="Manage your property bookings and reservations"
           actions={
             user.role !== 'admin' ? (
-              <CreateBookingDialog onSuccess={() => {
-                void refetchUserBookings()
-                void refetchAllBookings()
-              }} />
+              <CreateBookingDialog />
             ) : undefined
           }
         />
       )}
       {embedded && user.role !== 'admin' && (
         <div className="flex justify-end">
-          <CreateBookingDialog onSuccess={() => {
-            void refetchUserBookings()
-            void refetchAllBookings()
-          }} />
+          <CreateBookingDialog />
         </div>
       )}
 
@@ -172,7 +149,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               </span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{bookingStatsFetching ? '…' : bookingStats.total}</div>
+              <div className="text-2xl font-bold">{bookingStats.total}</div>
             </CardContent>
           </Card>
           <Card>
@@ -183,7 +160,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               </span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{bookingStatsFetching ? '…' : bookingStats.upcoming}</div>
+              <div className="text-2xl font-bold">{bookingStats.upcoming}</div>
             </CardContent>
           </Card>
           <Card>
@@ -194,7 +171,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               </span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{bookingStatsFetching ? '…' : bookingStats.completed}</div>
+              <div className="text-2xl font-bold">{bookingStats.completed}</div>
             </CardContent>
           </Card>
         </FadeContent>
@@ -212,17 +189,13 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               />
             </div>
             {!isUser && (
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(isBookingStatus(value) ? value : 'all')}>
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="refunded">Refunded</SelectItem>
+                  {BOOKING_STATUSES.map((status) => (<SelectItem key={status} value={status}>{bookingStatusLabel(status)}</SelectItem>))}
                 </SelectContent>
               </Select>
             )}
@@ -233,7 +206,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
       {/* Booking List */}
       <FadeContent container="#main-content" threshold={0} duration={600} delay={120} className="space-y-4">
         {isUser ? (
-          userBookingsLoading ? (
+          userBookingsLoading || (userBookingsFetching && !userBookings) ? (
             <LoadingState type="cards" />
           ) : userBookingsError ? (
             <ErrorState
@@ -251,15 +224,16 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               <BookingCard
                 key={booking.id}
                 booking={booking}
-                onUpdate={(selectedBooking) => { void handleProcessPayment(selectedBooking) }}
-                onCancel={(bookingId) => { void handleCancelBooking(bookingId) }}
+                onUpdate={handleRecordPayment}
+                onCancel={(bookingId, reason) => { void handleCancelBooking(bookingId, reason) }}
                 onReview={(bookingId, review) => { void handleAddReview(bookingId, review) }}
                 showActions={user.role !== 'admin'}
+                canReview={booking.user_id === user.id}
               />
             ))
           )
         ) : (
-          allBookingsLoading ? (
+          allBookingsLoading || (allBookingsFetching && !allBookings) ? (
             <LoadingState type="cards" />
           ) : allBookingsError ? (
             <ErrorState
@@ -273,16 +247,27 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               description={searchQuery ? 'Try adjusting your search' : 'Create your first booking to get started'}
             />
           ) : (
-            filteredBookings.map((booking) => (
-              <BookingCard
-                key={booking.id}
-                booking={booking}
-                onUpdate={(selectedBooking) => { void handleProcessPayment(selectedBooking) }}
-                onCancel={(bookingId) => { void handleCancelBooking(bookingId) }}
-                onReview={(bookingId, review) => { void handleAddReview(bookingId, review) }}
-                showActions={user.role !== 'admin'}
+            <>
+              {filteredBookings.map((booking) => (
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  onUpdate={handleRecordPayment}
+                  onCancel={(bookingId, reason) => { void handleCancelBooking(bookingId, reason) }}
+                  onReview={(bookingId, review) => { void handleAddReview(bookingId, review) }}
+                  showActions={user.role !== 'admin'}
+                  canReview={booking.user_id === user.id}
+                />
+              ))}
+              <CursorPager
+                canPrev={allPager.canPrev}
+                hasMore={allBookings?.has_more ?? false}
+                nextCursor={allBookings?.next_cursor}
+                loading={allBookingsFetching}
+                onPrev={allPager.prev}
+                onNext={() => allPager.next(allBookings?.next_cursor)}
               />
-            ))
+            </>
           )
         )}
       </FadeContent>

@@ -1,16 +1,16 @@
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { MaintenanceRequestCreate } from "@/types/pm";
+import type { MaintenanceRequestCreate, PmProperty } from "@/types/pm";
 import { useCreateMaintenanceRequestMutation } from "@/features/pm/api/pmApi";
-import { usePmPropertyOptions } from "@/features/pm/hooks/usePmPropertyOptions";
-import { PmPropertySelectItems } from "@/features/pm/components/PmPropertySelectItems";
+import { PmPropertyPicker } from "@/features/pm/components/PmPropertyPicker";
 import { MAINTENANCE_CATEGORIES, MAINTENANCE_URGENCIES } from "@/features/pm/constants";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -50,7 +50,7 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
 
   const [open, setOpen] = useState(false);
 
-  const properties = usePmPropertyOptions(ownerId, { enabled: open && !(role === "agent" && !ownerId) });
+  const [selectedProperty, setSelectedProperty] = useState<PmProperty | null>(null);
 
   const form = useForm<PmMaintenanceRequestForm>({
     resolver: zodResolver(pmMaintenanceRequestSchema),
@@ -68,7 +68,10 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
       setOpen(isOpen);
-      if (!isOpen) form.reset();
+      if (!isOpen) {
+        form.reset();
+        setSelectedProperty(null);
+      }
     },
     [form],
   );
@@ -104,6 +107,7 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Create maintenance request</DialogTitle>
+          <DialogDescription className="sr-only">Enter the details of a maintenance request.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="grid gap-4 md:grid-cols-2">
@@ -114,16 +118,15 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Property</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select property…" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <PmPropertySelectItems properties={properties} />
-                    </SelectContent>
-                  </Select>
+                  <PmPropertyPicker
+                    ownerId={ownerId}
+                    enabled={open && !(role === "agent" && !ownerId)}
+                    selected={selectedProperty}
+                    onSelect={(property) => {
+                      setSelectedProperty(property);
+                      field.onChange(property ? String(property.id) : "");
+                    }}
+                  />
                   <FormMessage />
                 </FormItem>
               )}

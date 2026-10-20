@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { RentChargeGenerateRequest } from "@/types/pm";
 import {
   useGenerateRentChargesMutation,
-  useListPmLeasesQuery,
+  useListAllPmLeasesQuery,
 } from "@/features/pm/api/pmApi";
+import { OCCUPYING_LEASE_STATUSES } from "@/features/pm/constants";
+import { monthToFirstDay } from "@/features/pm/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -51,10 +54,15 @@ export default function GenerateChargesDialog({
   const [open, setOpen] = useState(false);
   const [generateCharges, generateState] = useGenerateRentChargesMutation();
 
-  // Defer the 200-row lease fetch until the dialog is open.
-  const leases = useListPmLeasesQuery(
-    { owner_id: ownerId, status: "active", limit: 200 },
+  // Defer the lease read until the dialog is open. It follows next_cursor (100 rows per page) and keeps
+  // the leases that occupy their property: active ones and the ones in their notice window (expiring soon).
+  const allLeases = useListAllPmLeasesQuery(
+    { owner_id: ownerId },
     { skip: !open || (role === "agent" && !ownerId) },
+  );
+  const occupyingLeases = useMemo(
+    () => (allLeases.currentData ?? []).filter((l) => OCCUPYING_LEASE_STATUSES.includes(l.status)),
+    [allLeases.currentData],
   );
 
   const form = useForm<PmChargeGenerateForm>({
@@ -73,7 +81,8 @@ export default function GenerateChargesDialog({
     const payload: RentChargeGenerateRequest = {
       owner_id: values.scope === "owner" ? ownerId || undefined : undefined,
       lease_id: values.scope === "lease" ? Number(values.lease_id) : undefined,
-      start_month: values.start_month || undefined,
+      // The backend takes the first day of the month (YYYY-MM-01).
+      start_month: values.start_month ? monthToFirstDay(values.start_month) : undefined,
       months: Number(values.months),
     };
     try {
@@ -98,6 +107,7 @@ export default function GenerateChargesDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Generate rent charges</DialogTitle>
+          <DialogDescription className="sr-only">Create the monthly rent charges for an owner or one lease.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="space-y-4">
@@ -135,14 +145,14 @@ export default function GenerateChargesDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {leases.isLoading ? (
+                        {(!allLeases.currentData && allLeases.isFetching) ? (
                           <SelectItem value="loading" disabled>Loading leases…</SelectItem>
-                        ) : leases.isError ? (
+                        ) : allLeases.isError ? (
                           <SelectItem value="error" disabled>Failed to load leases</SelectItem>
-                        ) : !(leases.data?.items?.length) ? (
+                        ) : !occupyingLeases.length ? (
                           <SelectItem value="none" disabled>No active leases</SelectItem>
                         ) : (
-                          (leases.data?.items ?? []).map((l) => (
+                          occupyingLeases.map((l) => (
                             <SelectItem key={l.id} value={String(l.id)}>
                               #{l.id} • Property #{l.property_id}
                             </SelectItem>
@@ -163,7 +173,7 @@ export default function GenerateChargesDialog({
                   <FormItem>
                     <FormLabel>Start month</FormLabel>
                     <FormControl><Input type="month" {...field} /></FormControl>
-                    <p className="text-xs text-muted-foreground">Select the start month for charge generation.</p>
+                    <p className="text-xs text-muted-foreground">Charges start on the first day of this month.</p>
                     <FormMessage />
                   </FormItem>
                 )}

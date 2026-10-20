@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -24,9 +25,11 @@ import { getErrorMessage } from "@/lib/errors";
 
 interface RenewLeaseDialogProps {
   leaseId: number;
+  /** Only an active or expiring-soon lease can be renewed. The backend returns 400 for any other status. */
+  canRenew: boolean;
 }
 
-export default function RenewLeaseDialog({ leaseId }: RenewLeaseDialogProps) {
+export default function RenewLeaseDialog({ leaseId, canRenew }: RenewLeaseDialogProps) {
   const { toast } = useToast();
   const [renewLease, renewState] = useRenewPmLeaseMutation();
 
@@ -77,7 +80,7 @@ export default function RenewLeaseDialog({ leaseId }: RenewLeaseDialogProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" disabled={!canRenew}>
           <RefreshCw className="mr-2 h-4 w-4" />
           Renew
         </Button>
@@ -85,6 +88,7 @@ export default function RenewLeaseDialog({ leaseId }: RenewLeaseDialogProps) {
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Renew lease</DialogTitle>
+          <DialogDescription className="sr-only">Enter the dates and optional terms of the new lease.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
@@ -97,12 +101,15 @@ export default function RenewLeaseDialog({ leaseId }: RenewLeaseDialogProps) {
           </div>
           <div className="space-y-2">
             <Label>Monthly rent (optional)</Label>
-            <Input value={renewRent} onChange={(e) => setRenewRent(e.target.value)} placeholder="e.g. 27000" />
+            <Input type="number" min={0} step="0.01" value={renewRent} onChange={(e) => setRenewRent(e.target.value)} placeholder="e.g. 27000" />
           </div>
           <div className="space-y-2">
             <Label>Security deposit (optional)</Label>
-            <Input value={renewDeposit} onChange={(e) => setRenewDeposit(e.target.value)} placeholder="e.g. 50000" />
+            <Input type="number" min={0} step="0.01" value={renewDeposit} onChange={(e) => setRenewDeposit(e.target.value)} placeholder="e.g. 50000" />
           </div>
+          <p className="text-xs text-muted-foreground md:col-span-2">
+            The new lease keeps the due day, grace period and late fee of this lease.
+          </p>
           <div className="space-y-2 md:col-span-2">
             <Label>Make active</Label>
             <Select value={makeActive} onValueChange={(v) => setMakeActive(v as "yes" | "no")}>

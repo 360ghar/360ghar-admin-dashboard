@@ -1,12 +1,36 @@
-import type { User } from '@/types/api'
+import type { FlatmateAdminUser } from '@/types/api'
+import { isRecord } from '@/lib/storage'
 import type { FlatmatesListing, FlatmatesReport } from '../types'
 
-export type PrescreenFlag = NonNullable<FlatmatesListing['ai_prescreen_flags']>[number]
+/** One AI prescreen flag. The response types the flags as free objects, so they are read field by field. */
+export interface PrescreenFlag {
+  code: string
+  severity?: 'warning' | 'high'
+  reason?: string
+  field?: string
+  matched_term?: string
+}
+
+const text = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() ? value : undefined)
+
+const toPrescreenFlag = (value: unknown): PrescreenFlag | null => {
+  if (!isRecord(value)) return null
+  const code = text(value.code)
+  if (!code) return null
+  const severity = value.severity === 'high' || value.severity === 'warning' ? value.severity : undefined
+  return { code, severity, reason: text(value.reason), field: text(value.field), matched_term: text(value.matched_term) }
+}
 
 export const getPrescreenFlags = (listing: FlatmatesListing): PrescreenFlag[] => {
-  if (Array.isArray(listing.ai_prescreen_flags)) return listing.ai_prescreen_flags
-  const rawFlags = listing.listing_preferences?.ai_prescreen_flags
-  return Array.isArray(rawFlags) ? (rawFlags as PrescreenFlag[]) : []
+  const raw = Array.isArray(listing.ai_prescreen_flags)
+    ? listing.ai_prescreen_flags
+    : listing.listing_preferences?.ai_prescreen_flags
+  return Array.isArray(raw)
+    ? raw.flatMap((flag: unknown) => {
+        const parsed = toPrescreenFlag(flag)
+        return parsed ? [parsed] : []
+      })
+    : []
 }
 
 export const getPrescreenReason = (listing: FlatmatesListing): string | null => {
@@ -28,39 +52,11 @@ export const getListingImageUrls = (listing: FlatmatesListing): string[] => {
   return Array.from(new Set(urls.filter(Boolean)))
 }
 
-export const maskPhone = (phone?: string): string => {
+export const maskPhone = (phone?: string | null): string => {
   if (!phone) return 'N/A'
   const trimmed = phone.trim()
   if (trimmed.length <= 4) return '****'
   return `${trimmed.slice(0, 2)}****${trimmed.slice(-2)}`
-}
-
-export interface ApprovalBoost {
-  grantedAt: string
-  until: string
-  reason?: string
-}
-
-export const getApprovalBoost = (listing: FlatmatesListing): ApprovalBoost | null => {
-  const prefs = listing.listing_preferences
-  if (!prefs || typeof prefs !== 'object') return null
-  const grantedAt = prefs.approval_boost_granted_at
-  const until = prefs.boosted_until
-  if (typeof grantedAt !== 'string' || grantedAt.length === 0) return null
-  if (typeof until !== 'string' || until.length === 0) return null
-  const rawReason = prefs.boost_reason
-  return {
-    grantedAt,
-    until,
-    reason: typeof rawReason === 'string' && rawReason.trim().length > 0 ? rawReason : undefined,
-  }
-}
-
-export const isApprovalBoostActive = (listing: FlatmatesListing): boolean => {
-  const boost = getApprovalBoost(listing)
-  if (!boost) return false
-  const untilMs = new Date(boost.until).getTime()
-  return !Number.isNaN(untilMs) && untilMs > Date.now()
 }
 
 export const getAiPrescreenPhotoCount = (listing: FlatmatesListing): number | null => {
@@ -74,13 +70,13 @@ export const getAutoPauseReason = (listing: FlatmatesListing): string | null => 
 }
 
 export interface OwnerLifestyle {
-  smoking?: 'never' | 'occasionally' | 'regularly'
-  drinking?: 'never' | 'occasionally' | 'regularly'
+  smoking?: string
+  drinking?: string
   ageBucket?: string
   nativePlace?: string
 }
 
-export const getOwnerLifestyle = (owner?: User | null): OwnerLifestyle => {
+export const getOwnerLifestyle = (owner?: FlatmateAdminUser | null): OwnerLifestyle => {
   if (!owner) return {}
   const lifestyle: OwnerLifestyle = {}
   if (owner.flatmates_smoking) lifestyle.smoking = owner.flatmates_smoking
@@ -95,7 +91,7 @@ export interface ReportGroup {
   reportedUserName: string
   reports: FlatmatesReport[]
   distinctReporters: number
-  reasons: string[]
+  reasons: FlatmatesReport['reason'][]
 }
 
 export const groupReportsByReportedUser = (reports: FlatmatesReport[]): ReportGroup[] => {
@@ -118,7 +114,7 @@ export const groupReportsByReportedUser = (reports: FlatmatesReport[]): ReportGr
   const result: ReportGroup[] = []
   for (const group of groups.values()) {
     const reporters = new Set<number>()
-    const reasons = new Set<string>()
+    const reasons = new Set<FlatmatesReport['reason']>()
     for (const report of group.reports) {
       reporters.add(report.reporter_user_id)
       reasons.add(report.reason)
