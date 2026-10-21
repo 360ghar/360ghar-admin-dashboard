@@ -8,10 +8,19 @@
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
 
 // A production build without VITE_API_BASE_URL used to call localhost:3600 and show a connection error.
-// Fail at startup with the real cause instead. The localhost default is for non-dev, non-production
-// runs only (for example previews and tests).
-if (import.meta.env.PROD && !configuredApiBaseUrl) {
-  throw new Error('Missing API configuration. Set VITE_API_BASE_URL for production builds.')
+// Fail at startup with the real cause instead. Every production build needs it, `vite preview` included.
+// The localhost default below is for tests only.
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const { protocol } = new URL(value)
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+if (import.meta.env.PROD && (!configuredApiBaseUrl || !isAbsoluteHttpUrl(configuredApiBaseUrl))) {
+  throw new Error('Invalid API configuration. Set VITE_API_BASE_URL to an absolute http(s) URL for production builds.')
 }
 
 export const API_BASE_URL = import.meta.env.DEV

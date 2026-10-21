@@ -130,6 +130,7 @@ const UserProfilePage: React.FC = () => {
     const fullName = data.full_name.trim()
     const phone = data.phone?.trim() ?? ''
     const dateOfBirth = data.date_of_birth?.trim() ?? ''
+    if (!phone && profile?.phone) { profileForm.setError('phone', { type: 'validate', message: 'A phone number cannot be removed here. Enter a new number to change it.' }); return }
     if (fullName !== (profile?.full_name ?? '')) payload.full_name = fullName
     if (phone && phone !== (profile?.phone ?? '')) payload.phone = phone
     if (dateOfBirth !== (profile?.date_of_birth ?? '')) payload.date_of_birth = dateOfBirth || null

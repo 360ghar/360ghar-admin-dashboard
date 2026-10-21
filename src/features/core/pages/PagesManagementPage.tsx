@@ -58,7 +58,7 @@ const PagesManagementPage: React.FC = () => {
 
   const handleDelete = async (uniqueName: string) => {
     try { await deletePage(uniqueName).unwrap(); toast({ title: 'Success', description: 'Page deleted successfully' }) }
-    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete page'), variant: 'destructive' }) }
+    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete page'), variant: 'destructive' }); throw error }
   }
 
   const handlePreview = (page: Page) => {

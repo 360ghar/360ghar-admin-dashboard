@@ -86,6 +86,9 @@ const ProfilePage = () => {
       // and a blank name is rejected, so neither is sent empty. No email: it changes through the sign-in provider.
       const fullName = values.full_name?.trim() ?? ''
       const phone = values.phone?.trim() ?? ''
+      // Say so when a field was cleared, instead of dropping it without a word.
+      if (!fullName && me.full_name) { form.setError('full_name', { type: 'validate', message: 'Full name is required.' }); return }
+      if (!phone && me.phone) { form.setError('phone', { type: 'validate', message: 'A phone number cannot be removed here. Enter a new number to change it.' }); return }
       const payload: UserUpdate = {}
       if (fullName && fullName !== (me.full_name ?? '')) payload.full_name = fullName
       if (phone && phone !== (me.phone ?? '')) payload.phone = phone

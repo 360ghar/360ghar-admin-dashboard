@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import {
   AlertDialog,
@@ -40,6 +40,11 @@ const ConfirmAlertDialog: React.FC<ConfirmAlertDialogProps> = ({
   const [error, setError] = useState<string | null>(null)
   const open = controlledOpen ?? internalOpen
   const pendingRef = useRef(false)
+
+  // A parent can close the dialog by setting `open`, so clear the error here, not only in the handlers.
+  useEffect(() => {
+    if (!open) setError(null)
+  }, [open])
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (pendingRef.current && !nextOpen) return

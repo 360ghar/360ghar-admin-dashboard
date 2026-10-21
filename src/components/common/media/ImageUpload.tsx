@@ -196,7 +196,8 @@ const ImageUpload = ({ folderType = 'generic', value = [], onChange, multiple = 
     }
 
     const selected = valid.map((file): UploadItem => ({ id: nextItemId.current++, file, status: 'queued' }))
-    setItems((previous) => [...previous, ...selected])
+    // Finished uploads leave the list when the next batch starts, so Files and rows do not pile up.
+    setItems((previous) => [...previous.filter((item) => item.status !== 'success'), ...selected])
     void startUploads(selected)
   }
 

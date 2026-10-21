@@ -7,6 +7,7 @@ import SplitText from '@/components/reactbits/SplitText'
 import FadeContent from '@/components/reactbits/FadeContent'
 import { cn } from '@/lib/utils'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
+import { useUserRole } from '@/hooks/useUserRole'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { inferPageBreadcrumbs, type PageBreadcrumb } from '@/components/layout/pageBreadcrumbs'
 
@@ -41,7 +42,8 @@ export function PageHeader({
   useDocumentTitle(title)
   const prefersReducedMotion = usePrefersReducedMotion()
   const { pathname } = useLocation()
-  const pageBreadcrumbs = breadcrumbs ?? inferPageBreadcrumbs(pathname, title)
+  const { role } = useUserRole()
+  const pageBreadcrumbs = breadcrumbs ?? inferPageBreadcrumbs(pathname, title, role)
 
   return (
     <div className={cn('space-y-3', className)}>

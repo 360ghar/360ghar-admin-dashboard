@@ -20,11 +20,16 @@ type Props<T extends string | number> = {
 export function Combobox<T extends string | number>({ items, value = '', onChange, placeholder = 'Search…', emptyText = 'No results', className, disabled = false }: Props<T>) {
   const [open, setOpen] = React.useState(false)
   const selected = items.find((i) => String(i.value) === String(value))
+  const isOpen = !disabled && open
+  // A disabled combobox closes, so enabling it again does not reopen the list.
+  React.useEffect(() => {
+    if (disabled) setOpen(false)
+  }, [disabled])
 
   return (
-    <Popover open={disabled ? false : open} onOpenChange={(nextOpen) => { if (!disabled) setOpen(nextOpen) }}>
+    <Popover open={isOpen} onOpenChange={(nextOpen) => { if (!disabled) setOpen(nextOpen) }}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className={cn('w-full justify-between', className)}>
+        <Button variant="outline" role="combobox" aria-expanded={isOpen} disabled={disabled} className={cn('w-full justify-between', className)}>
           {selected ? selected.label : 'Select…'}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

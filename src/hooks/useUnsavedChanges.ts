@@ -8,9 +8,17 @@ let confirmedExit = false
 /** Check before actions such as logout that change the session before routing. */
 export function confirmActiveUnsavedChanges(): boolean {
   if (activeForms.size === 0) return true
-  if (!window.confirm(message)) return false
+  return window.confirm(message)
+}
+
+/** Run one navigation the user already confirmed. Only that call skips the guard, not one made while logout waits. */
+export function runConfirmedExit(navigateAway: () => void) {
   confirmedExit = true
-  return true
+  try {
+    navigateAway()
+  } finally {
+    confirmedExit = false
+  }
 }
 
 /** Guard browser exits, links, history navigation, and programmatic routing. */

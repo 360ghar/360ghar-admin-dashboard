@@ -22,6 +22,8 @@ const BlogsPage = ({ mode }: Props) => {
   const navigate = useNavigate()
   const prefersReducedMotion = usePrefersReducedMotion()
   const [isGenerateOpen, setIsGenerateOpen] = useState(false)
+  // Once opened, keep the dialog mounted: closing it must not drop a generation that is in flight.
+  const [generateMounted, setGenerateMounted] = useState(false)
 
   if (mode === 'create') {
     return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEditor onSuccess={(slug) => navigate(`/blogs/${slug}`)} /></Suspense>
@@ -75,7 +77,7 @@ const BlogsPage = ({ mode }: Props) => {
 
   return (
     <ErrorBoundary>
-      {isGenerateOpen && (
+      {generateMounted && (
         <Suspense fallback={<LoadingState type="card" rows={3} />}>
           <BlogGenerateDialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen} />
         </Suspense>
@@ -92,7 +94,7 @@ const BlogsPage = ({ mode }: Props) => {
                 type="button"
                 variant="outline"
                 className="gap-2"
-                onClick={() => setIsGenerateOpen(true)}
+                onClick={() => { setGenerateMounted(true); setIsGenerateOpen(true) }}
               >
                 <Sparkles className="h-4 w-4" />
                 Generate with AI

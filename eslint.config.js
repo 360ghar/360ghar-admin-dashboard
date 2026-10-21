@@ -12,7 +12,7 @@ export default tseslint.config(
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: ['./tsconfig.json', './tsconfig.test.json'],
+        project: ['./tsconfig.json', './tsconfig.test.json', './tsconfig.browser.json'],
         tsconfigRootDir: import.meta.dirname,
         ecmaVersion: 'latest',
         sourceType: 'module',
@@ -56,7 +56,7 @@ export default tseslint.config(
   },
   // Tests use Vitest globals (describe/it/expect/vi/...) without imports.
   {
-    files: ['src/**/__tests__/**'],
+    files: ['src/**/__tests__/**', 'tests/**'],
     languageOptions: {
       globals: {
         describe: 'readonly',

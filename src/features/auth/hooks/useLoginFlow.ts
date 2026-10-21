@@ -74,6 +74,9 @@ export function useLoginFlow() {
   const [hasPassword, setHasPassword] = useState(false)
   // Session token from a successful OTP verify, held while the user sets a password.
   const [otpAccessToken, setOtpAccessToken] = useState<string | null>(null)
+  // The account the OTP session belongs to, and whether the flow waits on a password.
+  const otpAccountId = useRef<string | null>(null)
+  const awaitingPassword = useRef(false)
 
   const [otpVersion, setOtpVersion] = useState(0)
 
@@ -110,6 +113,18 @@ export function useLoginFlow() {
   useEffect(() => {
     return () => {
       isLoginInProgress.current = false
+      // Leaving during set-password must not keep a passwordless OTP session.
+      if (awaitingPassword.current) {
+        awaitingPassword.current = false
+        const accountId = otpAccountId.current
+        // Sign out only the OTP session. A different account may have replaced it meanwhile.
+        void import('@/lib/supabase')
+          .then(async ({ supabase: sb }) => {
+            const { data } = (await sb?.auth.getSession()) ?? { data: null }
+            if (data?.session?.user.id === accountId) await sb?.auth.signOut({ scope: 'local' })
+          })
+          .catch(() => {})
+      }
     }
   }, [])
 
@@ -151,6 +166,8 @@ export function useLoginFlow() {
 
   const resetToIdentifier = () => {
     isLoginInProgress.current = false
+    awaitingPassword.current = false
+    otpAccountId.current = null
     setStep('identifier')
     setNormalized('')
     setDisplayIdentifier('')
@@ -167,6 +184,7 @@ export function useLoginFlow() {
   const abandonSetPassword = () => {
     // User rejected the session (wrong account) during mandatory set-password.
     isLoginInProgress.current = false
+    awaitingPassword.current = false
     dispatch(clearCredentials())
     void import('@/lib/supabase').then(({ supabase: sb }) => {
       if (sb) {
@@ -177,12 +195,14 @@ export function useLoginFlow() {
     })
   }
 
-  const finishLogin = async (accessToken: string, method: AuthMethod) => {
+  const finishLogin = async (accessToken: string, method: AuthMethod, accountId: string) => {
     isLoginInProgress.current = true
     try {
       const { data } = await requireSupabase().auth.getSession()
       const session = data.session
       if (!session) throw new Error('Your session expired. Please sign in again.')
+      // Another account may have signed in while this flow was waiting.
+      if (session.user.id !== accountId) throw new Error('Your session changed. Please sign in again.')
       const currentToken = session.access_token || accessToken
       const { user, status } = await fetchUserProfileWithStatus(currentToken, session.user.id)
       if (!user || !user.is_active || (user.role !== 'admin' && user.role !== 'agent')) {
@@ -197,6 +217,7 @@ export function useLoginFlow() {
             : 'Could not verify your account. Please try again.',
         )
       }
+      awaitingPassword.current = false
       dispatch(setCredentials({ token: currentToken, user }))
       setLastAuthMethod(method, displayIdentifier || normalized)
       void recordLastAuthMethod(currentToken, method)
@@ -254,12 +275,8 @@ export function useLoginFlow() {
         return
       }
 
-      if (status.exists && !status.verified) {
-        setInfoMessage(UNVERIFIED_ACCOUNT_MESSAGE)
-      }
-
       // Unverified / unknown -> OTP-first.
-      await sendOtp(canonical, resolvedChannel)
+      await sendOtp(canonical, resolvedChannel, status.exists && !status.verified ? UNVERIFIED_ACCOUNT_MESSAGE : undefined)
     } catch (err) {
       setErrorMessage(mapSupabaseAuthError(err))
     } finally {
@@ -267,7 +284,7 @@ export function useLoginFlow() {
     }
   }
 
-  const sendOtp = async (canonical: string, ch: IdentifierChannel) => {
+  const sendOtp = async (canonical: string, ch: IdentifierChannel, notice?: string) => {
     requireSupabase()
     // Login never creates accounts; pass explicit false (helper also defaults to false).
     await sendOtpRequest(canonical, ch, { shouldCreateUser: false })
@@ -275,11 +292,10 @@ export function useLoginFlow() {
     otpForm.reset()
     setOtpVersion((v) => v + 1)
     resendTimer.start()
-    setInfoMessage(
-      ch === 'email'
-        ? `We sent a 6-digit code to ${canonical}.`
-        : `We sent a 6-digit code via SMS to ${canonical}.`
-    )
+    const sent = ch === 'email'
+      ? `We sent a 6-digit code to ${canonical}.`
+      : `We sent a 6-digit code via SMS to ${canonical}.`
+    setInfoMessage(notice ? `${notice} ${sent}` : sent)
   }
 
   const onPasswordSubmit = async (values: PasswordStepFormValues) => {
@@ -296,7 +312,7 @@ export function useLoginFlow() {
         throw result.error ?? new Error('Login failed. Please check your credentials.')
       }
       const method: AuthMethod = channel === 'email' ? 'email_password' : 'phone_password'
-      await finishLogin(result.data.session.access_token, method)
+      await finishLogin(result.data.session.access_token, method, result.data.session.user.id)
     } catch (err) {
       const error = mapSupabaseAuthError(err)
       dispatch(setError(error))
@@ -329,11 +345,14 @@ export function useLoginFlow() {
       }
 
       const accessToken = result.data.session.access_token
+      const accountId = result.data.session.user.id
 
       // Requirement 6: if the account has no password, FORCE a mandatory
       // set-password step before completing login. Not applied to Google.
       if (!hasPassword) {
         setOtpAccessToken(accessToken)
+        otpAccountId.current = accountId
+        awaitingPassword.current = true
         setInfoMessage(null)
         setPasswordForm.reset()
         setStep('set-password')
@@ -342,7 +361,7 @@ export function useLoginFlow() {
       }
 
       const method: AuthMethod = channel === 'email' ? 'email_otp' : 'phone_otp'
-      await finishLogin(accessToken, method)
+      await finishLogin(accessToken, method, accountId)
     } catch (err) {
       const error = mapSupabaseAuthError(err, 'otp')
       dispatch(setError(error))
@@ -379,6 +398,11 @@ export function useLoginFlow() {
     // Keep App.tsx from racing while we update the password + finish login.
     isLoginInProgress.current = true
     try {
+      // The session may have switched to another account since OTP verify. Do not change its password.
+      const { data: current } = await sb.auth.getSession()
+      if (!otpAccountId.current || current.session?.user.id !== otpAccountId.current) {
+        throw new Error('Your session expired. Please sign in again.')
+      }
       const { error } = await sb.auth.updateUser({ password: values.password })
       if (error) throw error
       // Session token is unchanged by updateUser; reuse the one from OTP verify.
@@ -388,12 +412,14 @@ export function useLoginFlow() {
         throw new Error('Your session expired. Please sign in again.')
       }
       const method: AuthMethod = channel === 'email' ? 'email_password' : 'phone_password'
-      await finishLogin(accessToken, method)
+      if (!otpAccountId.current) throw new Error('Your session expired. Please sign in again.')
+      await finishLogin(accessToken, method, otpAccountId.current)
     } catch (err) {
       const error = mapSupabaseAuthError(err)
       dispatch(setError(error))
       setErrorMessage(error)
-      // Stay on set-password; keep flag held so SIGNED_IN still cannot race.
+      // Stay on set-password. finishLogin cleared the flag; hold it again so SIGNED_IN still cannot race.
+      isLoginInProgress.current = true
     } finally {
       setIsSubmitting(false)
     }

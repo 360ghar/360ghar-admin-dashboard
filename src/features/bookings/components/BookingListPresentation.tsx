@@ -60,7 +60,7 @@ export const bookingColumns: ColumnDef<BookingStaff>[] = [
     header: ({ column }) => <SortableHeader column={column}>Amount</SortableHeader>,
     cell: ({ row }) => {
       const amount = row.original.total_amount
-      return amount ? formatCurrency(amount) : '-'
+      return formatCurrency(amount)
     },
   },
   {

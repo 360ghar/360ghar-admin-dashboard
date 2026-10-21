@@ -36,7 +36,7 @@ const BookingDetail = ({ id }: { id: number }) => {
   const [pay, payState] = useProcessPaymentMutation()
   const [review] = useAddReviewMutation()
   const [updateBooking, updateState] = useUpdateBookingMutation()
-  const { user } = useUserRole()
+  const { user, isAdmin, isUser } = useUserRole()
   const { toast } = useToast()
 
   const data = booking.currentData
@@ -77,6 +77,7 @@ const BookingDetail = ({ id }: { id: number }) => {
     }
   }
   const doPay = async () => {
+    if (!isAdmin) return
     const amount = Number(payment.amount)
     if (!payment.method || !payment.txn.trim() || !Number.isFinite(amount) || amount <= 0) return
     try {
@@ -99,6 +100,7 @@ const BookingDetail = ({ id }: { id: number }) => {
     }
   }
   const saveNotes = async () => {
+    if (isUser) return
     try {
       // Staff-only field. Blank clears it.
       await updateBooking({ id, data: { internal_notes: internalNotes.trim() || null } }).unwrap()
@@ -150,7 +152,7 @@ const BookingDetail = ({ id }: { id: number }) => {
               {(data?.booking_status === 'pending' || data?.booking_status === 'confirmed') && (
                 <>
                   <Button onClick={() => setOpen('cancel')}>Cancel</Button>
-                  <Button variant="outline" onClick={() => setOpen('payment')}>Record Payment</Button>
+                  {isAdmin && <Button variant="outline" onClick={() => setOpen('payment')}>Record Payment</Button>}
                 </>
               )}
               {data?.booking_status === 'completed' && canReview && <Button onClick={() => setOpen('review')}>Add Review</Button>}
@@ -158,7 +160,7 @@ const BookingDetail = ({ id }: { id: number }) => {
           </CardContent>
         </Card>
         {/* Staff view only: `internal_notes` is never part of the guest booking. */}
-        <Card className="mt-4">
+        {!isUser && <Card className="mt-4">
           <CardHeader>
             <CardTitle>Internal notes</CardTitle>
           </CardHeader>
@@ -180,7 +182,7 @@ const BookingDetail = ({ id }: { id: number }) => {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card>}
       </FadeContent>
 
       <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>

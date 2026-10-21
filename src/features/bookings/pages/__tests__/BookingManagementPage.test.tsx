@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import BookingManagementPage from '../BookingManagementPage'
 
-const mocks = vi.hoisted(() => ({ getAllBookings: vi.fn() }))
+const mocks = vi.hoisted(() => ({ getAllBookings: vi.fn(), role: 'admin' }))
 
 class ResizeObserverStub {
   observe() {}
@@ -12,7 +12,7 @@ class ResizeObserverStub {
 vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
 vi.mock('@/hooks/useUserRole', () => ({
-  useUserRole: () => ({ user: { id: 1, supabase_user_id: 'admin-1', role: 'admin' }, role: 'admin', isUser: false }),
+  useUserRole: () => ({ user: { id: 1, supabase_user_id: 'admin-1', role: mocks.role }, role: mocks.role, isUser: mocks.role === 'user' }),
 }))
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 vi.mock('@/features/bookings/api/bookingsApi', () => ({
@@ -21,7 +21,7 @@ vi.mock('@/features/bookings/api/bookingsApi', () => ({
   useCancelBookingMutation: () => [vi.fn()],
   useAddReviewMutation: () => [vi.fn()],
 }))
-vi.mock('@/features/bookings/components/BookingCard', () => ({ BookingCard: ({ booking }: { booking: { id: number } }) => <p>Booking {booking.id}</p> }))
+vi.mock('@/features/bookings/components/BookingCard', () => ({ BookingCard: ({ booking, canRecordPayment }: { booking: { id: number }; canRecordPayment?: boolean }) => <p>Booking {booking.id}{canRecordPayment ? ' can-record' : ''}</p> }))
 vi.mock('@/features/bookings/components/CreateBookingDialog', () => ({ CreateBookingDialog: () => null }))
 vi.mock('@/components/ui/page-header', () => ({ PageHeader: () => null }))
 vi.mock('@/components/reactbits/FadeContent', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
@@ -36,6 +36,7 @@ const firstPage = {
 }
 
 beforeEach(() => {
+  mocks.role = 'admin'
   mocks.getAllBookings.mockReset()
   mocks.getAllBookings.mockReturnValue(firstPage)
 })
@@ -47,4 +48,16 @@ it('follows next_cursor so bookings after the first 20 can be reached', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
 
   expect(mocks.getAllBookings).toHaveBeenLastCalledWith({ status: undefined, q: undefined, cursor: 'cursor-2' }, { skip: false })
+})
+
+it('lets only admins record a payment', () => {
+  render(<MemoryRouter><BookingManagementPage embedded /></MemoryRouter>)
+  expect(screen.getByText('Booking 1 can-record')).toBeInTheDocument()
+})
+
+it.each(['agent'])('hides record payment for the %s role', (role) => {
+  mocks.role = role
+  render(<MemoryRouter><BookingManagementPage embedded /></MemoryRouter>)
+  expect(screen.getByText('Booking 1')).toBeInTheDocument()
+  expect(screen.queryByText(/can-record/)).toBeNull()
 })

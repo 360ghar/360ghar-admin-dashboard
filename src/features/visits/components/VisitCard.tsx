@@ -178,7 +178,7 @@ const VisitCard = ({
 
   return (
     <TiltedCard
-      imageSrc={visit.property?.main_image_url ?? TRANSPARENT_PIXEL}
+      imageSrc={visit.property?.main_image_url || TRANSPARENT_PIXEL}
       altText={visit.property?.title || 'Property visit'}
       containerHeight={`${cardHeight}px`}
       containerWidth="100%"

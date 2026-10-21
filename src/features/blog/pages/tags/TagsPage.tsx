@@ -28,7 +28,7 @@ const TagsPage = () => {
 
   const handleDeleteTag = useCallback(async (tag: BlogTag) => {
     try { await deleteTag(tag.id).unwrap(); toast({ title: 'Success', description: 'Tag deleted successfully' }) }
-    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete tag'), variant: 'destructive' }) }
+    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete tag'), variant: 'destructive' }); throw error }
   }, [deleteTag])
 
   const openEditDialog = (tag: BlogTag) => { setEditingTag(tag); setIsEditDialogOpen(true) }

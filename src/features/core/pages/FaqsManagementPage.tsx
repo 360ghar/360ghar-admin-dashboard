@@ -69,6 +69,7 @@ const FaqsManagementPage = () => {
       toast({ title: 'FAQ deleted' })
     } catch (error) {
       toast({ title: 'Failed to delete FAQ', description: getErrorMessage(error, 'Please try again.'), variant: 'destructive' })
+      throw error
     }
   }
 
@@ -136,7 +137,7 @@ const FaqsManagementPage = () => {
                       description="Are you sure you want to delete this FAQ? This action cannot be undone."
                       confirmLabel="Delete"
                       variant="destructive"
-                      onConfirm={() => void handleDelete(faq.id)}
+                      onConfirm={() => handleDelete(faq.id)}
                     >
                       {(openDialog) => (
                         <Button variant="outline" size="sm" onClick={openDialog} disabled={isDeleting} aria-label="Delete FAQ">

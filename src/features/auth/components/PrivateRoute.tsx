@@ -49,7 +49,7 @@ const PrivateRoute = () => {
       <main className="flex min-h-screen items-center justify-center bg-background p-4">
         <ErrorState
           title="Account verification unavailable"
-          description={retryError ?? `Your sign-in is saved${cachedProfile ? ` for ${cachedProfile.full_name}` : ''}. Connect to the server to verify staff access.`}
+          description={retryError ?? `Your sign-in is saved${cachedProfile?.full_name ? ` for ${cachedProfile.full_name}` : ''}. Connect to the server to verify staff access.`}
           onRetry={() => void retry()}
           retryLabel={retrying ? 'Retrying…' : 'Retry verification'}
           className="w-full max-w-lg"

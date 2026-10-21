@@ -34,7 +34,7 @@ export function SignupRegistrationStep({
         <FormField control={form.control} name="terms_accepted" render={({ field }) => (
           <FormItem className="space-y-2">
             <div className="flex items-start gap-2">
-              <FormControl><Checkbox id="terms_accepted" className="mt-0.5" checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+              <FormControl><Checkbox id="terms_accepted" ref={field.ref} name={field.name} onBlur={field.onBlur} className="mt-0.5" checked={field.value} onCheckedChange={field.onChange} /></FormControl>
               <FormLabel htmlFor="terms_accepted" className="text-sm font-normal leading-snug text-muted-foreground">
                 I agree to the{' '}
                 <a href="https://360ghar.com/policies/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms &amp; Conditions</a>{' '}

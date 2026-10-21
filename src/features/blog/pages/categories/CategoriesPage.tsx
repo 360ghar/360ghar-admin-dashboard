@@ -28,7 +28,7 @@ const CategoriesPage = () => {
 
   const handleDeleteCategory = useCallback(async (category: BlogCategory) => {
     try { await deleteCategory(category.id).unwrap(); toast({ title: 'Success', description: 'Category deleted successfully' }) }
-    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete category'), variant: 'destructive' }) }
+    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete category'), variant: 'destructive' }); throw error }
   }, [deleteCategory])
 
   const openEditDialog = (category: BlogCategory) => { setEditingCategory(category); setIsEditDialogOpen(true) }

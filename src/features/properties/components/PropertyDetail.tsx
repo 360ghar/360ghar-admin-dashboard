@@ -43,6 +43,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
       navigate('/properties')
     } catch (e) {
       toast({ title: 'Delete Failed', description: getErrorMessage(e, 'Could not delete property'), variant: 'destructive' })
+      throw e
     }
   }
 
@@ -73,7 +74,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
               description="This action cannot be undone. This will permanently remove the property."
               confirmLabel="Delete"
               variant="destructive"
-              onConfirm={() => void doDelete()}
+              onConfirm={doDelete}
             >
               {(openDialog) => (
                 <Button variant="destructive" size="sm" onClick={openDialog} disabled={delState.isLoading}>

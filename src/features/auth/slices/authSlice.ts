@@ -60,7 +60,10 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (state, action: PayloadAction<{ token?: string | null; user: SelfUser }>) => {
       const accountId = action.payload.user.supabase_user_id
-      if (state.accountId !== accountId) state.sessionVersion += 1
+      // A role or agent change moves the permission scope: late responses of the old scope must be rejected too.
+      const permissionChanged = state.user != null &&
+        (state.user.role !== action.payload.user.role || state.user.agent_id !== action.payload.user.agent_id)
+      if (state.accountId !== accountId || permissionChanged) state.sessionVersion += 1
       state.accountId = accountId
       if (action.payload.token !== undefined) state.token = action.payload.token
       state.user = action.payload.user

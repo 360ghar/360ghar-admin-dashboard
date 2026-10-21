@@ -76,7 +76,7 @@ const AgentList = () => {
 
   // Auto-assign picks the least loaded of every active agent (all pages of the agent list and of the
   // workload), not of the rows on this page or of a search result.
-  const { data: activeAgents, isFetching: activeAgentsFetching, error: activeAgentsError } = useListAllAgentsQuery({ include_inactive: false })
+  const { data: activeAgents, isFetching: activeAgentsFetching, error: activeAgentsError, refetch: refetchActiveAgents } = useListAllAgentsQuery({ include_inactive: false })
   const targetsReady = activeAgents !== undefined && !activeAgentsFetching && !activeAgentsError && !workloadFetching && !workloadError
   const leastLoadedAgent = useMemo(
     () => targetsReady ? selectLeastLoadedAgent(activeAgents, workloadByAgent) : null,
@@ -131,6 +131,12 @@ const AgentList = () => {
         <div role="alert" className="mb-4 flex flex-wrap items-center justify-end gap-2 text-sm text-destructive">
           <span>Could not load agent workload. Auto-assign is unavailable.</span>
           <button type="button" className="underline" onClick={() => void refetchWorkload()}>Retry</button>
+        </div>
+      )}
+      {hasActiveAgents && activeAgentsError && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center justify-end gap-2 text-sm text-destructive">
+          <span>Could not load the active agents. Auto-assign is unavailable.</span>
+          <button type="button" className="underline" onClick={() => void refetchActiveAgents()}>Retry</button>
         </div>
       )}
       {hasActiveAgents && workloadFetching && <p role="status" className="mb-4 text-right text-sm text-muted-foreground">Loading agent workload…</p>}

@@ -164,24 +164,31 @@ export function sanitizeFetchArgs(args: string | FetchArgs): string | FetchArgs 
  * One refresh at a time. Refresh tokens rotate, so concurrent 401s must share
  * the same refresh call instead of racing each other.
  */
-let refreshInFlight: Promise<string | null> | null = null
+let refreshInFlight: { accountId: string; promise: Promise<string | null> } | null = null
 
-/** Ask Supabase for a fresh session. Resolves to the new access token, or null when no session can be refreshed. */
+/**
+ * Ask Supabase for a fresh session. Resolves to the new access token, or null when no session can be refreshed.
+ * A refresh is shared only between callers of the same account: another account never receives this token.
+ */
 function refreshAccessToken(accountId: string): Promise<string | null> {
   if (!supabase) return Promise.resolve(null)
+  if (refreshInFlight?.accountId === accountId) return refreshInFlight.promise
   const client = supabase
-  refreshInFlight ??= (async () => {
-    try {
-      const { data, error } = await client.auth.refreshSession()
-      if (error || !data.session || data.session.user.id !== accountId) return null
-      return data.session.access_token
-    } catch {
-      return null
-    } finally {
-      refreshInFlight = null
-    }
-  })()
-  return refreshInFlight
+  refreshInFlight = {
+    accountId,
+    promise: (async () => {
+      try {
+        const { data, error } = await client.auth.refreshSession()
+        if (error || !data.session || data.session.user.id !== accountId) return null
+        return data.session.access_token
+      } catch {
+        return null
+      } finally {
+        if (refreshInFlight?.accountId === accountId) refreshInFlight = null
+      }
+    })(),
+  }
+  return refreshInFlight.promise
 }
 
 const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (

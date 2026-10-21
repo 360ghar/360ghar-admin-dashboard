@@ -13,7 +13,7 @@ describe('purposePrice', () => {
 
   it('uses base_price for a sale and as the fallback', () => {
     expect(purposePrice({ purpose: 'buy', base_price: 9000000 })).toEqual({ amount: 9000000, unit: '' })
-    expect(purposePrice({ purpose: 'rent', monthly_rent: null, base_price: 7000 })).toEqual({ amount: 7000, unit: '' })
+    expect(purposePrice({ purpose: 'rent', monthly_rent: null, base_price: 7000 })).toEqual({ amount: 7000, unit: '/month' })
     expect(purposePrice({ purpose: 'short_stay', base_price: 7000 })).toEqual({ amount: 7000, unit: '' })
   })
 })

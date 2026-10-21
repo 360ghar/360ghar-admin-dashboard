@@ -19,5 +19,6 @@ export function purposePrice(property: PriceSource): PurposePrice {
     const nightly = property.nightly_rate ?? property.daily_rate
     if (nightly != null) return { amount: nightly, unit: '/night' }
   }
-  return { amount: property.base_price ?? null, unit: '' }
+  // For a rent listing `base_price` is the monthly rent anchor, so it keeps the month suffix.
+  return { amount: property.base_price ?? null, unit: property.purpose === 'rent' ? '/month' : '' }
 }

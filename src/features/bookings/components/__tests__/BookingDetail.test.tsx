@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   toast: vi.fn(),
   viewerId: 99,
+  role: 'admin',
   booking: {
     id: 11,
     user_id: 5,
@@ -51,7 +52,7 @@ vi.mock('@/features/bookings/api/bookingsApi', () => ({
   useAddReviewMutation: () => [mocks.review, { isLoading: false }],
   useUpdateBookingMutation: () => [mocks.update, { isLoading: false }],
 }))
-vi.mock('@/hooks/useUserRole', () => ({ useUserRole: () => ({ user: { id: mocks.viewerId }, role: 'admin' }) }))
+vi.mock('@/hooks/useUserRole', () => ({ useUserRole: () => ({ user: { id: mocks.viewerId }, role: mocks.role, isAdmin: mocks.role === 'admin', isAgent: mocks.role === 'agent', isUser: mocks.role === 'user' }) }))
 vi.mock('@/components/ui/page-header', () => ({ PageHeader: () => null }))
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }))
 vi.mock('@/components/reactbits/FadeContent', () => ({ default: ({ children }: { children: React.ReactNode }) => children }))
@@ -119,4 +120,16 @@ describe('BookingDetail (staff view)', () => {
     renderDetail()
     expect(screen.getByRole('button', { name: 'Add Review' })).toBeInTheDocument()
   })
+})
+
+it('hides the manual payment from an agent and the staff notes from a guest', () => {
+  mocks.role = 'agent'
+  const { unmount } = renderDetail()
+  expect(screen.queryByRole('button', { name: 'Record Payment' })).toBeNull()
+  expect(screen.getByLabelText('Internal notes')).toBeTruthy()
+  unmount()
+  mocks.role = 'user'
+  renderDetail()
+  expect(screen.queryByLabelText('Internal notes')).toBeNull()
+  mocks.role = 'admin'
 })
