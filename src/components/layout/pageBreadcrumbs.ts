@@ -10,7 +10,8 @@ export function inferPageBreadcrumbs(pathname: string, title: string, role?: str
   if (pathname === '/' || pathname === '/dashboard') return []
   if (pathname === '/pm/dashboard') return [{ label: 'Dashboard', to: '/dashboard' }, { label: 'Property Management' }]
 
-  const result: PageBreadcrumb[] = [{ label: 'Dashboard', to: '/dashboard' }]
+  // Users cannot open the staff dashboard, so they get no Dashboard crumb.
+  const result: PageBreadcrumb[] = role === 'user' ? [] : [{ label: 'Dashboard', to: '/dashboard' }]
   if (pathname.startsWith('/pm/')) result.push({ label: 'Property Management', to: '/pm/dashboard' })
 
   const match = flattenRoutes(role ? filterByRole(NAV_ROUTES, role) : NAV_ROUTES)

@@ -58,7 +58,7 @@ export const PmPropertyPicker = forwardRef<HTMLButtonElement, PmPropertyPickerPr
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button ref={ref} type="button" variant="outline" role="combobox" aria-expanded={open} aria-label="Property" className="w-full justify-between font-normal" {...triggerProps}>
+        <Button {...triggerProps} ref={ref} type="button" variant="outline" role="combobox" aria-expanded={open} aria-label="Property" className="w-full justify-between font-normal">
           <span className="truncate">
             {selected ? `#${selected.id} • ${selected.title}` : (clearLabel ?? placeholder)}
           </span>

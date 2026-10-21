@@ -156,7 +156,7 @@ export function ActivityTrendCard({ trend, isLoading, isError, isPartialError, o
           />
         ) : (
           <>
-            {isPartialError && <p role="status" className="mb-3 text-sm text-destructive">One activity source failed. The chart is incomplete. <button className="underline" onClick={onRetry}>Retry</button></p>}
+            {isPartialError && <p role="status" className="mb-3 text-sm text-destructive">Some activity could not be loaded. The chart is incomplete. <button className="underline" onClick={onRetry}>Retry</button></p>}
             <div className="h-[260px]" aria-hidden="true">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trend} barGap={4}>

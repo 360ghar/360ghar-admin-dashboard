@@ -129,4 +129,29 @@ describe('401 refresh and retry in the base query', () => {
     await second.unwrap()
     expect(auth.refreshSession).toHaveBeenCalledTimes(1)
   })
+
+  it('does not hand one account\'s refreshed token to another account', async () => {
+    const fetchMock = vi.fn((request: Request) => {
+      const token = request.headers.get('Authorization')
+      return Promise.resolve(token === 'Bearer token-a2' || token === 'Bearer token-b2' ? json({ id: 1 }) : json({ error: { code: 'TOKEN_EXPIRED', message: 'expired' } }, 401))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const resolvers: Array<(value: unknown) => void> = []
+    auth.refreshSession.mockImplementation(() => new Promise((resolve) => { resolvers.push(resolve) }))
+    const store = makeStore()
+
+    const first = store.dispatch(agentsApi.endpoints.getAgent.initiate(1))
+    await vi.waitFor(() => expect(auth.refreshSession).toHaveBeenCalledTimes(1))
+    // Another account signs in while account A's refresh is still pending.
+    store.dispatch(setCredentials({ token: 'token-b1', user: { ...user, id: 2, supabase_user_id: 'account-b' } }))
+    const second = store.dispatch(agentsApi.endpoints.getAgent.initiate(2))
+    await vi.waitFor(() => expect(auth.refreshSession).toHaveBeenCalledTimes(2))
+    resolvers[0]?.({ data: { session: { access_token: 'token-a2', user: { id: 'account-a' } } }, error: null })
+    resolvers[1]?.({ data: { session: { access_token: 'token-b2', user: { id: 'account-b' } } }, error: null })
+
+    await second.unwrap()
+    await first.unwrap().catch(() => undefined)
+    expect(fetchMock.mock.calls.map(bearer)).not.toContain('Bearer token-a2')
+    expect(store.getState().auth.token).toBe('token-b2')
+  })
 })

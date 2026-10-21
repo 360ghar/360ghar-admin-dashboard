@@ -12,7 +12,7 @@ type PageBaseQuery = (
 const MAX_PAGES = 100
 
 function incomplete(error: string) {
-  return { error: { status: 'PARSING_ERROR' as const, originalStatus: 200, data: '', error } }
+  return { error: { status: 'CUSTOM_ERROR' as const, error } }
 }
 
 function isCursorPage(value: unknown): value is CursorPage<unknown> {

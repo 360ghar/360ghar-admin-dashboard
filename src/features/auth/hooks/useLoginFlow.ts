@@ -116,7 +116,14 @@ export function useLoginFlow() {
       // Leaving during set-password must not keep a passwordless OTP session.
       if (awaitingPassword.current) {
         awaitingPassword.current = false
-        void import('@/lib/supabase').then(({ supabase: sb }) => sb?.auth.signOut()).catch(() => {})
+        const accountId = otpAccountId.current
+        // Sign out only the OTP session. A different account may have replaced it meanwhile.
+        void import('@/lib/supabase')
+          .then(async ({ supabase: sb }) => {
+            const { data } = (await sb?.auth.getSession()) ?? { data: null }
+            if (data?.session?.user.id === accountId) await sb?.auth.signOut()
+          })
+          .catch(() => {})
       }
     }
   }, [])
@@ -391,6 +398,11 @@ export function useLoginFlow() {
     // Keep App.tsx from racing while we update the password + finish login.
     isLoginInProgress.current = true
     try {
+      // The session may have switched to another account since OTP verify. Do not change its password.
+      const { data: current } = await sb.auth.getSession()
+      if (!otpAccountId.current || current.session?.user.id !== otpAccountId.current) {
+        throw new Error('Your session expired. Please sign in again.')
+      }
       const { error } = await sb.auth.updateUser({ password: values.password })
       if (error) throw error
       // Session token is unchanged by updateUser; reuse the one from OTP verify.

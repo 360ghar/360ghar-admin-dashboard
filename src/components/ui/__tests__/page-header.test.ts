@@ -13,3 +13,10 @@ it('links details back through the right property list', () => {
     { label: 'Managed property details' },
   ])
 })
+
+it('hides crumbs the role cannot open', () => {
+  const agent = inferPageBreadcrumbs('/bug-reports/5', 'Bug report', 'agent')
+  expect(agent.find((c) => c.to === '/bug-reports')).toBeUndefined()
+  expect(inferPageBreadcrumbs('/bug-reports/5', 'Bug report', 'admin').find((c) => c.to === '/bug-reports')).toBeDefined()
+  expect(inferPageBreadcrumbs('/users/preferences', 'Preferences', 'user').find((c) => c.to === '/dashboard')).toBeUndefined()
+})
