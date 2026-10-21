@@ -89,7 +89,8 @@ export const pmExpenseCreateSchema = z.object({
   amount: z
     .string()
     .min(1, 'Amount is required')
-    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Amount must be a positive number'),
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Amount must be a positive number')
+    .refine((v) => Number(v) <= 9999999999.99, 'Amount must be 9999999999.99 or less'),
   expense_date: z.string().min(1, 'Expense date is required'),
   description: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
@@ -111,7 +112,8 @@ export const pmExpenseUpdateSchema = z.object({
   amount: z
     .string()
     .min(1, 'Amount is required')
-    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Amount must be a positive number'),
+    .refine((v) => !isNaN(Number(v)) && Number(v) > 0, 'Amount must be a positive number')
+    .refine((v) => Number(v) <= 9999999999.99, 'Amount must be 9999999999.99 or less'),
   expense_date: z.string().min(1, 'Expense date is required'),
   description: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
