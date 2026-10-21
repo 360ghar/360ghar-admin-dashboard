@@ -121,7 +121,7 @@ export function useLoginFlow() {
         void import('@/lib/supabase')
           .then(async ({ supabase: sb }) => {
             const { data } = (await sb?.auth.getSession()) ?? { data: null }
-            if (data?.session?.user.id === accountId) await sb?.auth.signOut()
+            if (data?.session?.user.id === accountId) await sb?.auth.signOut({ scope: 'local' })
           })
           .catch(() => {})
       }
