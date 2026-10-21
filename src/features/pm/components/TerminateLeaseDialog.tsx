@@ -72,10 +72,10 @@ export default function TerminateLeaseDialog({
           },
         }).unwrap();
         toast({ title: "Terminated", description: "Lease terminated." });
-      } catch (e: unknown) {
-        toast({ title: "Failed", description: getErrorMessage(e, "Could not terminate lease."), variant: "destructive" });
-      } finally {
         setOpen(false);
+      } catch (e: unknown) {
+        // The dialog stays open, so the reason and the date the user typed are not lost.
+        toast({ title: "Failed", description: getErrorMessage(e, "Could not terminate lease."), variant: "destructive" });
       }
     },
     [leaseId, terminateLease, toast],

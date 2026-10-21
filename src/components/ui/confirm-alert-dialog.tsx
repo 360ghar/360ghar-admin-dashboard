@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { getErrorMessage } from '@/lib/errors'
 
 interface ConfirmAlertDialogProps {
   title: string
@@ -17,7 +19,9 @@ interface ConfirmAlertDialogProps {
   cancelLabel?: string
   onConfirm: () => void | Promise<void>
   variant?: 'default' | 'destructive'
-  children: (openDialog: () => void) => React.ReactNode
+  children?: (openDialog: () => void) => React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const ConfirmAlertDialog: React.FC<ConfirmAlertDialogProps> = ({
@@ -28,30 +32,65 @@ const ConfirmAlertDialog: React.FC<ConfirmAlertDialogProps> = ({
   onConfirm,
   variant = 'default',
   children,
+  open: controlledOpen,
+  onOpenChange,
 }) => {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const open = controlledOpen ?? internalOpen
+  const pendingRef = useRef(false)
 
-  const handleConfirm = () => {
-    setOpen(false)
-    void onConfirm()
+  // A parent can close the dialog by setting `open`, so clear the error here, not only in the handlers.
+  useEffect(() => {
+    if (!open) setError(null)
+  }, [open])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (pendingRef.current && !nextOpen) return
+    if (nextOpen) setError(null)
+    if (controlledOpen === undefined) setInternalOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }
+
+  const handleConfirm = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault() // Radix would close the dialog before the request settles.
+    if (pendingRef.current) return
+    pendingRef.current = true
+    setPending(true)
+    setError(null)
+    try {
+      await onConfirm()
+      pendingRef.current = false
+      setPending(false)
+      if (controlledOpen === undefined) setInternalOpen(false)
+      onOpenChange?.(false)
+    } catch (cause) {
+      setError(getErrorMessage(cause, 'The action failed. Try again.'))
+      pendingRef.current = false
+      setPending(false)
+    }
   }
 
   return (
     <>
-      {children(() => setOpen(true))}
-      <AlertDialog open={open} onOpenChange={setOpen}>
+      {children?.(() => handleOpenChange(true))}
+      <AlertDialog open={open} onOpenChange={handleOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>
           </AlertDialogHeader>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <AlertDialogFooter>
-            <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending}>{cancelLabel}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirm}
+              onClick={(event) => { void handleConfirm(event) }}
+              disabled={pending}
+              aria-busy={pending}
               className={variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
-              {confirmLabel}
+              {pending ? `${confirmLabel}…` : confirmLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

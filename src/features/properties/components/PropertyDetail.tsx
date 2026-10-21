@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useDeletePropertyMutation, useGetPropertyQuery } from '@/features/properties/api/propertiesApi'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { PropertyStatusBadge } from './PropertyStatusBadge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
@@ -17,7 +18,8 @@ import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/errors'
-import { deriveNightlyRate } from '@/features/properties/lib/nightlyRate'
+import { purposePrice } from '@/features/properties/lib/price'
+import { useUserRole } from '@/hooks/useUserRole'
 
 const Item = ({ label, value }: { label: string; value?: string | number | boolean | null }) => (
   <div className="text-sm"><span className="text-muted-foreground">{label}: </span>{String(value ?? '-')}</div>
@@ -28,11 +30,12 @@ const SectionTitle = ({ children }: { children: ReactNode }) => (
 )
 
 const PropertyDetail = ({ id }: { id: number }) => {
-  const { data, isLoading, error, refetch } = useGetPropertyQuery(id)
+  const { currentData: data, isLoading, isFetching, error, refetch } = useGetPropertyQuery(id)
   const [del, delState] = useDeletePropertyMutation()
   const navigate = useNavigate()
   const { toast } = useToast()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const { role } = useUserRole()
 
   const doDelete = async () => {
     try {
@@ -40,13 +43,15 @@ const PropertyDetail = ({ id }: { id: number }) => {
       navigate('/properties')
     } catch (e) {
       toast({ title: 'Delete Failed', description: getErrorMessage(e, 'Could not delete property'), variant: 'destructive' })
+      throw e
     }
   }
 
-  if (isLoading) return <LoadingState type="card" rows={8} />
+  if (isLoading || (isFetching && !data)) return <LoadingState type="card" rows={8} />
   if (error) return <ErrorState title="Failed to load property" error={error} onRetry={() => void refetch()} />
+  if (!data) return <EmptyState title="Property not found" description="This property is no longer available." />
 
-  const nightly = data ? deriveNightlyRate(data) : null
+  const price = purposePrice(data)
 
   return (
     <div className="space-y-6">
@@ -69,7 +74,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
               description="This action cannot be undone. This will permanently remove the property."
               confirmLabel="Delete"
               variant="destructive"
-              onConfirm={() => void doDelete()}
+              onConfirm={doDelete}
             >
               {(openDialog) => (
                 <Button variant="destructive" size="sm" onClick={openDialog} disabled={delState.isLoading}>
@@ -119,10 +124,10 @@ const PropertyDetail = ({ id }: { id: number }) => {
           <div className="grid gap-3 md:grid-cols-3">
             <Item label="Type" value={data?.property_type} />
             <Item label="Purpose" value={data?.purpose} />
-            <Item label="Price" value={data?.base_price ? formatCurrency(data.base_price) : '-'} />
+            <Item label="Price" value={price.amount != null ? `${formatCurrency(price.amount)}${price.unit}` : '-'} />
             <Item label="Created" value={data?.created_at ? formatDate(data.created_at) : '-'} />
             <Item label="Liked" value={data?.liked ? 'Yes' : 'No'} />
-            <Item label="Next Visit" value={data?.user_next_visit_date ? formatDateTime(data.user_next_visit_date) : '-'} />
+            <Item label="Your next visit" value={data?.user_next_visit_date ? formatDateTime(data.user_next_visit_date) : '-'} />
           </div>
 
           {/* Pricing */}
@@ -132,7 +137,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
               <Item label="Base Price" value={data?.base_price != null ? formatCurrency(data.base_price) : '-'} />
               <Item label="Monthly Rent" value={data?.monthly_rent != null ? formatCurrency(data.monthly_rent) : '-'} />
               <Item label="Daily Rate" value={data?.daily_rate != null ? formatCurrency(data.daily_rate) : '-'} />
-              <Item label="Nightly (derived)" value={nightly != null ? formatCurrency(nightly) : '-'} />
+              <Item label="Nightly rate" value={data?.nightly_rate != null ? formatCurrency(data.nightly_rate) : '-'} />
             </div>
           </div>
 
@@ -192,7 +197,8 @@ const PropertyDetail = ({ id }: { id: number }) => {
             <div className="grid gap-3 md:grid-cols-3">
               <Item label="Owner ID" value={data?.owner_id} />
               <Item label="Name" value={data?.owner_name} />
-              <Item label="Contact" value={data?.owner_contact} />
+              {/* The owner's number is returned to the owner and admins only. Anyone else gets the agent or company number. */}
+              <Item label={role === 'admin' ? 'Owner contact' : 'Contact number'} value={data?.owner_contact} />
             </div>
           </div>
 

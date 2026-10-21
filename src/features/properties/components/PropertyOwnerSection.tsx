@@ -11,12 +11,13 @@ interface PropertyOwnerSectionProps {
   setOwnerMode: (mode: 'search' | 'id') => void
   ownerSearch: string
   setOwnerSearch: (value: string) => void
-  users: { data?: { items?: Array<{ id: number; full_name?: string; phone?: string }> } }
+  users: { data?: { items?: Array<{ id: number; full_name?: string | null; phone?: string | null }> } }
   role: string
+  disabled?: boolean
 }
 
 const PropertyOwnerSection: React.FC<PropertyOwnerSectionProps> = ({
-  form, ownerMode, setOwnerMode, ownerSearch, setOwnerSearch, users, role
+  form, ownerMode, setOwnerMode, ownerSearch, setOwnerSearch, users, role, disabled = false,
 }) => {
   if (role !== 'admin' && role !== 'agent') return null
 
@@ -26,7 +27,7 @@ const PropertyOwnerSection: React.FC<PropertyOwnerSectionProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
         <div>
           <FormLabel className="text-xs text-muted-foreground">Mode</FormLabel>
-          <Select value={ownerMode} onValueChange={(v) => setOwnerMode(v as 'id' | 'search')}>
+          <Select disabled={disabled} value={ownerMode} onValueChange={(v) => { if (!disabled) setOwnerMode(v as 'id' | 'search') }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="search">Search Users</SelectItem>
@@ -38,7 +39,7 @@ const PropertyOwnerSection: React.FC<PropertyOwnerSectionProps> = ({
           <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-2">
             <div>
               <FormLabel className="text-xs text-muted-foreground">Search</FormLabel>
-              <Input placeholder="Search users by name or phone" value={ownerSearch} onChange={(e) => setOwnerSearch(e.target.value)} />
+              <Input disabled={disabled} placeholder="Search users by name or phone" value={ownerSearch} onChange={(e) => setOwnerSearch(e.target.value)} />
             </div>
             <FormField control={form.control} name="owner_id" render={({ field }) => (
               <FormItem>
@@ -46,7 +47,7 @@ const PropertyOwnerSection: React.FC<PropertyOwnerSectionProps> = ({
                 <FormControl>
                   <Combobox
                     items={(users.data?.items || []).map((u) => ({ value: String(u.id), label: `${u.full_name || 'User'} • ${u.phone || 'N/A'} • #${u.id}` }))}
-                    value={field.value ? String(field.value) : ''} onChange={(v) => field.onChange(v ? Number(v) : undefined)}
+                    value={field.value ? String(field.value) : ''} disabled={disabled} onChange={(v) => { if (!disabled) field.onChange(v ? Number(v) : undefined) }}
                   />
                 </FormControl><FormMessage />
               </FormItem>
@@ -58,7 +59,7 @@ const PropertyOwnerSection: React.FC<PropertyOwnerSectionProps> = ({
             <FormItem>
               <FormLabel className="text-xs text-muted-foreground">Owner ID</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g. 123" value={field.value ? String(field.value) : ''} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} />
+                <Input type="number" disabled={disabled} placeholder="e.g. 123" value={field.value ? String(field.value) : ''} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)} />
               </FormControl><FormMessage />
             </FormItem>
           )} />

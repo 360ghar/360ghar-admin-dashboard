@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { isEmail, normalizePhone, normalizeIdentifier, isAllowedGoogleEmail } from '@/lib/auth'
-import { loadUserFromStorage } from '@/features/auth/slices/authSlice'
+import { describe, it, expect, vi } from 'vitest'
+import { fetchUserProfileWithStatus, isEmail, normalizePhone, normalizeIdentifier, isAllowedGoogleEmail } from '@/lib/auth'
+import { loadCachedProfile, profileStorageKey } from '@/features/auth/slices/authSlice'
+import { writeVersionedJSON } from '@/lib/storage'
 import { passwordStepSchema, setPasswordStepSchema } from '@/features/auth/validations'
 
 describe('isEmail', () => {
@@ -45,27 +46,79 @@ describe('normalizeIdentifier', () => {
   })
 })
 
-describe('loadUserFromStorage', () => {
+describe('loadCachedProfile', () => {
+  const accountId = 'supabase-a'
+  const profile = { id: 1, supabase_user_id: accountId, full_name: 'Test' }
+
   it('returns null when nothing is stored', () => {
     localStorage.clear()
-    expect(loadUserFromStorage()).toBeNull()
+    expect(loadCachedProfile(accountId)).toBeNull()
   })
 
-  it('returns a user when a valid payload is stored', () => {
-    localStorage.setItem('user', JSON.stringify({ id: 'u1', full_name: 'Test' }))
-    const user = loadUserFromStorage()
-    expect(user?.id).toBe('u1')
+  it('returns an account-bound identity hint', () => {
+    writeVersionedJSON(profileStorageKey(accountId), 1, profile)
+    expect(loadCachedProfile(accountId)).toEqual(profile)
   })
 
   it('clears corrupt payloads and returns null', () => {
-    localStorage.setItem('user', '{not-json')
-    expect(loadUserFromStorage()).toBeNull()
-    expect(localStorage.getItem('user')).toBeNull()
+    localStorage.setItem(profileStorageKey(accountId), '{not-json')
+    expect(loadCachedProfile(accountId)).toBeNull()
+    expect(localStorage.getItem(profileStorageKey(accountId))).toBeNull()
   })
 
-  it('rejects objects without id', () => {
-    localStorage.setItem('user', JSON.stringify({ full_name: 'No Id' }))
-    expect(loadUserFromStorage()).toBeNull()
+  it('rejects malformed and mismatched profiles', () => {
+    writeVersionedJSON(profileStorageKey(accountId), 1, { full_name: 'No Id' })
+    expect(loadCachedProfile(accountId)).toBeNull()
+    writeVersionedJSON(profileStorageKey(accountId), 1, { ...profile, supabase_user_id: 'other' })
+    expect(loadCachedProfile(accountId)).toBeNull()
+    expect(localStorage.getItem(profileStorageKey(accountId))).toBeNull()
+  })
+})
+
+describe('fetchUserProfileWithStatus', () => {
+  it('rejects a malformed profile and one bound to another Supabase account', async () => {
+    const profile = {
+      id: 1,
+      supabase_user_id: 'account-a',
+      email: 'staff@example.com',
+      full_name: 'Staff',
+      role: 'admin',
+      is_active: true,
+      is_verified: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(profile), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      expect((await fetchUserProfileWithStatus('token', 'account-b')).user).toBeNull()
+      expect((await fetchUserProfileWithStatus('token', 'account-a')).user).toMatchObject(profile)
+      fetchMock.mockImplementationOnce(() => Promise.resolve(new Response(JSON.stringify({
+        ...profile,
+        email: null,
+        full_name: null,
+        updated_at: null,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })))
+      // The backend allows a null email, name and update time. The portal keeps them null.
+      expect((await fetchUserProfileWithStatus('token', 'account-a')).user).toMatchObject({
+        email: null,
+        full_name: null,
+        updated_at: null,
+      })
+      fetchMock.mockImplementationOnce(() => Promise.resolve(new Response(JSON.stringify({ id: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })))
+      expect((await fetchUserProfileWithStatus('token', 'account-a')).user).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
 

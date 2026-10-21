@@ -9,7 +9,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { AnimatePresence } from 'motion/react'
-import { getErrorMessage } from '@/lib/errors'
+import { getErrorCode, getErrorMessage } from '@/lib/errors'
 import FadeContent from '@/components/reactbits/FadeContent'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 
@@ -35,26 +35,30 @@ const SwipePage = () => {
     const isLiked = direction === 'right'
 
     try {
-      const result = await swipeProperty({
+      await swipeProperty({
         property_id: property.id,
         is_liked: isLiked,
       }).unwrap()
-
+      // A property swipe never produces a match, so there is no match toast.
       setCurrentIndex((prev) => prev + 1)
-
-      if (result.match) {
+    } catch (error) {
+      const code = getErrorCode(error)
+      if (code === 'PROPERTY_NOT_FOUND') {
+        // The listing was removed. Nothing to swipe on, so move to the next card.
+        setCurrentIndex((prev) => prev + 1)
+        toast({ title: 'Listing removed', description: 'This listing no longer exists. Showing the next one.', variant: 'destructive' })
+        return
+      } else if (code === 'OWN_PROPERTY_SWIPE') {
+        setCurrentIndex((prev) => prev + 1)
+        toast({ title: 'Your own listing', description: 'You cannot like or pass your own listing.', variant: 'destructive' })
+        return
+      } else {
         toast({
-          title: "It's a Match!",
-          description: `You matched with ${property.title || `property #${property.id}`}`,
-          variant: 'default',
+          title: 'Swipe failed',
+          description: getErrorMessage(error, 'Something went wrong. Please try again.'),
+          variant: 'destructive',
         })
       }
-    } catch (error) {
-      toast({
-        title: 'Swipe failed',
-        description: getErrorMessage(error, 'Something went wrong. Please try again.'),
-        variant: 'destructive',
-      })
       throw error
     }
   }, [recommendations?.items, currentIndex, swipeProperty, toast])

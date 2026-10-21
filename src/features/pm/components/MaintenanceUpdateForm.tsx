@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { MaintenanceRequest, MaintenanceRequestUpdate } from "@/types/pm";
-import { MAINTENANCE_REQUEST_STATUSES, WORK_ORDER_STATUSES } from "@/features/pm/constants";
+import { MAINTENANCE_REQUEST_STATUSES, MAINTENANCE_URGENCIES, WORK_ORDER_STATUSES } from "@/features/pm/constants";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { FormRootError } from "@/components/ui/form-root-error";
+import { applyServerValidation } from "@/lib/formErrors";
 import { serverTimestampToLocalInput, localInputToServerTimestamp } from "@/lib/dateTime";
 import { pmMaintenanceUpdateSchema, type PmMaintenanceUpdateForm } from "@/features/pm/validations";
 
@@ -42,9 +44,9 @@ export default function MaintenanceUpdateForm({
       request_status: request.request_status,
       work_order_status: request.work_order_status || "",
       assign_to_me: defaultAssignedAgentId ? "yes" : "no",
-      priority: request.priority || "",
-      estimated_cost: request.estimated_cost?.toString() || "",
-      actual_cost: request.actual_cost?.toString() || "",
+      urgency: request.urgency,
+      estimated_cost: request.estimated_cost != null ? String(request.estimated_cost) : "",
+      actual_cost: request.actual_cost != null ? String(request.actual_cost) : "",
       scheduled_for: serverTimestampToLocalInput(request.scheduled_for),
       completion_notes: request.completion_notes || "",
       vendor_name: request.vendor_name || "",
@@ -53,24 +55,34 @@ export default function MaintenanceUpdateForm({
   });
 
   const handleSubmit = async (values: PmMaintenanceUpdateForm) => {
+    // A field emptied in the form is sent as null to clear it. A field that was empty and stays empty is left out.
+    const clearable = <T,>(next: T | undefined, previous: unknown): T | null | undefined =>
+      next !== undefined ? next : previous != null && previous !== "" ? null : undefined;
     const payload: MaintenanceRequestUpdate = {
       request_status: values.request_status,
       work_order_status: values.work_order_status || undefined,
       assigned_agent_id: values.assign_to_me === "yes" ? defaultAssignedAgentId ?? undefined : undefined,
-      priority: values.priority || undefined,
-      estimated_cost: values.estimated_cost ? Number(values.estimated_cost) : undefined,
-      actual_cost: values.actual_cost ? Number(values.actual_cost) : undefined,
-      scheduled_for: localInputToServerTimestamp(values.scheduled_for) ?? undefined,
-      completion_notes: values.completion_notes || undefined,
-      vendor_name: values.vendor_name || undefined,
-      vendor_contact: values.vendor_contact || undefined,
+      urgency: values.urgency,
+      estimated_cost: clearable(values.estimated_cost ? Number(values.estimated_cost) : undefined, request.estimated_cost),
+      actual_cost: clearable(values.actual_cost ? Number(values.actual_cost) : undefined, request.actual_cost),
+      scheduled_for: clearable(localInputToServerTimestamp(values.scheduled_for) ?? undefined, request.scheduled_for),
+      completion_notes: clearable(values.completion_notes || undefined, request.completion_notes),
+      vendor_name: clearable(values.vendor_name || undefined, request.vendor_name),
+      vendor_contact: clearable(values.vendor_contact || undefined, request.vendor_contact),
     };
-    await onSubmit(payload);
+    form.clearErrors();
+    try {
+      await onSubmit(payload);
+    } catch (e: unknown) {
+      // The caller already showed a toast. Put a 422 next to its fields.
+      applyServerValidation(e, form.setError);
+    }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)} className="space-y-4">
+        <FormRootError form={form} />
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
@@ -138,11 +150,20 @@ export default function MaintenanceUpdateForm({
           />
           <FormField
             control={form.control}
-            name="priority"
+            name="urgency"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Priority (optional)</FormLabel>
-                <FormControl><Input placeholder="e.g. P1" {...field} /></FormControl>
+                <FormLabel>Urgency</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {MAINTENANCE_URGENCIES.map((u) => (
+                      <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

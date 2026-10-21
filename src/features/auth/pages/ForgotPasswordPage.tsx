@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft } from 'lucide-react'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 import {
   IDENTIFIER_STATUS_UNAVAILABLE_MESSAGE,
@@ -22,7 +20,6 @@ import { supabase } from '@/lib/supabase'
 import { isLoginInProgress } from '@/lib/loginState'
 import { useAppDispatch } from '@/hooks/redux'
 import { clearCredentials } from '@/features/auth/slices/authSlice'
-import { maskIdentifier } from '@/lib/lastAuthMethod'
 import { useResendTimer } from '@/hooks/useResendTimer'
 import { AuthBrandingPanel } from '@/components/auth/AuthBrandingPanel'
 import { AuthCardLayout } from '@/components/auth/AuthCardLayout'
@@ -35,11 +32,7 @@ import {
   type ResetPasswordFormValues,
 } from '@/features/auth/validations'
 
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { PasswordInput } from '@/components/auth/PasswordInput'
-import { OtpInput } from '@/components/auth/OtpInput'
-import { Button } from '@/components/ui/button'
+import { RecoveryFooter, RecoveryIdentifierStep, RecoveryOtpStep, RecoveryPasswordStep } from '../components/ForgotPasswordSteps'
 
 type Step = 'identifier' | 'otp' | 'password'
 
@@ -225,193 +218,33 @@ export default function ForgotPasswordPage() {
       />
       <AuthCardLayout
         title="Reset Password"
-        subtitle={
-          step === 'identifier'
-            ? 'Enter your email or phone to get a verification code'
-            : step === 'otp'
-              ? 'Enter the 6-digit code we sent you'
-              : 'Choose a new password'
-        }
+        subtitle={step === 'identifier' ? 'Enter your email or phone to get a verification code' : step === 'otp' ? 'Enter the 6-digit code we sent you' : 'Choose a new password'}
         errorMessage={errorMessage}
         infoMessage={infoMessage}
-        footer={
-          <div className="text-center pt-2 text-sm text-muted-foreground">
-            Remembered your password?{' '}
-            <Link to="/login" className="text-primary hover:underline">
-              Back to login
-            </Link>
-          </div>
-        }
+        footer={<RecoveryFooter />}
       >
-          {/* Step 1: identifier */}
-          {step === 'identifier' && (
-            <Form {...identifierForm}>
-              <form
-                onSubmit={(e) => void identifierForm.handleSubmit(onIdentifierSubmit)(e)}
-                className="space-y-5"
-              >
-                <FormField
-                  control={identifierForm.control}
-                  name="identifier"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">Email or phone number</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          inputMode="email"
-                          autoComplete="username"
-                          placeholder="you@360ghar.com or +91XXXXXXXXXX"
-                          className="h-11 px-4 text-base"
-                          autoFocus
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="pt-2">
-                  <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <LoadingSpinner size="sm" className="mr-2" />
-                        Sending code...
-                      </>
-                    ) : (
-                      'Send Verification Code'
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          )}
-
-          {/* Step 2: OTP */}
-          {step === 'otp' && (
-            <Form {...otpForm}>
-              <form onSubmit={(e) => void otpForm.handleSubmit(onOtpSubmit)(e)} className="space-y-5">
-                <p className="text-sm text-muted-foreground">
-                  Enter the code sent to{' '}
-                  <span className="font-medium text-foreground">{maskIdentifier(normalized)}</span>
-                </p>
-                <FormField
-                  control={otpForm.control}
-                  name="otp"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">Verification code</FormLabel>
-                      <FormControl>
-                        <OtpInput
-                          placeholder="123456"
-                          className="h-11 px-4 text-base tracking-[0.5em] text-center"
-                          autoFocus
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="pt-2 space-y-3">
-                  <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <LoadingSpinner size="sm" className="mr-2" />
-                        Verifying...
-                      </>
-                    ) : (
-                      'Verify Code'
-                    )}
-                  </Button>
-                  <div className="flex items-center justify-between text-sm">
-                    <button
-                      type="button"
-                      onClick={backToIdentifier}
-                      className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <ArrowLeft className="h-4 w-4" /> Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleResendOtp()}
-                      disabled={isSubmitting || !resendTimer.canResend}
-                      className="text-primary hover:underline disabled:no-underline disabled:opacity-50"
-                    >
-                      {resendTimer.isActive ? `Resend code in ${resendTimer.secondsLeft}s` : 'Resend code'}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </Form>
-          )}
-
-          {/* Step 3: new password */}
-          {step === 'password' && (
-            <Form {...passwordForm}>
-              <form
-                onSubmit={(e) => void passwordForm.handleSubmit(onPasswordSubmit)(e)}
-                className="space-y-5"
-              >
-                <p className="text-sm text-muted-foreground">
-                  Setting a new password for{' '}
-                  <span className="font-medium text-foreground">{maskIdentifier(normalized)}</span>
-                </p>
-                <FormField
-                  control={passwordForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">New password</FormLabel>
-                      <FormControl>
-                        <PasswordInput
-                          show={showPassword}
-                          onToggleShow={() => setShowPassword(!showPassword)}
-                          autoComplete="new-password"
-                          placeholder="Enter new password"
-                          className="pl-4 h-11 text-base"
-                          autoFocus
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={passwordForm.control}
-                  name="confirm_password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium">Confirm password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          autoComplete="new-password"
-                          placeholder="Re-enter new password"
-                          className="h-11 px-4 text-base"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="pt-2">
-                  <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <LoadingSpinner size="sm" className="mr-2" />
-                        Updating password...
-                      </>
-                    ) : (
-                      'Update Password'
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          )}
+        {step === 'identifier' && <RecoveryIdentifierStep form={identifierForm} onSubmit={onIdentifierSubmit} isSubmitting={isSubmitting} />}
+        {step === 'otp' && (
+          <RecoveryOtpStep
+            form={otpForm}
+            onSubmit={onOtpSubmit}
+            isSubmitting={isSubmitting}
+            identifier={normalized}
+            resendTimer={resendTimer}
+            onBack={backToIdentifier}
+            onResend={() => void handleResendOtp()}
+          />
+        )}
+        {step === 'password' && (
+          <RecoveryPasswordStep
+            form={passwordForm}
+            onSubmit={onPasswordSubmit}
+            isSubmitting={isSubmitting}
+            identifier={normalized}
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword((value) => !value)}
+          />
+        )}
       </AuthCardLayout>
     </div>
   )

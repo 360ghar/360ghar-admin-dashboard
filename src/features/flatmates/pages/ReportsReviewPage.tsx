@@ -29,7 +29,7 @@ export function ReportsReviewPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const pager = useCursorPagination()
-  const { data, isLoading, error, refetch } = useGetPendingReportsQuery({
+  const { currentData: data, isLoading, isFetching, error, refetch } = useGetPendingReportsQuery({
     status: 'open',
     cursor: pager.cursor,
     limit: 20,
@@ -65,7 +65,7 @@ export function ReportsReviewPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || (isFetching && !data)) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingState type="spinner" />
@@ -108,7 +108,7 @@ export function ReportsReviewPage() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {group.distinctReporters} distinct reporter
                 {group.distinctReporters === 1 ? '' : 's'} •{' '}
-                {group.reasons.map((reason) => reasonLabels[reason] || reason).join(', ')}
+                {group.reasons.map((reason) => reasonLabels[reason]).join(', ')}
               </p>
             ) : undefined
           }
@@ -144,7 +144,7 @@ export function ReportsReviewPage() {
         canPrev={pager.canPrev}
         onNext={() => pager.next(data?.next_cursor ?? null)}
         onPrev={pager.prev}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       <ReportActionDialog

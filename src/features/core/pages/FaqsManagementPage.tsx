@@ -21,7 +21,7 @@ const FaqsManagementPage = () => {
   const { toast } = useToast()
   // Search is client-side over the current page only — don't put it in resetKey.
   const pager = useCursorPagination()
-  const { data, isLoading, isError, refetch } = useGetFaqsQuery({
+  const { currentData: data, isLoading, isFetching, isError, refetch } = useGetFaqsQuery({
     cursor: pager.cursor,
     limit: 20,
   })
@@ -69,6 +69,7 @@ const FaqsManagementPage = () => {
       toast({ title: 'FAQ deleted' })
     } catch (error) {
       toast({ title: 'Failed to delete FAQ', description: getErrorMessage(error, 'Please try again.'), variant: 'destructive' })
+      throw error
     }
   }
 
@@ -97,7 +98,7 @@ const FaqsManagementPage = () => {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {isLoading || (isFetching && !data) ? (
         <LoadingState type="card" rows={4} />
       ) : isError ? (
         <ErrorState title="Failed to load FAQs" onRetry={() => void refetch()} />
@@ -136,7 +137,7 @@ const FaqsManagementPage = () => {
                       description="Are you sure you want to delete this FAQ? This action cannot be undone."
                       confirmLabel="Delete"
                       variant="destructive"
-                      onConfirm={() => void handleDelete(faq.id)}
+                      onConfirm={() => handleDelete(faq.id)}
                     >
                       {(openDialog) => (
                         <Button variant="outline" size="sm" onClick={openDialog} disabled={isDeleting} aria-label="Delete FAQ">
@@ -157,7 +158,7 @@ const FaqsManagementPage = () => {
         canPrev={pager.canPrev}
         onNext={() => pager.next(data?.next_cursor ?? null)}
         onPrev={pager.prev}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       <FaqFormDialog

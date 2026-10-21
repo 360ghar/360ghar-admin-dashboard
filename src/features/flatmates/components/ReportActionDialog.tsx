@@ -61,9 +61,10 @@ export function ReportActionDialog({
                 <span className="text-sm text-muted-foreground">Reported User:</span>
                 <span className="font-medium">{selectedReport.reported_user?.full_name}</span>
               </div>
-              {selectedReport.description && (
+              {selectedReport.notes && (
                 <div className="pt-2 border-t">
-                  <p className="text-sm">{selectedReport.description}</p>
+                  <p className="text-sm text-muted-foreground">Reporter's note</p>
+                  <p className="text-sm">{selectedReport.notes}</p>
                 </div>
               )}
             </div>

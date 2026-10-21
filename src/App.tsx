@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import PrivateRoute from '@/features/auth/components/PrivateRoute'
 import RoleBasedRoute from '@/features/auth/components/RoleBasedRoute'
@@ -6,11 +7,12 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
 import { PageLoading } from '@/components/common/PageLoading'
 import { useAppDispatch } from '@/hooks/redux'
-import { clearCredentials, loadUserFromStorage, setCredentials, setInitialized } from '@/features/auth/slices/authSlice'
+import { clearCredentials, loadCachedProfile, setCredentials, setInitialized, setPendingSession } from '@/features/auth/slices/authSlice'
 import { supabase } from '@/lib/supabase'
 import { store } from '@/store'
 import { fetchUserProfileWithStatus } from '@/lib/auth'
 import { isLoginInProgress } from '@/lib/loginState'
+import { STAFF_PROFILE_RECHECK_EVENT } from '@/lib/sessionEvents'
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
 const SignupPage = lazy(() => import('@/features/auth/pages/SignupPage'))
@@ -71,76 +73,182 @@ function App() {
     }
 
     let isMounted = true
+    let authEpoch = 0
+    let lastVerifiedAt = 0
+    let activeVerification: { key: string; promise: Promise<void> } | null = null
     const client = supabase
 
-    const { data: { subscription } } = client.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return
+    const verifySession = async (session: Session, epoch: number) => {
+      const accountId = session.user.id
+      const { user, status } = await fetchUserProfileWithStatus(session.access_token, accountId)
+      if (!isMounted || epoch !== authEpoch) return
+      const auth = store.getState().auth
+      if (auth.accountId !== accountId || auth.token !== session.access_token) return
 
-        // TOKEN_REFRESHED: keep the Redux token fresh so prepareHeaders can
-        // serve it without a per-request Supabase getSession() round-trip.
-        if (event === 'TOKEN_REFRESHED') {
-          const { auth } = store.getState()
-          if (auth.user && session?.access_token) {
-            dispatch(setCredentials({ token: session.access_token, user: auth.user }))
+      if (user && user.is_active && (user.role === 'admin' || user.role === 'agent')) {
+        dispatch(setCredentials({ token: session.access_token, user }))
+        lastVerifiedAt = Date.now()
+        return
+      }
+
+      // A backend denial is authoritative. Do not use a cached role for access.
+      if (status === 401 || status === 403 || status === 404 || user) {
+        dispatch(clearCredentials())
+        try {
+          const { data } = await client.auth.getSession()
+          if (data.session?.user.id === accountId && data.session.access_token === session.access_token) {
+            await client.auth.signOut()
           }
+        } catch {
+          // Redux and API state were cleared before the remote sign-out attempt.
+        }
+        return
+      }
+
+      // An established session stays available during a temporary outage.
+      // Access is removed only after the backend gives an authoritative answer.
+      if (auth.profileStatus === 'verified' && (status === null || status >= 500)) return
+
+      // A temporary failure keeps the Supabase session. The cached value is
+      // only a display hint; protected routes remain closed until verification.
+      dispatch(setPendingSession({
+        token: session.access_token,
+        accountId,
+        cachedProfile: status === null || status >= 500 ? loadCachedProfile(accountId) : null,
+        verifying: false,
+      }))
+    }
+
+    const runVerification = (session: Session) => {
+      const key = `${session.user.id}:${session.access_token}`
+      if (activeVerification?.key === key) return
+      const promise = verifySession(session, ++authEpoch)
+      activeVerification = { key, promise }
+      void promise.finally(() => {
+        if (activeVerification?.promise === promise) activeVerification = null
+      })
+    }
+
+    const retryPendingSession = () => {
+      void client.auth.getSession().then(({ data }) => {
+        if (!isMounted) return
+        const current = store.getState().auth
+        if (!data.session) return
+        if (current.profileStatus === 'verified') {
+          if (current.accountId === data.session.user.id &&
+              current.token === data.session.access_token &&
+              Date.now() - lastVerifiedAt >= 60_000) runVerification(data.session)
           return
         }
+        if (current.profileStatus !== 'pending' || current.accountId !== data.session.user.id) return
+        dispatch(setPendingSession({
+          token: data.session.access_token,
+          accountId: data.session.user.id,
+          cachedProfile: loadCachedProfile(data.session.user.id),
+        }))
+        runVerification(data.session)
+      }).catch(() => {
+        // Keep the pending session until a later retry.
+      })
+    }
+
+    const recheckAfterPermissionFailure = () => {
+      void client.auth.getSession().then(({ data }) => {
+        if (!isMounted || !data.session) return
+        const current = store.getState().auth
+        if (current.profileStatus === 'verified' && current.accountId === data.session.user.id &&
+            current.token === data.session.access_token) runVerification(data.session)
+      }).catch(() => {
+        // A later focus, reconnect, or token refresh retries verification.
+      })
+    }
+
+    window.addEventListener('online', retryPendingSession)
+    window.addEventListener('focus', retryPendingSession)
+    window.addEventListener(STAFF_PROFILE_RECHECK_EVENT, recheckAfterPermissionFailure)
+
+    const { data: { subscription } } = client.auth.onAuthStateChange(
+      (event, session) => {
+        if (!isMounted) return
 
         if (event === 'SIGNED_OUT') {
+          authEpoch += 1
+          activeVerification = null
           dispatch(clearCredentials())
           return
         }
 
+        if (event === 'TOKEN_REFRESHED') {
+          const { auth } = store.getState()
+          if (!session?.access_token || auth.accountId !== session.user.id) return
+          if (auth.user && auth.profileStatus === 'verified') {
+            dispatch(setCredentials({ token: session.access_token, user: auth.user }))
+            runVerification(session)
+          } else if (auth.profileStatus === 'pending') {
+            dispatch(setPendingSession({
+              token: session.access_token,
+              accountId: session.user.id,
+              cachedProfile: auth.cachedProfile,
+            }))
+            runVerification(session)
+          }
+          return
+        }
+
         if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          if (event === 'INITIAL_SESSION') dispatch(setInitialized(true))
           if (!session?.access_token) {
+            authEpoch += 1
+            activeVerification = null
             dispatch(clearCredentials())
-            if (event === 'INITIAL_SESSION') {
-              dispatch(setInitialized(true))
-            }
             return
           }
 
-          // SIGNED_IN fires after LoginPage already set credentials in Redux.
-          // Skip the redundant profile fetch — either credentials are already
-          // set, or the login flow is mid-flight and will set them shortly.
-          if (event === 'SIGNED_IN') {
-            if (isLoginInProgress.current) return
-            const { auth } = store.getState()
-            if (auth.token && auth.user) return
+          const accountId = session.user.id
+          const { auth } = store.getState()
+          if (auth.accountId !== accountId) {
+            authEpoch += 1
+            activeVerification = null
+            dispatch(setPendingSession({
+              token: session.access_token,
+              accountId,
+              cachedProfile: loadCachedProfile(accountId),
+            }))
+          } else if (auth.profileStatus === 'pending' && auth.token !== session.access_token) {
+            dispatch(setPendingSession({
+              token: session.access_token,
+              accountId,
+              cachedProfile: auth.cachedProfile,
+            }))
           }
 
-          const { user, status } = await fetchUserProfileWithStatus(session.access_token)
-          if (!isMounted) return
-
-          if (user) {
-            dispatch(setCredentials({ token: session.access_token, user }))
-          } else if (status === 404) {
-            // The backend explicitly has no profile for this session — the
-            // account is not a provisioned staff member. Do NOT fall back to
-            // the cached user (that would keep a revoked account logged in).
-            dispatch(clearCredentials())
-          } else {
-            // Transient failure (backend down / network) — do NOT sign out of
-            // Supabase. The session is still valid; fall back to the cached
-            // user so the session survives a refresh.
-            const cachedUser = loadUserFromStorage()
-            if (cachedUser) {
-              dispatch(setCredentials({ token: session.access_token, user: cachedUser }))
-            } else {
-              dispatch(clearCredentials())
+          // The login flow verifies the profile itself. It may dispatch
+          // credentials after this event, so do not start a second request.
+          if (event === 'SIGNED_IN') {
+            if (isLoginInProgress.current) {
+              authEpoch += 1
+              activeVerification = null
+              return
+            }
+            const current = store.getState().auth
+            if (current.accountId === accountId && current.profileStatus === 'verified') {
+              if (current.token !== session.access_token && current.user) {
+                dispatch(setCredentials({ token: session.access_token, user: current.user }))
+              }
+              runVerification(session)
+              return
             }
           }
-
-          if (event === 'INITIAL_SESSION') {
-            dispatch(setInitialized(true))
-          }
+          runVerification(session)
         }
       }
     )
 
     return () => {
       isMounted = false
+      window.removeEventListener('online', retryPendingSession)
+      window.removeEventListener('focus', retryPendingSession)
+      window.removeEventListener(STAFF_PROFILE_RECHECK_EVENT, recheckAfterPermissionFailure)
       subscription.unsubscribe()
     }
   }, [dispatch])

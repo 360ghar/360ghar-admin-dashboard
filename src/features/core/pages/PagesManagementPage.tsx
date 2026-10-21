@@ -16,11 +16,13 @@ import { getErrorMessage } from '@/lib/errors'
 import { formatDate } from '@/lib/format'
 import { useGetPagesQuery, useDeletePageMutation } from '@/features/core/api/coreApi'
 import type { Page } from '@/types/api'
+import { PAGE_FORMATS, PAGE_FORMAT_LABELS } from '@/features/core/constants'
 import { ConfirmAlertDialog } from '@/components/ui/confirm-alert-dialog'
 import PageFormDialog, { type PageFormData } from '../components/pages/PageFormDialog'
 import PagePreviewDialog from '../components/pages/PagePreviewDialog'
 
-const defaultFormData: PageFormData = { unique_name: '', title: '', content: '', format: 'html', custom_config_text: '', is_active: true, is_draft: false }
+// New pages start private, like the backend default. Clear "Private" to publish.
+const defaultFormData: PageFormData = { unique_name: '', title: '', content: '', format: 'html', custom_config_text: '', is_active: true, is_draft: false, is_private: true }
 
 const PagesManagementPage: React.FC = () => {
   const { toast } = useToast()
@@ -33,7 +35,7 @@ const PagesManagementPage: React.FC = () => {
 
   const pager = useCursorPagination(`${filterType}`)
 
-  const { data: pagesData, isLoading, isError, refetch } = useGetPagesQuery({
+  const { currentData: pagesData, isLoading, isFetching, isError, refetch } = useGetPagesQuery({
     cursor: pager.cursor,
     limit: 20})
   const [deletePage, { isLoading: isDeleting }] = useDeletePageMutation()
@@ -43,25 +45,25 @@ const PagesManagementPage: React.FC = () => {
     const matchesSearch =
       page.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       page.unique_name.toLowerCase().includes(searchTerm.toLowerCase())
-    // Page.format is 'html' | 'markdown' (not CMS page "type").
+    // Page.format is html, markdown or json (not CMS page "type").
     const matchesType = filterType === 'all' || page.format === filterType
     return matchesSearch && matchesType
   })
 
   const handleEdit = (page: Page) => {
     setEditingPage(page)
-    setFormData({ unique_name: page.unique_name, title: page.title, content: page.content, format: page.format, custom_config_text: page.custom_config ? JSON.stringify(page.custom_config, null, 2) : '', is_active: page.is_active, is_draft: page.is_draft })
+    setFormData({ unique_name: page.unique_name, title: page.title, content: page.content, format: page.format, custom_config_text: page.custom_config ? JSON.stringify(page.custom_config, null, 2) : '', is_active: page.is_active, is_draft: page.is_draft, is_private: page.is_private })
     setIsDialogOpen(true)
   }
 
   const handleDelete = async (uniqueName: string) => {
-    try { await deletePage(uniqueName).unwrap(); toast({ title: 'Success', description: 'Page deleted successfully' }); void refetch() }
-    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete page'), variant: 'destructive' }) }
+    try { await deletePage(uniqueName).unwrap(); toast({ title: 'Success', description: 'Page deleted successfully' }) }
+    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete page'), variant: 'destructive' }); throw error }
   }
 
   const handlePreview = (page: Page) => {
     setEditingPage(page)
-    setFormData({ unique_name: page.unique_name, title: page.title, content: page.content, format: page.format, custom_config_text: page.custom_config ? JSON.stringify(page.custom_config, null, 2) : '', is_active: page.is_active, is_draft: page.is_draft })
+    setFormData({ unique_name: page.unique_name, title: page.title, content: page.content, format: page.format, custom_config_text: page.custom_config ? JSON.stringify(page.custom_config, null, 2) : '', is_active: page.is_active, is_draft: page.is_draft, is_private: page.is_private })
     setPreviewMode(true)
   }
 
@@ -87,13 +89,12 @@ const PagesManagementPage: React.FC = () => {
             <SelectTrigger className="w-48"><SelectValue placeholder="Filter by format" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Formats</SelectItem>
-              <SelectItem value="html">HTML</SelectItem>
-              <SelectItem value="markdown">Markdown</SelectItem>
+              {PAGE_FORMATS.map((format) => (<SelectItem key={format} value={format}>{PAGE_FORMAT_LABELS[format]}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
       </CardContent></Card>
-      {isLoading ? <LoadingState type="card" rows={3} /> : isError ? (
+      {isLoading || (isFetching && !pagesData) ? <LoadingState type="card" rows={3} /> : isError ? (
         <ErrorState title="Failed to load pages" onRetry={() => void refetch()} />
       ) : !filteredPages.length ? (
         <EmptyState icon={<FileText className="h-10 w-10" />} title="No pages found" description="Create your first page to get started."
@@ -103,7 +104,7 @@ const PagesManagementPage: React.FC = () => {
           <Card key={page.unique_name}><CardContent className="pt-6">
             <div className="flex justify-between items-start">
               <div className="space-y-2">
-                <div className="flex items-center gap-2"><h3 className="font-semibold">{page.title}</h3><Badge variant="outline">{page.format}</Badge>{page.is_draft && <Badge variant="secondary">Draft</Badge>}</div>
+                <div className="flex items-center gap-2"><h3 className="font-semibold">{page.title}</h3><Badge variant="outline">{page.format}</Badge>{page.is_draft && <Badge variant="secondary">Draft</Badge>}{page.is_private && <Badge variant="secondary">Private</Badge>}</div>
                 <p className="text-sm text-muted-foreground">/{page.unique_name}</p>
                 <p className="text-sm line-clamp-2">{(page.content ?? '').replace(/<[^>]*>/g, '').substring(0, 150)}{(page.content?.length ?? 0) > 150 ? '...' : ''}</p>
                 <div className="flex items-center gap-4 text-xs text-muted-foreground"><span>Status: {page.is_active ? 'Active' : 'Inactive'}</span><span>Updated: {formatDate(page.updated_at)}</span></div>
@@ -124,9 +125,9 @@ const PagesManagementPage: React.FC = () => {
         canPrev={pager.canPrev}
         onNext={() => pager.next(pagesData?.next_cursor ?? null)}
         onPrev={pager.prev}
-        loading={isLoading}
+        loading={isFetching}
       />
-      <PageFormDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} editingPage={editingPage} formData={formData} setFormData={setFormData} onSuccess={() => { setEditingPage(null); setFormData({ ...defaultFormData }); void refetch() }} />
+      <PageFormDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} editingPage={editingPage} formData={formData} setFormData={setFormData} onSuccess={() => { setEditingPage(null); setFormData({ ...defaultFormData }) }} />
       {previewMode && editingPage && <PagePreviewDialog open={previewMode} onOpenChange={setPreviewMode} title={formData.title} content={formData.content} uniqueName={formData.unique_name} format={formData.format} />}
     </div>
   )

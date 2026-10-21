@@ -14,16 +14,22 @@ type Props<T extends string | number> = {
   placeholder?: string
   emptyText?: string
   className?: string
+  disabled?: boolean
 }
 
-export function Combobox<T extends string | number>({ items, value = '', onChange, placeholder = 'Search…', emptyText = 'No results', className }: Props<T>) {
+export function Combobox<T extends string | number>({ items, value = '', onChange, placeholder = 'Search…', emptyText = 'No results', className, disabled = false }: Props<T>) {
   const [open, setOpen] = React.useState(false)
   const selected = items.find((i) => String(i.value) === String(value))
+  const isOpen = !disabled && open
+  // A disabled combobox closes, so enabling it again does not reopen the list.
+  React.useEffect(() => {
+    if (disabled) setOpen(false)
+  }, [disabled])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={isOpen} onOpenChange={(nextOpen) => { if (!disabled) setOpen(nextOpen) }}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className={cn('w-full justify-between', className)}>
+        <Button variant="outline" role="combobox" aria-expanded={isOpen} disabled={disabled} className={cn('w-full justify-between', className)}>
           {selected ? selected.label : 'Select…'}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -35,7 +41,7 @@ export function Combobox<T extends string | number>({ items, value = '', onChang
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {items.map((item) => (
-                <CommandItem key={String(item.value)} onSelect={() => { onChange(item.value); setOpen(false) }}>
+                <CommandItem key={String(item.value)} onSelect={() => { if (disabled) return; onChange(item.value); setOpen(false) }}>
                   <Check className={cn('mr-2 h-4 w-4', String(item.value) === String(value) ? 'opacity-100' : 'opacity-0')} />
                   {item.label}
                 </CommandItem>

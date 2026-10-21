@@ -70,7 +70,7 @@ describe('activity mappers', () => {
       created_at: '2026-06-04T10:00:00Z',
       status: 'requested',
       property: { title: 'Sea View' },
-      user: { full_name: 'Asha' },
+      user: { display_name: 'Asha' },
     })
     expect(entry).toMatchObject({ id: 'visit-7', kind: 'visit', title: 'Visit · Sea View', subtitle: 'Asha', href: '/visits/7' })
   })
@@ -93,11 +93,12 @@ describe('computeStatusBreakdown', () => {  it('extracts totals from queries wit
     expect(isError).toBe(false)
   })
 
-  it('falls back to items.length when total is missing', () => {
-    const { totals } = computeStatusBreakdown([
+  it('marks a missing total as unknown instead of using the sampled page length', () => {
+    const { totals, isError } = computeStatusBreakdown([
       { data: { items: [{ id: 1 }, { id: 2 }] }, isLoading: false, isError: false },
     ])
-    expect(totals).toEqual([2])
+    expect(totals).toEqual([null])
+    expect(isError).toBe(true)
   })
 
   it('reports loading when any query is loading', () => {
@@ -116,10 +117,10 @@ describe('computeStatusBreakdown', () => {  it('extracts totals from queries wit
     expect(isError).toBe(true)
   })
 
-  it('returns 0 for a query with null data', () => {
+  it('keeps a missing response unknown', () => {
     const { totals } = computeStatusBreakdown([
       { data: null, isLoading: false, isError: false },
     ])
-    expect(totals).toEqual([0])
+    expect(totals).toEqual([null])
   })
 })

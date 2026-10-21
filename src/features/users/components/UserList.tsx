@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useGetUsersQuery } from '@/features/users/api/usersApi'
 import type { UsersQuery } from '@/features/users/api/usersApi'
@@ -6,10 +6,11 @@ import type { User } from '@/types/api'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Link } from 'react-router-dom'
-import { useListAgentsQuery } from '@/features/agents/api/agentsApi'
+import { useListAllAgentsQuery } from '@/features/agents/api/agentsApi'
 import CursorPager from '@/components/ui/cursor-pager'
-import { useDebounce } from '@/hooks/useDebounce'
+import { useScopedDebounce } from '@/hooks/useScopedDebounce'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
+import { PAGE_SIZE_OPTIONS, usePageSizePreference } from '@/hooks/usePageSizePreference'
 import Combobox from '@/components/ui/combobox'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -25,31 +26,31 @@ import { Badge } from '@/components/ui/badge'
 import { Download } from 'lucide-react'
 import { downloadCsv, csvFilename } from '@/lib/csv'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { scopedStorageKey } from '@/lib/storage'
 
 const UserList = () => {
   const { user: me, role } = useUserRole()
   const isMobile = useIsMobile()
 
-  const { filters, setFilters } = useFilterPersistence({
+  const { filters, setFilters, clearFilters } = useFilterPersistence({
     key: 'users',
+    accountId: me?.supabase_user_id,
     defaultValue: {
       q: '',
       agentId: '',
     },
   })
 
-  const [q, setQ] = useState(filters.q || '')
-  const [agentId, setAgentId] = useState<number | ''>(filters.agentId ? Number(filters.agentId) : '')
+  const q = filters.q
+  const agentId = filters.agentId && Number.isFinite(Number(filters.agentId)) ? Number(filters.agentId) : ''
+  const setQ = (value: string) => setFilters({ q: value })
+  const setAgentId = (value: number | '') => setFilters({ agentId: value === '' ? '' : String(value) })
 
-  useEffect(() => {
-    setFilters({ q, agentId: agentId ? String(agentId) : '' })
-  }, [q, agentId, setFilters])
+  const dq = useScopedDebounce(q, me?.supabase_user_id)
 
-  const dq = useDebounce(q)
-
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePageSizePreference({ key: 'users', accountId: me?.supabase_user_id, defaultSize: 10, sizes: PAGE_SIZE_OPTIONS })
   // resetKey resets cursor during render when filters/limit change (avoids stale-cursor requests)
-  const pager = useCursorPagination(`${dq}|${agentId}|${pageSize}`)
+  const pager = useCursorPagination(`${me?.supabase_user_id ?? ''}|${role ?? ''}|${me?.agent_id ?? ''}|${dq}|${agentId}|${pageSize}`)
 
   const params = useMemo(() => {
     const base: UsersQuery = {}
@@ -59,18 +60,14 @@ const UserList = () => {
     return base
   }, [dq, agentId, role, me?.agent_id])
 
-  const { data, isFetching, isLoading, error, refetch } = useGetUsersQuery({ ...params, cursor: pager.cursor, limit: pageSize })
-  const agents = useListAgentsQuery(
+  const { currentData: data, isFetching, isLoading, error, refetch } = useGetUsersQuery({ ...params, cursor: pager.cursor, limit: pageSize })
+  // The agent filter needs every agent, not the first page.
+  const agents = useListAllAgentsQuery(
     { include_inactive: false },
     { skip: role !== 'admin' },
   )
 
   const activeFilterCount = (q ? 1 : 0) + (role === 'admin' && agentId ? 1 : 0)
-
-  const clearFilters = () => {
-    setQ('')
-    setAgentId('')
-  }
 
   const handleExport = () => {
     const rows = (data?.items ?? []).map((u) => ({
@@ -105,10 +102,7 @@ const UserList = () => {
     },
     {
       header: 'Assigned Agent',
-      cell: ({ row }) =>
-        row.original.agent?.name
-        ?? row.original.agent?.user?.full_name
-        ?? '-',
+      cell: ({ row }) => row.original.agent?.name ?? '-',
     },
     {
       id: 'status',
@@ -138,7 +132,7 @@ const UserList = () => {
       {role === 'admin' && (
         <FilterSection label="Agent">
           <Combobox
-            items={[{ value: '', label: 'All Agents' }, ...(agents.data?.items ?? []).map((a) => ({ value: a.id, label: a.name || `Agent #${a.id}` }))]}
+            items={[{ value: '', label: 'All Agents' }, ...(agents.data ?? []).map((a) => ({ value: a.id, label: a.name || `Agent #${a.id}` }))]}
             value={agentId}
             onChange={(v) => setAgentId(v !== '' ? Number(v) : '')}
             placeholder="Filter agents…"
@@ -168,7 +162,7 @@ const UserList = () => {
         </Badge>
       </div>
       <div className="text-xs text-muted-foreground">
-        Agent: {user.agent?.name ?? user.agent?.user?.full_name ?? '—'}
+        Agent: {user.agent?.name ?? '—'}
       </div>
       <div className="flex justify-end">
         <Button variant="outline" size="sm" asChild>
@@ -185,7 +179,7 @@ const UserList = () => {
           <Input placeholder="Search name, phone, email" value={q} onChange={(e) => setQ(e.target.value)} />
           {role === 'admin' && (
             <Combobox
-              items={[{ value: '', label: 'All Agents' }, ...(agents.data?.items ?? []).map((a) => ({ value: a.id, label: a.name || `Agent #${a.id}` }))]}
+              items={[{ value: '', label: 'All Agents' }, ...(agents.data ?? []).map((a) => ({ value: a.id, label: a.name || `Agent #${a.id}` }))]}
               value={agentId}
               onChange={(v) => setAgentId(v !== '' ? Number(v) : '')}
               placeholder="Filter agents…"
@@ -220,11 +214,12 @@ const UserList = () => {
       ) : (
         <div className="space-y-4">
           <ResponsiveDataTable
+            enableColumnVisibility
             columns={columns}
             data={data.items}
             enableSorting
             mobileCardRender={renderCard}
-            viewStorageKey="users-table"
+            viewStorageKey={me?.supabase_user_id ? scopedStorageKey('users-table', me.supabase_user_id) : 'users-table-anonymous'}
           />
           <CursorPager
             canPrev={pager.canPrev}

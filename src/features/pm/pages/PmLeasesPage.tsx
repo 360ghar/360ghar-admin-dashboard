@@ -1,8 +1,9 @@
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
 import {useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileText } from "lucide-react";
-import { LEASE_STATUSES, PAGE_SIZES } from "@/features/pm/constants";
+import { LEASE_STATUSES, PAGE_SIZES, getStatusLabel } from "@/features/pm/constants";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import CreateLeaseDialog from "@/features/pm/components/CreateLeaseDialog";
 import { formatDate } from "@/lib/format";
@@ -29,8 +30,9 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 
 const leaseBadgeVariant = (status: LeaseStatus) => {
-  if (status === "active") return "default";
-  if (status === "terminated" || status === "expired") return "outline";
+  // An expiring-soon lease still occupies its property, so it reads like an active one.
+  if (status === "active" || status === "expiring_soon") return "default";
+  if (status === "terminated" || status === "expired" || status === "renewed") return "outline";
   return "secondary";
 };
 
@@ -43,7 +45,7 @@ export default function PmLeasesPage() {
 
   const ownerId = selectedOwnerId;
 
-  const pager = useCursorPagination(`${status}|${limit}`);
+  const pager = useCursorPagination(pmCursorKey(ownerId, status, limit));
 
 
   const leases = useListPmLeasesQuery(
@@ -51,7 +53,7 @@ export default function PmLeasesPage() {
     { skip: role === "agent" && !ownerId },
   );
 
-  const displayData = leases.data?.items;
+  const displayData = leases.currentData?.items;
 
   const columns = useMemo<ColumnDef<Lease>[]>(() => {
     return [
@@ -71,7 +73,7 @@ export default function PmLeasesPage() {
         header: "Status",
         cell: ({ row }) => (
           <Badge variant={leaseBadgeVariant(row.original.status)}>
-            {row.original.status}
+            {getStatusLabel(LEASE_STATUSES, row.original.status)}
           </Badge>
         )},
       {
@@ -116,7 +118,7 @@ export default function PmLeasesPage() {
           title="Leases"
           description="Create, renew, terminate, and upload signed lease documents."
           icon={FileText}
-          actions={<CreateLeaseDialog ownerId={ownerId} />}
+          actions={<CreateLeaseDialog key={ownerId ?? 'all'} ownerId={ownerId} />}
         />
 
         <Card>
@@ -164,17 +166,17 @@ export default function PmLeasesPage() {
                 error={leases.error}
                 onRetry={() => { void leases.refetch(); }}
               />
-            ) : leases.isLoading ? (
+            ) : (!leases.currentData && leases.isFetching) ? (
               <LoadingState type="spinner" />
             ) : displayData?.length ? (
               <>
                 <ResponsiveDataTable columns={columns} data={displayData} />
                 <CursorPager
                   canPrev={pager.canPrev}
-                  hasMore={leases.data?.has_more ?? false}
+                  hasMore={leases.currentData?.has_more ?? false}
                   loading={leases.isFetching}
                   onPrev={pager.prev}
-                  onNext={() => leases.data && pager.next(leases.data.next_cursor)}
+                  onNext={() => leases.currentData && pager.next(leases.currentData.next_cursor)}
                 />
               </>
             ) : (

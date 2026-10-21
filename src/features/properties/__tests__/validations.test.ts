@@ -6,6 +6,7 @@ const base = {
   property_type: 'apartment',
   purpose: 'rent',
   base_price: 50000,
+  monthly_rent: 45000,
   city: 'Gurgaon',
   locality: 'DLF Phase 2',
   area_sqft: 1200,
@@ -58,6 +59,20 @@ describe('propertyFormSchema', () => {
     expect(propertyFormSchema.safeParse({ ...base, windows_count: 0 }).success).toBe(true)
     expect(propertyFormSchema.safeParse({ ...base, ventilation_shafts: 50 }).success).toBe(true)
     expect(propertyFormSchema.safeParse({ ...base, ventilation_shafts: 0 }).success).toBe(true)
+  })
+
+  it('requires a monthly rent for rent listings and a rent purpose for PG and flatmate listings', () => {
+    expect(propertyFormSchema.safeParse({ ...base, monthly_rent: undefined }).success).toBe(false)
+    expect(propertyFormSchema.safeParse({ ...base, purpose: 'buy', monthly_rent: undefined }).success).toBe(true)
+    expect(propertyFormSchema.safeParse({ ...base, property_type: 'pg', purpose: 'buy' }).success).toBe(false)
+  })
+
+  it('keeps counts and coordinates inside the backend bounds', () => {
+    expect(propertyFormSchema.safeParse({ ...base, bedrooms: 51 }).success).toBe(false)
+    expect(propertyFormSchema.safeParse({ ...base, bedrooms: 2.5 }).success).toBe(false)
+    expect(propertyFormSchema.safeParse({ ...base, latitude: 91 }).success).toBe(false)
+    expect(propertyFormSchema.safeParse({ ...base, longitude: -181 }).success).toBe(false)
+    expect(propertyFormSchema.safeParse({ ...base, floor_number: -5, total_floors: 3 }).success).toBe(true)
   })
 
   it('rejects other_charges_description longer than 300 characters and accepts exactly 300', () => {

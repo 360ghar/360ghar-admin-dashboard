@@ -173,6 +173,35 @@ describe('pmApi optimistic updates', () => {
     await vi.waitFor(() => expect(getCalls.length).toBeGreaterThanOrEqual(2))
   })
 
+  it('refreshes expense reports after an expense is created', async () => {
+    let reportRequests = 0
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const { path, method } = requestInfo(input)
+      if (path.endsWith('/pm/reports/expenses') && method === 'GET') {
+        reportRequests += 1
+        return jsonResponse({ total_expenses: 500 })
+      }
+      if (path.endsWith('/pm/expenses') && method === 'POST') {
+        return jsonResponse({ id: 1, owner_id: 20, property_id: 10, category: 'repairs', amount: 500, expense_date: '2026-01-01', is_recurring: false, created_at: '2026-01-01T00:00:00Z' })
+      }
+      return jsonResponse({ detail: 'not found' }, 404)
+    })
+
+    const store = makeStore()
+    await store.dispatch(pmApi.endpoints.getExpenseReport.initiate({ owner_id: 20 })).unwrap()
+    expect(reportRequests).toBe(1)
+
+    await store.dispatch(pmApi.endpoints.createPmExpense.initiate({
+      owner_id: 20,
+      property_id: 10,
+      category: 'repairs',
+      amount: 500,
+      expense_date: '2026-01-01',
+    })).unwrap()
+
+    await vi.waitFor(() => expect(reportRequests).toBeGreaterThanOrEqual(2))
+  })
+
   it('does not send null cursors to the backend (sanitizeFetchArgs)', async () => {
     const urls: string[] = []
     fetchMock.mockImplementation((input: RequestInfo | URL) => {

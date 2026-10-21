@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
 import { Activity } from 'lucide-react'
 import { formatDateTime } from '@/lib/format'
 import { ActivityRow } from '@/features/pm/components/ActivityRow'
 import { useUserRole } from '@/hooks/useUserRole'
 import { useAppSelector } from '@/hooks/redux'
-import { useDebounce } from '@/hooks/useDebounce'
 import { selectSelectedOwnerId } from '@/features/pm/slices/pmSlice'
 import { useGetPmDashboardActivityQuery } from '@/features/pm/api/pmApi'
 import OwnerScopeGate from '@/features/pm/components/OwnerScopeGate'
@@ -15,6 +15,8 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import CursorPager from '@/components/ui/cursor-pager'
+import { useCursorPagination } from '@/hooks/useCursorPagination'
 import { PageHeader } from '@/components/ui/page-header'
 import FadeContent from '@/components/reactbits/FadeContent'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
@@ -24,10 +26,11 @@ export default function PmAuditLogPage() {
   const selectedOwnerId = useAppSelector(selectSelectedOwnerId)
   const prefersReducedMotion = usePrefersReducedMotion()
 
-  const ownerId = useDebounce(selectedOwnerId, 300)
+  const ownerId = selectedOwnerId
 
+  const pager = useCursorPagination(pmCursorKey(ownerId, 50))
   const activity = useGetPmDashboardActivityQuery(
-    { owner_id: ownerId, limit: 50 },
+    { owner_id: ownerId, limit: 50, cursor: pager.cursor },
     { skip: role === "agent" && !ownerId },
   )
 
@@ -38,12 +41,15 @@ export default function PmAuditLogPage() {
   const [entityId, setEntityId] = useState<string>('')
 
   const filtered = useMemo(() => {
-    const rows = activity.data?.items ?? []
+    const rows = activity.currentData?.items ?? []
     return rows.filter((a) => {
       if (typeFilter !== 'all' && a.type !== typeFilter) return false
       if (statusFilter !== 'all' && a.status !== statusFilter) return false
-      if (fromDate && new Date(a.at) < new Date(fromDate)) return false
-      if (toDate && new Date(a.at) > new Date(`${toDate}T23:59:59`)) return false
+      // `at` is a UTC timestamp ending in Z, so its first ten characters are its UTC day. The day filters
+      // compare days, as the report dates do (YYYY-MM-DD, both ends inclusive, UTC).
+      const day = a.at.slice(0, 10)
+      if (fromDate && day < fromDate) return false
+      if (toDate && day > toDate) return false
       if (entityId.trim()) {
         const needle = entityId.trim()
         const matchesProp = a.property_id ? String(a.property_id) === needle : false
@@ -52,19 +58,19 @@ export default function PmAuditLogPage() {
       }
       return true
     })
-  }, [activity.data, typeFilter, statusFilter, fromDate, toDate, entityId])
+  }, [activity.currentData, typeFilter, statusFilter, fromDate, toDate, entityId])
 
   const typeOptions = useMemo(() => {
     const set = new Set<string>()
-    ;(activity.data?.items ?? []).forEach((a) => { if (a.type) set.add(a.type) })
+    ;(activity.currentData?.items ?? []).forEach((a) => { if (a.type) set.add(a.type) })
     return Array.from(set).sort()
-  }, [activity.data])
+  }, [activity.currentData])
 
   const statusOptions = useMemo(() => {
     const set = new Set<string>()
-    ;(activity.data?.items ?? []).forEach((a) => { if (a.status) set.add(a.status) })
+    ;(activity.currentData?.items ?? []).forEach((a) => { if (a.status) set.add(a.status) })
     return Array.from(set).sort()
-  }, [activity.data])
+  }, [activity.currentData])
 
   const hasActiveFilters = typeFilter !== 'all' || statusFilter !== 'all' || fromDate || toDate || entityId.trim()
 
@@ -134,6 +140,7 @@ export default function PmAuditLogPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Recent activity</CardTitle>
+          <p className="text-xs text-muted-foreground">The filters apply to the rows of the page you are on. Days are UTC days.</p>
         </CardHeader>
         <CardContent>
           {activity.isError ? (
@@ -142,7 +149,7 @@ export default function PmAuditLogPage() {
               error={activity.error}
               onRetry={() => { void activity.refetch() }}
             />
-          ) : activity.isLoading ? (
+          ) : (!activity.currentData && activity.isFetching) ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
@@ -186,6 +193,15 @@ export default function PmAuditLogPage() {
               description={hasActiveFilters ? 'Try adjusting or clearing the filters.' : undefined}
             />
           )}
+          {activity.currentData && (pager.canPrev || activity.currentData.has_more) ? (
+            <CursorPager
+              canPrev={pager.canPrev}
+              hasMore={activity.currentData.has_more}
+              loading={activity.isFetching}
+              onPrev={pager.prev}
+              onNext={() => pager.next(activity.currentData?.next_cursor)}
+            />
+          ) : null}
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -7,12 +7,11 @@ import SplitText from '@/components/reactbits/SplitText'
 import FadeContent from '@/components/reactbits/FadeContent'
 import { cn } from '@/lib/utils'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
+import { useUserRole } from '@/hooks/useUserRole'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { inferPageBreadcrumbs, type PageBreadcrumb } from '@/components/layout/pageBreadcrumbs'
 
-export interface PageBreadcrumb {
-  label: string
-  to?: string
-}
+export type { PageBreadcrumb }
 
 export interface PageHeaderProps {
   title: string
@@ -42,13 +41,16 @@ export function PageHeader({
 }: PageHeaderProps) {
   useDocumentTitle(title)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const { pathname } = useLocation()
+  const { role } = useUserRole()
+  const pageBreadcrumbs = breadcrumbs ?? inferPageBreadcrumbs(pathname, title, role)
 
   return (
     <div className={cn('space-y-3', className)}>
-      {breadcrumbs && breadcrumbs.length > 0 && (
+      {pageBreadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-          {breadcrumbs.map((crumb, i) => {
-            const isLast = i === breadcrumbs.length - 1
+          {pageBreadcrumbs.map((crumb, i) => {
+            const isLast = i === pageBreadcrumbs.length - 1
             return (
               <span key={`${crumb.label}-${i}`} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />}
@@ -73,7 +75,7 @@ export function PageHeader({
         </nav>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1 min-w-0">
           <div className="flex items-center gap-3 min-w-0">
             {Icon && (

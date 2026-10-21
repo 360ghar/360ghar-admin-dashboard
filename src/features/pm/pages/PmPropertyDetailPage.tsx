@@ -2,8 +2,11 @@ import { Link, useParams } from 'react-router-dom'
 import { Building2, FileText } from 'lucide-react'
 import type { ManagedPropertyStatus } from '@/types/pm'
 import { useGetPmPropertyDetailQuery } from '@/features/pm/api/pmApi'
+import { selectSelectedOwnerId } from '@/features/pm/slices/pmSlice'
+import { useAppSelector } from '@/hooks/redux'
+import { useUserRole } from '@/hooks/useUserRole'
 import { formatCurrency } from '@/lib/format'
-import { deriveNightlyRate } from '@/features/properties/lib/nightlyRate'
+import { LEASE_STATUSES, getStatusLabel } from '@/features/pm/constants'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
-import { PropertySettingsEditDialog } from '@/features/pm/components/PropertySettingsEditDialog'
+import { PropertyEditDialog } from '@/features/pm/components/PropertyEditDialog'
 import CountUp from '@/components/reactbits/CountUp'
 
 const statusVariant = (status?: ManagedPropertyStatus | null) => {
@@ -23,12 +26,13 @@ const statusVariant = (status?: ManagedPropertyStatus | null) => {
 export default function PmPropertyDetailPage() {
   const { propertyId } = useParams()
   const propertyIdNum = Number(propertyId)
+  const selectedOwnerId = useAppSelector(selectSelectedOwnerId)
+  const { role } = useUserRole()
 
   const detail = useGetPmPropertyDetailQuery(propertyIdNum, { skip: !propertyIdNum })
 
-  const prop = detail.data?.property
-  const activeLease = detail.data?.active_lease
-  const nightly = prop ? deriveNightlyRate(prop) : null
+  const prop = detail.currentData?.property
+  const activeLease = detail.currentData?.active_lease
 
   if (!propertyIdNum || Number.isNaN(propertyIdNum)) {
     return <EmptyState title="Invalid property id" />
@@ -44,7 +48,7 @@ export default function PmPropertyDetailPage() {
     )
   }
 
-  if (detail.isLoading) {
+  if ((!detail.currentData && detail.isFetching)) {
     return (
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
@@ -98,6 +102,10 @@ export default function PmPropertyDetailPage() {
     )
   }
 
+  if ((role === 'agent' && !selectedOwnerId) || (selectedOwnerId && prop && prop.owner_id !== selectedOwnerId)) {
+    return <EmptyState title="Property is outside the selected owner" description="Select the property owner to view this record." />
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -112,7 +120,7 @@ export default function PmPropertyDetailPage() {
           <div className="flex items-center gap-2">
             <Badge variant="outline">ID: {propertyIdNum}</Badge>
             <Badge variant={statusVariant(prop?.management_status)}>{prop?.management_status || '—'}</Badge>
-            <PropertySettingsEditDialog property={prop} activeLease={activeLease} />
+            <PropertyEditDialog property={prop} />
           </div>
         }
       />
@@ -142,8 +150,8 @@ export default function PmPropertyDetailPage() {
                   <span className="font-medium tabular-nums">{prop.daily_rate != null ? formatCurrency(prop.daily_rate) : '—'}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">Nightly (derived)</span>
-                  <span className="font-medium tabular-nums">{nightly != null ? formatCurrency(nightly) : '—'}</span>
+                  <span className="text-muted-foreground">Nightly rate</span>
+                  <span className="font-medium tabular-nums">{prop.nightly_rate != null ? formatCurrency(prop.nightly_rate) : '—'}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Occupancy</span>
@@ -152,11 +160,11 @@ export default function PmPropertyDetailPage() {
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">Payment due day</span>
+                  <span className="text-muted-foreground">Default due day (new leases)</span>
                   <span className="font-medium">{prop.payment_due_day ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">Grace period</span>
+                  <span className="text-muted-foreground">Default grace period (new leases)</span>
                   <span className="font-medium">{prop.grace_period_days ?? '—'} days</span>
                 </div>
               </>
@@ -181,11 +189,17 @@ export default function PmPropertyDetailPage() {
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Status</span>
-                  <Badge variant="secondary">{activeLease.status}</Badge>
+                  <Badge variant="secondary">{getStatusLabel(LEASE_STATUSES, activeLease.status)}</Badge>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Tenant</span>
                   <span className="font-medium">{activeLease.tenant_name || activeLease.tenant_phone || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Due day / grace</span>
+                  <span className="font-medium">
+                    {activeLease.payment_due_day} / {activeLease.grace_period_days} days
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-muted-foreground">Monthly rent</span>

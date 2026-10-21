@@ -33,6 +33,12 @@ export const blogPostSchema = z
     tags: z
       .array(z.string())
       .optional(),
+    // SEO fields. Limits match the backend: meta title 60, meta description 160, keyword 200, URLs 500.
+    meta_title: z.string().max(60, 'Keep the meta title under 60 characters').optional().or(z.literal('')),
+    meta_description: z.string().max(160, 'Keep the meta description under 160 characters').optional().or(z.literal('')),
+    focus_keyword: z.string().max(200, 'Keep the focus keyword under 200 characters').optional().or(z.literal('')),
+    canonical_url: z.string().url('Invalid URL format').max(500, 'Keep the URL under 500 characters').optional().or(z.literal('')),
+    og_image_url: z.string().url('Invalid URL format').max(500, 'Keep the URL under 500 characters').optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
     // When the post is scheduled, a future scheduled_at timestamp is required.

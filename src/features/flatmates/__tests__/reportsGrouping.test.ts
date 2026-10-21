@@ -67,12 +67,6 @@ describe('groupReportsByReportedUser', () => {
           id: 200,
           email: 'jane@example.com',
           full_name: 'Jane Doe',
-          role: 'user',
-          is_active: true,
-          is_verified: true,
-          supabase_user_id: 'supabase-id',
-          created_at: '2025-01-01T00:00:00Z',
-          updated_at: '2025-01-01T00:00:00Z',
         },
       }),
     ])

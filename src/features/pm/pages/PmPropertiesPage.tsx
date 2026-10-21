@@ -1,7 +1,8 @@
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
 import {useMemo, useState} from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Trash2 } from "lucide-react";
+import { Archive, Building2 } from "lucide-react";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import PropertyCreateDialog from "@/features/pm/components/PropertyCreateDialog";
 import PropertyFilters from "@/features/pm/components/PropertyFilters";
@@ -10,7 +11,7 @@ import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { ManagedPropertyStatus, PmProperty } from "@/types/pm";
-import { useDeletePmPropertyMutation, useListPmPropertiesQuery } from "@/features/pm/api/pmApi";
+import { useListPmPropertiesQuery, useUpdatePmPropertyMutation } from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,9 +23,8 @@ import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ResponsiveDataTable } from "@/components/ui/responsive-data-table";
 import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
-import { deriveNightlyRate } from "@/features/properties/lib/nightlyRate";
+import { purposePrice } from "@/features/properties/lib/price";
 import { PageHeader } from "@/components/ui/page-header";
 
 const statusBadgeVariant = (status?: ManagedPropertyStatus | null) => {
@@ -46,7 +46,7 @@ export default function PmPropertiesPage() {
 
   const ownerId = selectedOwnerId;
 
-  const pager = useCursorPagination(`${debouncedQ}|${occupancy}|${limit}|${ownerId}`);
+  const pager = useCursorPagination(pmCursorKey(ownerId, debouncedQ, occupancy, limit));
 
 
   const properties = useListPmPropertiesQuery(
@@ -59,9 +59,10 @@ export default function PmPropertiesPage() {
     { skip: role === "agent" && !ownerId },
   );
 
-  const displayData = properties.data?.items;
+  const displayData = properties.currentData?.items;
 
-  const [deleteProperty, deletePropertyState] = useDeletePmPropertyMutation();
+  // The backend has no DELETE for a managed property: archiving keeps its lease history.
+  const [updateProperty] = useUpdatePmPropertyMutation();
 
   const columns = useMemo<ColumnDef<PmProperty>[]>(() => {
     return [
@@ -101,15 +102,10 @@ export default function PmPropertiesPage() {
         id: "price",
         header: "Price",
         cell: ({ row }) => {
-          const nightly = deriveNightlyRate(row.original);
+          const price = purposePrice(row.original);
           return (
-            <div className="text-sm">
-              <div className="font-medium tabular-nums">{formatCurrency(row.original.base_price)}</div>
-              {nightly != null && (
-                <div className="text-xs text-muted-foreground">
-                  ≈ {formatCurrency(nightly)}/night
-                </div>
-              )}
+            <div className="text-sm font-medium tabular-nums">
+              {price.amount != null ? `${formatCurrency(price.amount)}${price.unit}` : "—"}
             </div>
           );
         }},
@@ -128,29 +124,34 @@ export default function PmPropertiesPage() {
               <Link to={`/pm/properties/${row.original.id}`}>View</Link>
             </Button>
             <ConfirmAlertDialog
-              title="Delete Property"
-              description={`Are you sure you want to delete "${row.original.title}"? This action cannot be undone.`}
-              confirmLabel="Delete"
+              title="Archive Property"
+              description={`Archive "${row.original.title}"? It leaves the active portfolio and its lease history stays.`}
+              confirmLabel="Archive"
               variant="destructive"
               onConfirm={async () => {
-                try {
-                  await deleteProperty(row.original.id).unwrap();
-                  toast({ title: "Deleted", description: "Property deleted." });
-                } catch (e: unknown) {
-                  toast({ title: "Failed", description: getErrorMessage(e, "Could not delete property."), variant: "destructive" });
-                }
+                await updateProperty({ property_id: row.original.id, payload: { management_status: "archived" } }).unwrap();
+                toast({ title: "Archived", description: "Property archived." });
               }}
             >
               {(openDialog) => (
-                <Button variant="destructive" size="sm" onClick={openDialog} disabled={deletePropertyState.isLoading}>
-                  <Trash2 className="h-4 w-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openDialog}
+                  disabled={row.original.management_status === "archived"}
+                  aria-label={`Archive ${row.original.title}`}
+                >
+                  <Archive className="mr-1 h-4 w-4" />
+                  Archive
                 </Button>
               )}
             </ConfirmAlertDialog>
           </div>
         )},
     ];
-  }, [deleteProperty, deletePropertyState.isLoading, toast]);
+    // The archive dialog lives in a cell: keep request state out of this list, or the cell remounts
+    // while the dialog is open and the dialog loses its error message.
+  }, [updateProperty, toast]);
 
   return (
     <OwnerScopeGate>
@@ -166,6 +167,7 @@ export default function PmPropertiesPage() {
           actions={
             <div className="flex items-center gap-2">
               <PropertyCreateDialog
+                key={ownerId ?? 'all'}
                 ownerId={ownerId}
                 disabled={role === "admin" && !ownerId}
               />
@@ -196,17 +198,17 @@ export default function PmPropertiesPage() {
                 error={properties.error}
                 onRetry={() => { void properties.refetch(); }}
               />
-            ) : properties.isLoading ? (
+            ) : (!properties.currentData && properties.isFetching) ? (
               <LoadingState type="spinner" />
             ) : displayData?.length ? (
               <>
                 <ResponsiveDataTable columns={columns} data={displayData} />
                 <CursorPager
                   canPrev={pager.canPrev}
-                  hasMore={properties.data?.has_more ?? false}
+                  hasMore={properties.currentData?.has_more ?? false}
                   loading={properties.isFetching}
                   onPrev={pager.prev}
-                  onNext={() => properties.data && pager.next(properties.data.next_cursor)}
+                  onNext={() => properties.currentData && pager.next(properties.currentData.next_cursor)}
                 />
               </>
             ) : (

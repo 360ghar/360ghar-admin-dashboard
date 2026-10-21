@@ -1,13 +1,14 @@
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
 import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Trash2, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 import {
   MAINTENANCE_REQUEST_STATUSES,
   PAGE_SIZES,
   WORK_ORDER_STATUSES} from "@/features/pm/constants";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import CreateRequestDialog from "@/features/pm/components/CreateRequestDialog";
-import MaintenanceUpdateForm from "@/features/pm/components/MaintenanceUpdateForm";
+import MaintenanceRowActions from "@/features/pm/components/MaintenanceRowActions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
@@ -15,15 +16,9 @@ import type {
   MaintenanceRequest,
   MaintenanceRequestStatus,
   WorkOrderStatus} from "@/types/pm";
-import {
-  useListMaintenanceRequestsQuery,
-  useUpdateMaintenanceRequestMutation,
-  useDeleteMaintenanceRequestMutation} from "@/features/pm/api/pmApi";
+import { useListMaintenanceRequestsQuery } from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -36,14 +31,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmMaintenancePage() {
-  const { role, user } = useUserRole();
+  const { role } = useUserRole();
   const selectedOwnerId = useAppSelector(selectSelectedOwnerId);
-  const { toast } = useToast();
 
   const ownerId = selectedOwnerId;
 
@@ -51,7 +43,7 @@ export default function PmMaintenancePage() {
   const [workOrderStatus, setWorkOrderStatus] = useState<WorkOrderStatus | "">("");
   const [limit, setLimit] = useState(50);
 
-  const pager = useCursorPagination(`${requestStatus}|${workOrderStatus}|${limit}`);
+  const pager = useCursorPagination(pmCursorKey(ownerId, requestStatus, workOrderStatus, limit));
 
 
   const requests = useListMaintenanceRequestsQuery(
@@ -64,9 +56,6 @@ export default function PmMaintenancePage() {
     { skip: role === "agent" && !ownerId },
   );
 
-  const [updateRequest, updateState] = useUpdateMaintenanceRequestMutation();
-  const [deleteRequest, deleteState] = useDeleteMaintenanceRequestMutation();
-
   const columns = useMemo<ColumnDef<MaintenanceRequest>[]>(() => {
     return [
       {
@@ -76,7 +65,8 @@ export default function PmMaintenancePage() {
           <div className="min-w-0">
             <div className="truncate font-medium">{row.original.title}</div>
             <div className="truncate text-xs text-muted-foreground">
-              #{row.original.id} &bull; Property #{row.original.property_id} &bull; {row.original.category}
+              #{row.original.id} &bull; {row.original.property_title || `Property #${row.original.property_id}`} &bull; {row.original.category}
+              {row.original.tenant_name ? <> &bull; {row.original.tenant_name}</> : null}
             </div>
           </div>
         )},
@@ -124,57 +114,11 @@ export default function PmMaintenancePage() {
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">Update</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Update maintenance request</DialogTitle>
-                </DialogHeader>
-                <MaintenanceUpdateForm
-                  request={row.original}
-                  defaultAssignedAgentId={user?.agent_id ?? null}
-                  onSubmit={async (payload) => {
-                    try {
-                      await updateRequest({ request_id: row.original.id, payload }).unwrap();
-                      toast({ title: "Updated", description: "Maintenance request updated." });
-                    } catch (e: unknown) {
-                      toast({ title: "Failed", description: getErrorMessage(e, "Could not update request."), variant: "destructive" });
-                    }
-                  }}
-                  isSubmitting={updateState.isLoading}
-                />
-              </DialogContent>
-            </Dialog>
-            <ConfirmAlertDialog
-              title="Delete Request"
-              description={`Are you sure you want to delete "${row.original.title}"? This action cannot be undone.`}
-              confirmLabel="Delete"
-              variant="destructive"
-              onConfirm={async () => {
-                try {
-                  await deleteRequest(row.original.id).unwrap();
-                  toast({ title: "Deleted", description: "Maintenance request deleted." });
-                } catch (e: unknown) {
-                  toast({ title: "Failed", description: getErrorMessage(e, "Could not delete request."), variant: "destructive" });
-                }
-              }}
-            >
-              {(openDialog) => (
-                <Button variant="destructive" size="sm" onClick={openDialog} disabled={deleteState.isLoading} aria-label="Delete">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </ConfirmAlertDialog>
-          </div>
-        )},
+        cell: ({ row }) => <MaintenanceRowActions request={row.original} />},
     ];
-  }, [toast, updateRequest, updateState.isLoading, deleteRequest, deleteState.isLoading, user?.agent_id]);
+  }, []);
 
-  const requestItems = requests.data?.items ?? [];
+  const requestItems = requests.currentData?.items ?? [];
 
   return (
     <OwnerScopeGate>
@@ -183,7 +127,7 @@ export default function PmMaintenancePage() {
           title="Maintenance"
           description="Triage requests and manage work orders, vendors, and completion details."
           icon={Wrench}
-          actions={<CreateRequestDialog ownerId={ownerId} />}
+          actions={<CreateRequestDialog key={ownerId ?? 'all'} ownerId={ownerId} />}
         />
 
         <Card>
@@ -245,17 +189,17 @@ export default function PmMaintenancePage() {
                 error={requests.error}
                 onRetry={() => { void requests.refetch(); }}
               />
-            ) : requests.isLoading ? (
+            ) : (!requests.currentData && requests.isFetching) ? (
               <LoadingState type="spinner" />
             ) : requestItems.length ? (
               <>
                 <ResponsiveDataTable columns={columns} data={requestItems} />
                 <CursorPager
                   canPrev={pager.canPrev}
-                  hasMore={requests.data?.has_more ?? false}
+                  hasMore={requests.currentData?.has_more ?? false}
                   loading={requests.isFetching}
                   onPrev={pager.prev}
-                  onNext={() => requests.data && pager.next(requests.data.next_cursor)}
+                  onNext={() => requests.currentData && pager.next(requests.currentData.next_cursor)}
                 />
               </>
             ) : (

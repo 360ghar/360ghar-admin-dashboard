@@ -21,12 +21,12 @@ export interface PropertyStatusSlice {
   value: string
   label: string
   color: string
-  count: number
+  count: number | null
 }
 
 export interface PropertyStatusBreakdown {
   data: PropertyStatusSlice[]
-  total: number
+  total: number | null
   isLoading: boolean
   isError: boolean
   refetch: () => void
@@ -47,8 +47,10 @@ export function usePropertyStatusBreakdown(): PropertyStatusBreakdown {
   const queries = [available, rented, sold, underOffer, maintenance]
   const { totals, isLoading, isError } = computeStatusBreakdown(queries)
 
-  const data = PROPERTY_STATUS_META.map((meta, i) => ({ ...meta, count: totals[i] ?? 0 }))
-  const total = data.reduce((sum, slice) => sum + slice.count, 0)
+  const data = PROPERTY_STATUS_META.map((meta, i) => ({ ...meta, count: totals[i] }))
+  const total = data.every((slice) => slice.count !== null)
+    ? data.reduce((sum, slice) => sum + (slice.count ?? 0), 0)
+    : null
 
   return {
     data,
@@ -57,7 +59,7 @@ export function usePropertyStatusBreakdown(): PropertyStatusBreakdown {
     // Surface an error if ANY status query failed — otherwise a single failed
     // query is counted as 0 and silently corrupts the totals/percentages.
     isError,
-    refetch: () => queries.forEach((q) => void q.refetch()),
+    refetch: () => queries.filter((q, index) => q.isError || totals[index] === null).forEach((q) => void q.refetch()),
   }
 }
 
@@ -68,12 +70,18 @@ export interface DashboardData {
   statusBreakdown: PropertyStatusBreakdown
   /** Activity semantics: loading while any source loads and the feed is empty. */
   isLoading: boolean
-  /** Activity semantics: hard error only when every source failed. */
+  isPartialError: boolean
+  isTrendLoading: boolean
+  isTrendError: boolean
+  isTrendPartialError: boolean
+  /** Activity semantics: hard error only when no usable entries exist. */
   isError: boolean
   /** Business-metrics semantics: loading/error from the admin aggregates query. */
   isMetricsLoading: boolean
   isMetricsError: boolean
-  refetch: () => void
+  refetchActivity: () => void
+  refetchTrend: () => void
+  refetchMetrics: () => void
 }
 
 /**
@@ -132,29 +140,31 @@ export function useDashboardData(): DashboardData {
     }
   }, [systemStats.data])
 
-  const queries = [visits, bookings, newProperties]
-  // Keep partial successes: only treat as hard error when every source failed
-  // (otherwise one flaky endpoint would hide visits/bookings/listings that did load).
-  const allFailed = queries.every((q) => q.isError)
-  const anyLoading = queries.some((q) => q.isLoading)
+  const activityQueries = [visits, bookings, newProperties]
+  const trendQueries = [visits, bookings]
+  const activityFailed = activityQueries.some((q) => q.isError)
+  const trendFailed = trendQueries.some((q) => q.isError)
+  const activityLoading = activityQueries.some((q) => q.isLoading)
+  const trendLoading = trendQueries.some((q) => q.isLoading)
 
   return {
     trend,
     feed,
     metrics,
     statusBreakdown,
-    isLoading: anyLoading && feed.length === 0 && !allFailed,
-    isError: allFailed,
+    isLoading: activityLoading && feed.length === 0,
+    isError: activityFailed && feed.length === 0 && !activityLoading,
+    isPartialError: activityFailed && feed.length > 0,
+    isTrendLoading: trendLoading,
+    // A refetch that fails while earlier data is cached is a partial error, not a blank chart.
+    isTrendError: trendQueries.every((q) => q.isError) && !visits.data && !bookings.data,
+    isTrendPartialError: trendFailed && !(trendQueries.every((q) => q.isError) && !visits.data && !bookings.data),
     // Business metrics need the admin aggregates — a failed stats query would
     // silently zero out conversion rates if we only showed partial samples.
-    isMetricsLoading: systemStats.isLoading,
-    isMetricsError: systemStats.isError,
-    refetch: () => {
-      void visits.refetch()
-      void bookings.refetch()
-      void newProperties.refetch()
-      statusBreakdown.refetch()
-      void systemStats.refetch()
-    },
+    isMetricsLoading: role === 'admin' && systemStats.isLoading,
+    isMetricsError: role === 'admin' && systemStats.isError,
+    refetchActivity: () => activityQueries.filter((q) => q.isError).forEach((q) => void q.refetch()),
+    refetchTrend: () => trendQueries.filter((q) => q.isError).forEach((q) => void q.refetch()),
+    refetchMetrics: () => { if (role === 'admin' && systemStats.isError) void systemStats.refetch() },
   }
 }

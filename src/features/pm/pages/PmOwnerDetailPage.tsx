@@ -15,36 +15,28 @@ import {
   useListPmDocumentsQuery,
 } from "@/features/pm/api/pmApi";
 import { formatDateTime } from "@/lib/format";
-import { useGetUserQuery, useUpdateUserMutation } from "@/features/users/api/usersApi";
+import { useGetUserQuery } from "@/features/users/api/usersApi";
 import AssignAgent from "@/features/users/components/assign/AssignAgent";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency, formatNumber } from '@/lib/format'
+import { getOwnerLabel } from "@/features/pm/utils";
+import type { DocumentType } from "@/types/pm";
 import CountUp from '@/components/reactbits/CountUp'
 
-const kycStatuses = ["unknown", "pending", "verified", "rejected"] as const;
-type KycStatus = (typeof kycStatuses)[number];
+/** Document types an owner uploads as KYC. The user API stores no KYC status, so the documents are the record. */
+const KYC_DOCUMENT_TYPES: readonly DocumentType[] = ["id_proof", "address_proof", "income_proof"];
 
 export default function PmOwnerDetailPage() {
   const { ownerId } = useParams();
   const ownerUserId = Number(ownerId);
   const { role } = useUserRole();
   const dispatch = useAppDispatch();
-  const { toast } = useToast();
 
   const owner = useGetUserQuery(ownerUserId, { skip: !ownerUserId });
   const overview = useGetPmDashboardOverviewQuery({ owner_id: ownerUserId }, { skip: !ownerUserId });
@@ -58,34 +50,16 @@ export default function PmOwnerDetailPage() {
     { skip: !ownerUserId },
   );
 
-  const [updateUser, updateUserState] = useUpdateUserMutation();
-
   useEffect(() => {
-    if (role === "agent" && owner.data) {
-      dispatch(setSelectedOwner({ id: owner.data.id, label: owner.data.full_name || owner.data.phone || `Owner #${owner.data.id}` }));
+    if (role === "agent" && owner.currentData) {
+      dispatch(setSelectedOwner({ id: owner.currentData.id, label: getOwnerLabel(owner.currentData) }));
     }
-  }, [dispatch, owner.data, role]);
+  }, [dispatch, owner.currentData, role]);
 
-  const kycStatus: KycStatus = useMemo(() => {
-    const prefs = owner.data?.preferences as unknown as Record<string, unknown> | undefined;
-    const raw = prefs?.pm_kyc_status ?? prefs?.kyc_status;
-    if (typeof raw === "string" && (kycStatuses as readonly string[]).includes(raw)) return raw as KycStatus;
-    return "unknown";
-  }, [owner.data?.preferences]);
-
-  const setKycStatus = async (next: KycStatus) => {
-    if (!owner.data) return;
-    const currentPrefs = (owner.data.preferences as unknown as Record<string, unknown> | undefined) ?? {};
-    try {
-      await updateUser({
-        id: owner.data.id,
-        data: { preferences: { ...currentPrefs, pm_kyc_status: next } },
-      }).unwrap();
-      toast({ title: "Updated", description: "KYC status updated." });
-    } catch (e: unknown) {
-      toast({ title: "Failed", description: getErrorMessage(e, "Could not update KYC status."), variant: "destructive" });
-    }
-  };
+  const kycOnFile = useMemo(
+    () => (kycDocs.currentData?.items ?? []).some((d) => KYC_DOCUMENT_TYPES.includes(d.document_type)),
+    [kycDocs.currentData?.items],
+  );
 
   if (!ownerUserId || Number.isNaN(ownerUserId)) {
     return <EmptyState title="Invalid owner id" />;
@@ -106,15 +80,15 @@ export default function PmOwnerDetailPage() {
       <div className="space-y-6">
         <PageHeader
           title={
-            owner.isLoading
+            (!owner.currentData && owner.isFetching)
               ? "Loading…"
-              : owner.data?.full_name || owner.data?.phone || `Owner #${ownerUserId}`
+              : owner.currentData ? getOwnerLabel(owner.currentData) : `Owner #${ownerUserId}`
           }
           description="Owner portfolio overview and operations."
           icon={Users}
           breadcrumbs={[
             { label: "Owners", to: "/pm/owners" },
-            { label: owner.data?.full_name || owner.data?.phone || `#${ownerUserId}` },
+            { label: owner.currentData ? getOwnerLabel(owner.currentData) : `#${ownerUserId}` },
           ]}
           badge={role === "admin" ? "Admin view" : "Agent view"}
           actions={<Badge variant="outline">ID: {ownerUserId}</Badge>}
@@ -129,17 +103,18 @@ export default function PmOwnerDetailPage() {
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {!overview.isError && <>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Managed Properties</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {overview.isLoading ? (
+              {(!overview.currentData && overview.isFetching) ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
                 <CountUp
-                  to={overview.data?.total_properties ?? 0}
+                  to={overview.currentData?.total_properties ?? 0}
                   duration={1.2}
                   format={(n) => formatNumber(n)}
                   className="text-2xl font-semibold tracking-tight tabular-nums"
@@ -156,11 +131,11 @@ export default function PmOwnerDetailPage() {
               <span className="text-muted-foreground">₹</span>
             </CardHeader>
             <CardContent>
-              {overview.isLoading ? (
+              {(!overview.currentData && overview.isFetching) ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <CountUp
-                  to={overview.data?.outstanding_rent_total ?? 0}
+                  to={overview.currentData?.outstanding_rent_total ?? 0}
                   duration={1.2}
                   format={(n) => formatCurrency(n)}
                   className="text-2xl font-semibold tracking-tight tabular-nums"
@@ -171,29 +146,23 @@ export default function PmOwnerDetailPage() {
               </Button>
             </CardContent>
           </Card>
+          </>}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">KYC Status</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">KYC</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="space-y-3">
-              <Badge variant={kycStatus === "verified" ? "default" : kycStatus === "pending" ? "secondary" : "outline"}>
-                {kycStatus}
-              </Badge>
-              {role === "admin" ? (
-                <Select value={kycStatus} onValueChange={(v) => { void setKycStatus(v as KycStatus); }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Set KYC status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {kycStatuses.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {(!kycDocs.currentData && kycDocs.isFetching) ? (
+                <Skeleton className="h-6 w-24" />
+              ) : kycDocs.isError ? (
+                <div className="text-xs text-muted-foreground">Could not load KYC documents.</div>
               ) : (
-                <div className="text-xs text-muted-foreground">Only admins can update KYC status.</div>
+                <Badge variant={kycOnFile ? "default" : "outline"}>{kycOnFile ? "On file" : "None uploaded"}</Badge>
               )}
+              <div className="text-xs text-muted-foreground">
+                The user API stores no KYC status. Upload ID, address or income proof below.
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -202,11 +171,13 @@ export default function PmOwnerDetailPage() {
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {maintenance.isLoading ? (
+              {maintenance.isError ? (
+                <ErrorState title="Failed to load maintenance" error={maintenance.error} onRetry={() => { void maintenance.refetch() }} />
+              ) : (!maintenance.currentData && maintenance.isFetching) ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <CountUp
-                  to={maintenance.data?.items?.length ?? 0}
+                  to={maintenance.currentData?.items?.length ?? 0}
                   duration={1.2}
                   format={(n) => formatNumber(n)}
                   className="text-2xl font-semibold tracking-tight tabular-nums"
@@ -232,14 +203,14 @@ export default function PmOwnerDetailPage() {
                   error={activity.error}
                   onRetry={() => { void activity.refetch(); }}
                 />
-              ) : activity.isLoading ? (
+              ) : (!activity.currentData && activity.isFetching) ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-5/6" />
                 </div>
-              ) : activity.data?.items?.length ? (
+              ) : activity.currentData?.items?.length ? (
                 <div className="space-y-2">
-                  {activity.data.items.map((a, idx) => (
+                  {activity.currentData.items.map((a, idx) => (
                     <ActivityRow key={`${a.type}-${a.at}-${idx}`} activity={a} timestamp={formatDateTime(a.at)} />
                   ))}
                 </div>
@@ -258,9 +229,6 @@ export default function PmOwnerDetailPage() {
               <KycDocumentsCard kycDocs={kycDocs} />
               {role !== "admin" ? (
                 <div className="text-xs text-muted-foreground">Only admins can upload KYC documents.</div>
-              ) : null}
-              {updateUserState.isLoading ? (
-                <div className="text-xs text-muted-foreground">Updating KYC status…</div>
               ) : null}
             </CardContent>
           </Card>

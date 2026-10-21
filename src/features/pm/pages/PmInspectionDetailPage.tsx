@@ -2,6 +2,9 @@ import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ClipboardCheck } from 'lucide-react'
 import { useGetPmInspectionQuery } from '@/features/pm/api/pmApi'
+import { selectSelectedOwnerId } from '@/features/pm/slices/pmSlice'
+import { useAppSelector } from '@/hooks/redux'
+import { useUserRole } from '@/hooks/useUserRole'
 import { formatDateTime } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,17 +17,19 @@ import { PageHeader } from '@/components/ui/page-header'
 export default function PmInspectionDetailPage() {
   const { inspectionId } = useParams()
   const inspectionIdNum = Number(inspectionId)
+  const selectedOwnerId = useAppSelector(selectSelectedOwnerId)
+  const { role } = useUserRole()
 
   const inspection = useGetPmInspectionQuery(inspectionIdNum, { skip: !inspectionIdNum })
 
   const roomsJson = useMemo(() => {
-    if (!inspection.data?.rooms_data) return null
+    if (!inspection.currentData?.rooms_data) return null
     try {
-      return JSON.stringify(inspection.data.rooms_data, null, 2)
+      return JSON.stringify(inspection.currentData.rooms_data, null, 2)
     } catch {
       return null
     }
-  }, [inspection.data?.rooms_data])
+  }, [inspection.currentData?.rooms_data])
 
   if (!inspectionIdNum || Number.isNaN(inspectionIdNum)) {
     return <EmptyState title="Invalid inspection id" />
@@ -40,7 +45,7 @@ export default function PmInspectionDetailPage() {
     )
   }
 
-  if (inspection.isLoading) {
+  if ((!inspection.currentData && inspection.isFetching)) {
     return (
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
@@ -73,19 +78,23 @@ export default function PmInspectionDetailPage() {
     )
   }
 
+  if ((role === 'agent' && !selectedOwnerId) || (selectedOwnerId && inspection.currentData && inspection.currentData.owner_id !== selectedOwnerId)) {
+    return <EmptyState title="Inspection is outside the selected owner" description="Select the inspection owner to view this record." />
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Inspection #${inspection.data?.id ?? inspectionIdNum}`}
-        description={`Lease #${inspection.data?.lease_id} • Property #${inspection.data?.property_id}`}
+        title={`Inspection #${inspection.currentData?.id ?? inspectionIdNum}`}
+        description={`Lease #${inspection.currentData?.lease_id} • Property #${inspection.currentData?.property_id}`}
         breadcrumbs={[
           { label: 'Inspections', to: '/pm/inspections' },
-          { label: `Inspection #${inspection.data?.id ?? inspectionIdNum}` },
+          { label: `Inspection #${inspection.currentData?.id ?? inspectionIdNum}` },
         ]}
         actions={
           <Badge variant="secondary" className="h-fit">
             <ClipboardCheck className="mr-1 h-3 w-3" />
-            {inspection.data?.inspection_type || '—'}
+            {inspection.currentData?.inspection_type || '—'}
           </Badge>
         }
       />
@@ -110,36 +119,36 @@ export default function PmInspectionDetailPage() {
             <CardTitle className="text-base">Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {inspection.data ? (
+            {inspection.currentData ? (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Conducted</span>
-                  <span className="font-medium">{inspection.data.conducted_at ? formatDateTime(inspection.data.conducted_at) : '—'}</span>
+                  <span className="font-medium">{inspection.currentData.conducted_at ? formatDateTime(inspection.currentData.conducted_at) : '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Signed (owner)</span>
-                  <Badge variant={inspection.data.signed_by_owner_at ? 'default' : 'outline'}>
-                    {inspection.data.signed_by_owner_at ? 'yes' : 'no'}
+                  <Badge variant={inspection.currentData.signed_by_owner_at ? 'default' : 'outline'}>
+                    {inspection.currentData.signed_by_owner_at ? 'yes' : 'no'}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Signed (tenant)</span>
-                  <Badge variant={inspection.data.signed_by_tenant_at ? 'default' : 'outline'}>
-                    {inspection.data.signed_by_tenant_at ? 'yes' : 'no'}
+                  <Badge variant={inspection.currentData.signed_by_tenant_at ? 'default' : 'outline'}>
+                    {inspection.currentData.signed_by_tenant_at ? 'yes' : 'no'}
                   </Badge>
                 </div>
-                {inspection.data.overall_notes ? (
+                {inspection.currentData.overall_notes ? (
                   <div className="pt-2">
                     <div className="text-xs font-medium text-muted-foreground">Notes</div>
-                    <div className="text-sm">{inspection.data.overall_notes}</div>
+                    <div className="text-sm">{inspection.currentData.overall_notes}</div>
                   </div>
                 ) : null}
                 <div className="pt-2">
                   <Button asChild variant="outline" className="w-full justify-start">
-                    <Link to={`/pm/leases/${inspection.data.lease_id}`}>Open lease</Link>
+                    <Link to={`/pm/leases/${inspection.currentData.lease_id}`}>Open lease</Link>
                   </Button>
                   <Button asChild variant="outline" className="mt-2 w-full justify-start">
-                    <Link to={`/pm/properties/${inspection.data.property_id}`}>Open property</Link>
+                    <Link to={`/pm/properties/${inspection.currentData.property_id}`}>Open property</Link>
                   </Button>
                 </div>
               </>

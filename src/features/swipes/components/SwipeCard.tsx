@@ -281,7 +281,7 @@ const SwipeCard = forwardRef<HTMLDivElement, SwipeCardProps>(function SwipeCard(
               <div className="space-y-1.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Features</p>
                 <ul className="list-inside list-disc space-y-0.5 text-sm text-foreground/90">
-                  {property.features.map((f) => (
+                  {(property.features ?? []).map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ul>

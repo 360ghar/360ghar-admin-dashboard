@@ -1,6 +1,9 @@
 import { api } from '@/store/api'
+import { fetchAllPages } from '@/store/fetchAllPages'
+import type { PaginatedResponse } from '@/types/api'
 import type {
   BlogPost,
+  BlogPostAdmin,
   BlogPostCreate,
   BlogPostUpdate,
   BlogPostFilters,
@@ -21,7 +24,8 @@ import type {
 export const blogsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     // Blog Posts
-    createBlogPost: builder.mutation<BlogPost, BlogPostCreate>({
+    // Create returns 201 with `BlogPostAdmin` (adds author_id and preview_token).
+    createBlogPost: builder.mutation<BlogPostAdmin, BlogPostCreate>({
       query: (data) => ({
         url: '/blog/posts',
         method: 'POST',
@@ -39,7 +43,6 @@ export const blogsApi = api.injectEndpoints({
         if (p.q) search.set('q', p.q)
         if (Array.isArray(p.categories)) p.categories.forEach((c) => search.append('categories', c))
         if (Array.isArray(p.tags)) p.tags.forEach((t) => search.append('tags', t))
-        if (Array.isArray(p.keywords)) p.keywords.forEach((k) => search.append('keywords', k))
         if (p.status) search.set('status', String(p.status))
         return { url: '/blog/posts', params: search }
       },
@@ -57,7 +60,9 @@ export const blogsApi = api.injectEndpoints({
       providesTags: (_res, _e, id) => [{ type: 'BlogPost', id }],
     }),
 
-    updateBlogPost: builder.mutation<BlogPost, { identifier: string | number; data: BlogPostUpdate }>({
+    // PUT is PATCH-style: send only changed keys. An explicit null (or an empty array) clears excerpt,
+    // cover_image_url, categories and tags. title, content and status reject null.
+    updateBlogPost: builder.mutation<BlogPostAdmin, { identifier: string | number; data: BlogPostUpdate }>({
       query: ({ identifier, data }) => ({
         url: `/blog/posts/${identifier}`,
         method: 'PUT',
@@ -83,7 +88,8 @@ export const blogsApi = api.injectEndpoints({
       invalidatesTags: [{ type: 'BlogPost', id: 'LIST' }],
     }),
 
-    generateBulkBlogs: builder.mutation<BlogGenerationResult[], { count: number }>({
+    // Bulk generation returns a CursorPage of results (has_more false, limit is the count).
+    generateBulkBlogs: builder.mutation<PaginatedResponse<BlogGenerationResult>, { count: number }>({
       query: (data) => ({
         url: '/blog/generate-bulk',
         method: 'POST',
@@ -122,9 +128,10 @@ export const blogsApi = api.injectEndpoints({
           : [{ type: 'BlogCategory' as const, id: 'LIST' }],
     }),
 
-    getBlogCategory: builder.query<BlogCategory, string | number>({
-      query: (identifier) => `/blog/categories/${identifier}`,
-      providesTags: (_res, _e, id) => [{ type: 'BlogCategory', id }],
+    // Every category, for the post form's picker: follows next_cursor.
+    listAllBlogCategories: builder.query<BlogCategory[], void>({
+      queryFn: (_arg, _api, _extra, baseQuery) => fetchAllPages<BlogCategory>(baseQuery, '/blog/categories'),
+      providesTags: [{ type: 'BlogCategory', id: 'LIST' }],
     }),
 
     updateBlogCategory: builder.mutation<BlogCategory, { identifier: string | number; data: BlogCategoryUpdate }>({
@@ -133,7 +140,11 @@ export const blogsApi = api.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_res, _e, { identifier }) => [{ type: 'BlogCategory', id: identifier }, { type: 'BlogCategory', id: 'LIST' }],
+      invalidatesTags: (_res, _e, { identifier }) => [
+        { type: 'BlogCategory', id: identifier },
+        { type: 'BlogCategory', id: 'LIST' },
+        { type: 'BlogPost' },
+      ],
     }),
 
     deleteBlogCategory: builder.mutation<void, string | number>({
@@ -141,7 +152,11 @@ export const blogsApi = api.injectEndpoints({
         url: `/blog/categories/${identifier}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_res, _e, id) => [{ type: 'BlogCategory', id }, { type: 'BlogCategory', id: 'LIST' }],
+      invalidatesTags: (_res, _e, id) => [
+        { type: 'BlogCategory', id },
+        { type: 'BlogCategory', id: 'LIST' },
+        { type: 'BlogPost' },
+      ],
     }),
 
     // Blog Tags
@@ -174,9 +189,10 @@ export const blogsApi = api.injectEndpoints({
           : [{ type: 'BlogTag' as const, id: 'LIST' }],
     }),
 
-    getBlogTag: builder.query<BlogTag, string | number>({
-      query: (identifier) => `/blog/tags/${identifier}`,
-      providesTags: (_res, _e, id) => [{ type: 'BlogTag', id }],
+    // Every tag, for the post form's picker: follows next_cursor.
+    listAllBlogTags: builder.query<BlogTag[], void>({
+      queryFn: (_arg, _api, _extra, baseQuery) => fetchAllPages<BlogTag>(baseQuery, '/blog/tags'),
+      providesTags: [{ type: 'BlogTag', id: 'LIST' }],
     }),
 
     updateBlogTag: builder.mutation<BlogTag, { identifier: string | number; data: BlogTagUpdate }>({
@@ -185,7 +201,11 @@ export const blogsApi = api.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_res, _e, { identifier }) => [{ type: 'BlogTag', id: identifier }, { type: 'BlogTag', id: 'LIST' }],
+      invalidatesTags: (_res, _e, { identifier }) => [
+        { type: 'BlogTag', id: identifier },
+        { type: 'BlogTag', id: 'LIST' },
+        { type: 'BlogPost' },
+      ],
     }),
 
     deleteBlogTag: builder.mutation<void, string | number>({
@@ -193,7 +213,11 @@ export const blogsApi = api.injectEndpoints({
         url: `/blog/tags/${identifier}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_res, _e, id) => [{ type: 'BlogTag', id }, { type: 'BlogTag', id: 'LIST' }],
+      invalidatesTags: (_res, _e, id) => [
+        { type: 'BlogTag', id },
+        { type: 'BlogTag', id: 'LIST' },
+        { type: 'BlogPost' },
+      ],
     }),
   }),
 })
@@ -210,13 +234,13 @@ export const {
   // Blog Categories
   useCreateBlogCategoryMutation,
   useGetBlogCategoriesQuery,
-  useGetBlogCategoryQuery,
+  useListAllBlogCategoriesQuery,
   useUpdateBlogCategoryMutation,
   useDeleteBlogCategoryMutation,
   // Blog Tags
   useCreateBlogTagMutation,
   useGetBlogTagsQuery,
-  useGetBlogTagQuery,
+  useListAllBlogTagsQuery,
   useUpdateBlogTagMutation,
   useDeleteBlogTagMutation,
 } = blogsApi

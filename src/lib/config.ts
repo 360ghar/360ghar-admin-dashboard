@@ -5,9 +5,27 @@
  * `new Request(...)` rejects relative URLs). Production builds use the
  * absolute `VITE_API_BASE_URL` (or the local default below).
  */
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+
+// A production build without VITE_API_BASE_URL used to call localhost:3600 and show a connection error.
+// Fail at startup with the real cause instead. Every production build needs it, `vite preview` included.
+// The localhost default below is for tests only.
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const { protocol } = new URL(value)
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+if (import.meta.env.PROD && (!configuredApiBaseUrl || !isAbsoluteHttpUrl(configuredApiBaseUrl))) {
+  throw new Error('Invalid API configuration. Set VITE_API_BASE_URL to an absolute http(s) URL for production builds.')
+}
+
 export const API_BASE_URL = import.meta.env.DEV
   ? `${window.location.origin}/api/v1`
-  : (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3600/api/v1'
+  : configuredApiBaseUrl || 'http://localhost:3600/api/v1'
 
 /**
  * Optional realtime endpoint (SSE or WebSocket) for live cache invalidation.

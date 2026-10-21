@@ -4,22 +4,37 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Edit, FileText } from 'lucide-react'
-import type { BugReport, BugReportUpdate } from '@/types/api'
+import type { BugReport, BugReportUpdate, BugSeverity, BugStatus } from '@/types/api'
 import { formatDateTime } from '@/lib/format'
 import { BugReportUpdateForm } from './BugReportUpdateForm'
 
-const severityColors: Record<string, string> = {
+const severityColors: Record<BugSeverity, string> = {
   low: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
   medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
   high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
   critical: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
 }
 
-const statusColors: Record<string, string> = {
+const statusColors: Record<BugStatus, string> = {
   open: 'bg-muted text-foreground',
   in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
   resolved: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
   closed: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+}
+
+/** `device_info` is a free JSON object on the wire. Read only the string fields this card shows. */
+function readDeviceInfo(info: BugReport['device_info']) {
+  const text = (key: string) => {
+    const value = info?.[key]
+    return typeof value === 'string' && value.trim() ? value : undefined
+  }
+  return {
+    os: text('os'),
+    version: text('version'),
+    model: text('model'),
+    browser: text('browser'),
+    screen_resolution: text('screen_resolution'),
+  }
 }
 
 interface BugReportCardProps {
@@ -30,6 +45,8 @@ interface BugReportCardProps {
 
 const BugReportCard: React.FC<BugReportCardProps> = ({ bugReport, onUpdate, showActions = false }) => {
   const [showDetails, setShowDetails] = useState(false)
+  const deviceInfo = readDeviceInfo(bugReport.device_info)
+  const hasDeviceInfo = Object.values(deviceInfo).some(Boolean)
 
   return (
     <Card className="transition-colors hover:border-cohere-hairline">
@@ -43,11 +60,11 @@ const BugReportCard: React.FC<BugReportCardProps> = ({ bugReport, onUpdate, show
                   {bugReport.description}
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  <Badge className={severityColors[bugReport.severity] || ''}>
+                  <Badge className={severityColors[bugReport.severity]}>
                     {bugReport.severity}
                   </Badge>
                   <Badge variant="outline">{bugReport.bug_type.replace('_', ' ')}</Badge>
-                  <Badge className={statusColors[bugReport.status] || ''}>
+                  <Badge className={statusColors[bugReport.status]}>
                     {bugReport.status.replace('_', ' ')}
                   </Badge>
                 </div>
@@ -79,24 +96,24 @@ const BugReportCard: React.FC<BugReportCardProps> = ({ bugReport, onUpdate, show
                   </div>
                 )}
 
-                {bugReport.device_info && (
+                {hasDeviceInfo && (
                   <div>
                     <h4 className="font-medium mb-2">Device Information</h4>
                     <div className="grid gap-2 md:grid-cols-2 text-sm">
-                      {bugReport.device_info.os && (
-                        <div>OS: {bugReport.device_info.os}</div>
+                      {deviceInfo.os && (
+                        <div>OS: {deviceInfo.os}</div>
                       )}
-                      {bugReport.device_info.version && (
-                        <div>Version: {bugReport.device_info.version}</div>
+                      {deviceInfo.version && (
+                        <div>Version: {deviceInfo.version}</div>
                       )}
-                      {bugReport.device_info.model && (
-                        <div>Model: {bugReport.device_info.model}</div>
+                      {deviceInfo.model && (
+                        <div>Model: {deviceInfo.model}</div>
                       )}
-                      {bugReport.device_info.browser && (
-                        <div>Browser: {bugReport.device_info.browser}</div>
+                      {deviceInfo.browser && (
+                        <div>Browser: {deviceInfo.browser}</div>
                       )}
-                      {bugReport.device_info.screen_resolution && (
-                        <div>Screen: {bugReport.device_info.screen_resolution}</div>
+                      {deviceInfo.screen_resolution && (
+                        <div>Screen: {deviceInfo.screen_resolution}</div>
                       )}
                     </div>
                   </div>

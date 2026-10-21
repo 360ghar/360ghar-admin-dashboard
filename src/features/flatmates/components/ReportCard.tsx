@@ -18,8 +18,8 @@ interface ReportCardProps {
   reportedByMeta?: ReactNode
 }
 
-const getReasonBadge = (reason: string) => {
-  const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const getReasonBadge = (reason: FlatmatesReport['reason']) => {
+  const variants: Record<FlatmatesReport['reason'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
     spam: 'secondary',
     fake_profile: 'destructive',
     abuse: 'destructive',
@@ -27,8 +27,8 @@ const getReasonBadge = (reason: string) => {
     other: 'outline',
   }
   return (
-    <Badge variant={variants[reason] || 'outline'}>
-      {reasonLabels[reason] || reason}
+    <Badge variant={variants[reason]}>
+      {reasonLabels[reason]}
     </Badge>
   )
 }
@@ -67,11 +67,27 @@ export function ReportCard({ report, onReview, titleBadge, reportedByMeta }: Rep
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {report.description && (
+          {/* `notes` is the reporter's own text. The moderator's note is separate (`moderator_notes`). */}
+          {report.notes && (
             <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
               <div className="flex items-start gap-2">
                 <Flag className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <p className="text-sm">{report.description}</p>
+                <p className="text-sm">{report.notes}</p>
+              </div>
+            </div>
+          )}
+          {report.moderator_notes && (
+            <div className="rounded-cohere-md border border-cohere-card-border bg-card/40 p-3 backdrop-blur-md">
+              <div className="flex items-start gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <p className="text-sm">
+                  <span className="font-medium">Moderator note:</span> {report.moderator_notes}
+                  {report.moderated_by != null && (
+                    <span className="text-muted-foreground">
+                      {' '}(user #{report.moderated_by}{report.moderated_at ? `, ${formatDateTime(report.moderated_at)}` : ''})
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           )}

@@ -37,7 +37,24 @@ describe('retry policy (runtime behaviour)', () => {
       store.dispatch(propertiesApi.endpoints.searchProperties.initiate({ limit: 1 })).unwrap(),
     ).rejects.toBeTruthy()
     expect(fetchMock.mock.calls.length).toBe(4)
-  })
+  }, 10_000)
+
+  it('waits for Retry-After before it retries a GET 503', async () => {
+    fetchMock
+      .mockImplementationOnce(() => new Response(JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Try later' } }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '1' },
+      }))
+      .mockImplementation(() => new Response(JSON.stringify({ items: [], next_cursor: null, has_more: false, limit: 1, total: null }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    const store = makeStore()
+    const startedAt = Date.now()
+    await store.dispatch(propertiesApi.endpoints.searchProperties.initiate({ limit: 1 })).unwrap()
+    expect(fetchMock.mock.calls.length).toBe(2)
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(1000)
+  }, 10_000)
 
   it('never retries GET 4xx', async () => {
     fetchMock.mockImplementation(() => jsonResponse(400))

@@ -11,13 +11,21 @@ const BugReportUpdateForm: React.FC<{ bugReport: BugReport; onSubmit: (data: Bug
   const { control, register, handleSubmit, formState: { isSubmitting } } = useForm<BugReportUpdate>({
     defaultValues: {
       status: bugReport.status,
-      assigned_to: bugReport.assigned_to ?? undefined,
+      assigned_to: bugReport.assigned_to ?? null,
       resolution: bugReport.resolution || '',
     },
   })
 
+  // Status never goes out as null (422). Blank assignee and resolution go out as null so they clear.
+  const submit = (values: BugReportUpdate) =>
+    onSubmit({
+      status: values.status ?? bugReport.status,
+      assigned_to: values.assigned_to ?? null,
+      resolution: values.resolution?.trim() ? values.resolution : null,
+    })
+
   return (
-    <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
+    <form onSubmit={(e) => void handleSubmit(submit)(e)} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-1">
         <div className="space-y-2">
           <Label>Status</Label>
@@ -25,7 +33,7 @@ const BugReportUpdateForm: React.FC<{ bugReport: BugReport; onSubmit: (data: Bug
             control={control}
             name="status"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select value={field.value ?? undefined} onValueChange={field.onChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -42,14 +50,14 @@ const BugReportUpdateForm: React.FC<{ bugReport: BugReport; onSubmit: (data: Bug
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="assigned_to">Assigned To (Agent ID)</Label>
+        <Label htmlFor="assigned_to">Assigned To (admin or agent user ID)</Label>
         <Input
           id="assigned_to"
           type="number"
           {...register('assigned_to', {
-            setValueAs: (value) => (value === '' || Number.isNaN(Number(value)) ? undefined : Number(value)),
+            setValueAs: (value) => (value === '' || value == null || Number.isNaN(Number(value)) ? null : Number(value)),
           })}
-          placeholder="Enter agent ID"
+          placeholder="Enter user ID"
         />
       </div>
 

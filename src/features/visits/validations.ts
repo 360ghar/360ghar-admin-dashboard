@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 // Visit form validation schema (used in VisitForm.tsx)
 export const visitFormSchema = z.object({
-  // user_id kept for UI selection but not sent to API
-  user_id: z.coerce.number().optional(),
+  // The visitor. `POST /visits` honours `user_id` for admins and agents (other callers always own the visit).
+  user_id: z.coerce.number({ invalid_type_error: 'Select a user' }).int().min(1, 'Select a user'),
   property_id: z.coerce.number().min(1, 'Property is required'),
   scheduled_date: z.string().min(1, 'Date is required'),
 }).refine(

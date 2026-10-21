@@ -1,22 +1,17 @@
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
 import {useMemo, useState} from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FolderOpen, Trash2 } from "lucide-react";
+import { FolderOpen } from "lucide-react";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
 import UploadDocumentDialog from "@/features/pm/components/UploadDocumentDialog";
-import DocumentEditForm from "@/features/pm/components/DocumentEditForm";
+import DocumentRowActions from "@/features/pm/components/DocumentRowActions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
 import type { Document, DocumentType } from "@/types/pm";
-import {
-  useListPmDocumentsQuery,
-  useUpdatePmDocumentMutation,
-  useDeletePmDocumentMutation} from "@/features/pm/api/pmApi";
+import { useListPmDocumentsQuery } from "@/features/pm/api/pmApi";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmAlertDialog } from "@/components/ui/confirm-alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -30,14 +25,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default function PmDocumentsPage() {
   const { role } = useUserRole();
   const selectedOwnerId = useAppSelector(selectSelectedOwnerId);
-  const { toast } = useToast();
 
   const ownerId = selectedOwnerId;
   const canUpload = role !== "admin" || Boolean(ownerId);
@@ -45,16 +37,13 @@ export default function PmDocumentsPage() {
   const [docTypeFilter, setDocTypeFilter] = useState<DocumentType | "">("");
   const [limit, setLimit] = useState(50);
 
-  const pager = useCursorPagination(`${docTypeFilter}|${limit}`);
+  const pager = useCursorPagination(pmCursorKey(ownerId, docTypeFilter, limit));
 
 
   const docs = useListPmDocumentsQuery(
     { owner_id: ownerId, document_type: docTypeFilter || undefined, limit, cursor: pager.cursor },
     { skip: role === "agent" && !ownerId },
   );
-
-  const [updateDoc, updateDocState] = useUpdatePmDocumentMutation();
-  const [deleteDoc, deleteDocState] = useDeletePmDocumentMutation();
 
   const columns = useMemo<ColumnDef<Document>[]>(() => {
     return [
@@ -89,61 +78,11 @@ export default function PmDocumentsPage() {
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-2">
-            <Button asChild variant="outline" size="sm">
-              <a href={row.original.file_url} target="_blank" rel="noreferrer">
-                View
-              </a>
-            </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm">Edit</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-xl">
-                <DialogHeader>
-                  <DialogTitle>Edit document</DialogTitle>
-                </DialogHeader>
-                <DocumentEditForm
-                  doc={row.original}
-                  onSubmit={async (payload) => {
-                    try {
-                      await updateDoc({ document_id: row.original.id, payload }).unwrap();
-                      toast({ title: "Updated", description: "Document updated." });
-                    } catch (e: unknown) {
-                      toast({ title: "Failed", description: getErrorMessage(e, "Could not update document."), variant: "destructive" });
-                    }
-                  }}
-                  isSubmitting={updateDocState.isLoading}
-                />
-              </DialogContent>
-            </Dialog>
-            <ConfirmAlertDialog
-              title="Delete Document"
-              description={`Are you sure you want to delete "${row.original.title}"? This action cannot be undone.`}
-              confirmLabel="Delete"
-              variant="destructive"
-              onConfirm={async () => {
-                try {
-                  await deleteDoc(row.original.id).unwrap();
-                  toast({ title: "Deleted", description: "Document deleted." });
-                } catch (e: unknown) {
-                  toast({ title: "Failed", description: getErrorMessage(e, "Could not delete document."), variant: "destructive" });
-                }
-              }}
-            >
-              {(openDialog) => (
-                <Button variant="destructive" size="sm" onClick={openDialog} disabled={deleteDocState.isLoading} aria-label="Delete">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </ConfirmAlertDialog>
-          </div>
-        )},
+        cell: ({ row }) => <DocumentRowActions doc={row.original} />},
     ];
-  }, [toast, updateDoc, updateDocState.isLoading, deleteDoc, deleteDocState.isLoading]);
+  }, []);
 
-  const docItems = docs.data?.items ?? [];
+  const docItems = docs.currentData?.items ?? [];
 
   return (
     <OwnerScopeGate>
@@ -152,7 +91,7 @@ export default function PmDocumentsPage() {
           title="Documents"
           description="Upload, link, and manage sharing for documents."
           icon={FolderOpen}
-          actions={<UploadDocumentDialog ownerId={ownerId} canUpload={canUpload} />}
+          actions={<UploadDocumentDialog key={ownerId ?? 'all'} ownerId={ownerId} canUpload={canUpload} />}
         />
         {role === "admin" && !ownerId ? (
           <div className="text-sm text-muted-foreground">
@@ -194,18 +133,18 @@ export default function PmDocumentsPage() {
             </div>
 
             {docs.isError ? (
-              <ErrorState title="Failed to load documents" onRetry={() => void docs.refetch()} />
-            ) : docs.isLoading ? (
+              <ErrorState title="Failed to load documents" error={docs.error} onRetry={() => void docs.refetch()} />
+            ) : (!docs.currentData && docs.isFetching) ? (
               <LoadingState type="spinner" />
             ) : docItems.length ? (
               <>
                 <ResponsiveDataTable columns={columns} data={docItems} />
                 <CursorPager
                   canPrev={pager.canPrev}
-                  hasMore={docs.data?.has_more ?? false}
+                  hasMore={docs.currentData?.has_more ?? false}
                   loading={docs.isFetching}
                   onPrev={pager.prev}
-                  onNext={() => docs.data && pager.next(docs.data.next_cursor)}
+                  onNext={() => docs.currentData && pager.next(docs.currentData.next_cursor)}
                 />
               </>
             ) : (

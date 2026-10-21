@@ -16,7 +16,12 @@ const AgentProfilePage = () => {
     error,
     refetch,
   } = useGetAgentProfileQuery()
-  const { data: agentWithStats } = useGetAgentStatsQuery(agentProfile?.id || 0, {
+  const {
+    data: agentWithStats,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useGetAgentStatsQuery(agentProfile?.id || 0, {
     skip: !agentProfile?.id,
   })
 
@@ -133,6 +138,10 @@ const AgentProfilePage = () => {
             <CardTitle>Performance Metrics</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {statsLoading ? <LoadingState type="skeleton" rows={4} /> : statsError ? (
+              <ErrorState title="Failed to load performance metrics" error={statsError} onRetry={() => { void refetchStats() }} />
+            ) : (
+              <>
             <div className="text-center">
               <CountUp
                 to={stats?.efficiency_score ?? 0}
@@ -163,6 +172,8 @@ const AgentProfilePage = () => {
                 </span>
               </div>
             </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,71 +1,34 @@
-import type { PaginatedResponse } from './api'
+/**
+ * Blog types. Wire types alias the generated OpenAPI components
+ * (`src/lib/api/schema.gen.ts`); only the UI filter shapes are hand-written.
+ */
+import type { components, paths } from '@/lib/api/schema.gen'
+import type { CursorPage } from './api'
 
-export interface BlogCategory {
-  id: number
-  name: string
-  slug: string
-  description?: string | null
-  created_at?: string | null
-  updated_at?: string | null
-}
+type S = components['schemas']
 
-export interface BlogTag {
-  id: number
-  name: string
-  slug: string
-  created_at?: string | null
-  updated_at?: string | null
-}
+export type BlogCategory = S['BlogCategory']
+export type BlogTag = S['BlogTag']
 
-// Blog lifecycle status (kept in sync with backend BlogPostStatus enum).
-export type BlogPostStatus = 'draft' | 'published' | 'archived' | 'scheduled'
+/** Blog lifecycle status, exactly as the backend sends it. */
+export type BlogPostStatus = S['BlogPostStatus']
 
 export const BLOG_POST_STATUSES: BlogPostStatus[] = ['draft', 'published', 'archived', 'scheduled']
 
-export interface BlogPost {
-  id: number
-  title: string
-  slug: string
-  content: string
-  excerpt?: string | null
-  cover_image_url?: string | null
-  /**
-   * Lifecycle status of the post. Newer posts always carry this; legacy posts
-   * may lack it, in which case callers should fall back to `active`.
-   * Known values: 'draft' | 'published' | 'archived' | 'scheduled'.
-   */
-  status: string
-  /** ISO timestamp the post is scheduled to go live (required when status === 'scheduled'). */
-  scheduled_at?: string | null
-  /** ISO timestamp the post was published (set by backend when status flips to published). */
-  published_at?: string | null
-  /** Shared secret token allowing unauthenticated preview of draft/scheduled posts. */
-  preview_token?: string | null
-  /** @deprecated Replaced by `status`. Backend keeps it in sync: `active === (status === 'published')`. */
-  active?: boolean
-  categories?: BlogCategory[]
-  tags?: BlogTag[]
-  author_id?: number
-  created_at: string
-  updated_at?: string | null
-}
+/** A post as returned by the list and detail routes. It never carries `preview_token`. */
+export type BlogPost = S['BlogPost']
+/** A post as returned by create and update. Adds `author_id` and `preview_token`. */
+export type BlogPostAdmin = S['BlogPostAdmin']
 
-// List Response Types — uniform cursor-paginated shape
-export type BlogPostListResponse = PaginatedResponse<BlogPost>
+// List Response Types
+export type BlogPostListResponse = CursorPage<BlogPost>
+export type BlogCategoryListResponse = CursorPage<BlogCategory>
+export type BlogTagListResponse = CursorPage<BlogTag>
 
-export type BlogCategoryListResponse = PaginatedResponse<BlogCategory>
-
-export type BlogTagListResponse = PaginatedResponse<BlogTag>
-
-// Filter Types
-export interface BlogPostFilters {
-  q?: string
-  categories?: string[]
-  tags?: string[]
-  keywords?: string[]
-  status?: string
+// Filter Types. Query keys come from the spec: `keywords` and `category_id` are gone.
+type BlogPostsQuery = NonNullable<paths['/api/v1/blog/posts']['get']['parameters']['query']>
+export type BlogPostFilters = Pick<BlogPostsQuery, 'q' | 'categories' | 'tags' | 'status' | 'limit'> & {
   cursor?: string | null
-  limit?: number
 }
 
 export interface BlogCategoryFilters {
@@ -80,64 +43,14 @@ export interface BlogTagFilters {
   include_total?: boolean
 }
 
-// Create/Update Types
-export interface BlogPostCreate {
-  title: string
-  content: string
-  excerpt?: string
-  cover_image_url?: string
-  categories?: string[]
-  tags?: string[]
-  /**
-   * New lifecycle status. When provided, the backend derives `active`
-   * (`active === (status === 'published')`) and overrides any `active` value.
-   * Known values: 'draft' | 'published' | 'archived' | 'scheduled'.
-   */
-  status?: string
-  /** ISO timestamp, required when `status === 'scheduled'`. */
-  scheduled_at?: string | null
-  /** @deprecated Use `status` instead. Kept for backwards compatibility. */
-  active?: boolean
-}
+// Create/Update Types. PUT is PATCH-style: send only changed keys, and an
+// explicit null (or an empty array) clears excerpt, cover_image_url,
+// categories and tags.
+export type BlogPostCreate = S['BlogPostCreate']
+export type BlogPostUpdate = S['BlogPostUpdate']
+export type BlogCategoryCreate = S['BlogCategoryCreate']
+export type BlogCategoryUpdate = S['BlogCategoryUpdate']
+export type BlogTagCreate = S['BlogTagCreate']
+export type BlogTagUpdate = S['BlogTagUpdate']
 
-export interface BlogPostUpdate {
-  title?: string
-  content?: string
-  excerpt?: string
-  cover_image_url?: string
-  categories?: string[]
-  tags?: string[]
-  /**
-   * New lifecycle status. When provided, the backend derives `active`
-   * (`active === (status === 'published')`) and overrides any `active` value.
-   * Known values: 'draft' | 'published' | 'archived' | 'scheduled'.
-   */
-  status?: string
-  /** ISO timestamp, required when `status === 'scheduled'`. Send `null` to clear. */
-  scheduled_at?: string | null
-  /** @deprecated Use `status` instead. Kept for backwards compatibility. */
-  active?: boolean
-}
-
-export interface BlogCategoryCreate {
-  name: string
-  description?: string
-}
-
-export interface BlogCategoryUpdate {
-  name?: string
-  description?: string
-}
-
-export interface BlogTagCreate {
-  name: string
-}
-
-export interface BlogTagUpdate {
-  name: string
-}
-
-export interface BlogGenerationResult {
-  blog: BlogPost
-  images: string[]
-}
+export type BlogGenerationResult = S['BlogGenerationResult']

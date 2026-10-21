@@ -63,3 +63,16 @@ export const FURNISHING_LEVEL_OPTIONS = [
   { value: 'semi_furnished', label: 'Semi-Furnished' },
   { value: 'unfurnished', label: 'Unfurnished' },
 ] as const
+
+/** Type guard over an options list: narrows a string to one of the listed `value`s. */
+function oneOf<T extends readonly { readonly value: string }[]>(options: T) {
+  return (value: string): value is T[number]['value'] => options.some((option) => option.value === value)
+}
+
+export const isPropertyType = oneOf(PROPERTY_TYPES)
+export const isPropertyPurpose = oneOf(PROPERTY_PURPOSES)
+export const isPropertyStatus = oneOf(PROPERTY_STATUSES)
+export const isSortBy = oneOf(SORT_OPTIONS)
+export const isKitchenType = oneOf(KITCHEN_TYPE_OPTIONS)
+export const isVentilationType = oneOf(VENTILATION_TYPE_OPTIONS)
+export const isFurnishingLevel = oneOf(FURNISHING_LEVEL_OPTIONS)

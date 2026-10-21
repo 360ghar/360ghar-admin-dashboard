@@ -27,7 +27,6 @@ import {
   getOwnerLifestyle,
   getPrescreenFlags,
   getPrescreenReason,
-  isApprovalBoostActive,
   maskPhone,
 } from './moderationUtils'
 
@@ -59,7 +58,6 @@ export function ModerationActionDialog({
   const prescreenReason = selectedListing ? getPrescreenReason(selectedListing) : null
   const imageUrls = selectedListing ? getListingImageUrls(selectedListing) : []
   const lifestyle = selectedListing ? getOwnerLifestyle(selectedListing.owner) : null
-  const isBoosted = selectedListing ? isApprovalBoostActive(selectedListing) : false
 
   const lifestyleChips: { key: string; label: string }[] = []
   if (lifestyle?.smoking) lifestyleChips.push({ key: 'smoking', label: `Smoking: ${lifestyle.smoking}` })
@@ -95,7 +93,7 @@ export function ModerationActionDialog({
                   {selectedListing.locality}, {selectedListing.city}
                 </p>
                 <p className="text-sm font-medium">
-                  {formatCurrency(selectedListing.monthly_rent)}/month
+                  {selectedListing.monthly_rent != null ? `${formatCurrency(selectedListing.monthly_rent)}/month` : 'No rent set'}
                 </p>
                 <div className="text-xs text-muted-foreground">
                   <p>Owner: {selectedListing.owner?.full_name || 'Unknown'}</p>
@@ -109,11 +107,6 @@ export function ModerationActionDialog({
                         </Badge>
                       ))}
                     </div>
-                  )}
-                  {isBoosted && (
-                    <Badge variant="outline" className="text-xs mt-1.5">
-                      BOOSTED
-                    </Badge>
                   )}
                 </div>
               </div>

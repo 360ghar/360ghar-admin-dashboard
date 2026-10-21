@@ -41,13 +41,12 @@ interface DataTableProps<TData, TValue> {
 /** Render a sortable column header with direction indicator. */
 export function SortableHeader({ column, children, className }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => false | SortDirection }; children: ReactNode; className?: string }) {
   const sorted = column.getIsSorted()
-  const ariaSort = sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
   return (
     <button
       type="button"
       onClick={() => column.toggleSorting()}
       className={cn('inline-flex items-center gap-1 hover:opacity-80', className)}
-      aria-sort={ariaSort}
+      title="Sort rows on this page"
     >
       {children}
       {sorted === 'asc' ? <ArrowUp className="h-3 w-3" /> : sorted === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3 opacity-50" />}
@@ -115,7 +114,10 @@ export function DataTable<TData, TValue>({
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead key={header.id}>
+                      <TableHead key={header.id} aria-sort={enableSorting && header.column.getCanSort()
+                        ? header.column.getIsSorted() === 'asc' ? 'ascending'
+                          : header.column.getIsSorted() === 'desc' ? 'descending' : 'none'
+                        : undefined}>
                         {header.isPlaceholder
                           ? null
                           : flexRender(
@@ -152,7 +154,10 @@ export function DataTable<TData, TValue>({
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} aria-sort={enableSorting && header.column.getCanSort()
+                    ? header.column.getIsSorted() === 'asc' ? 'ascending'
+                      : header.column.getIsSorted() === 'desc' ? 'descending' : 'none'
+                    : undefined}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(

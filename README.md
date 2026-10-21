@@ -27,7 +27,7 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
 
 1. **Clone and Install Dependencies**:
    ```bash
-   npm install
+   npm ci
    ```
 
 2. **Environment Configuration**:
@@ -54,7 +54,7 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
 - `src/components/layout/`: Sidebar, TopBar, DashboardLayout, BottomNav
 - `src/components/ui/`: Shadcn UI components + EmptyState, LoadingState, DataTable
 - `src/store/api.ts`: Base RTK Query API with auth
-- `src/store/index.ts`: Store config (all 14 API modules registered)
+- `src/store/index.ts`: Store config and session-bound cache cleanup
 - `src/types/`: TypeScript interfaces (api.ts, blog.ts)
 - `src/lib/`: Utilities (config.ts, auth.ts, errors.ts, supabase.ts, utils.ts)
 - `src/hooks/`: Custom React hooks
@@ -65,9 +65,9 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
 - User enters phone and password at `/login`
 - Frontend signs in directly with Supabase Auth SDK
 - Backend receives `Authorization: Bearer <supabase_access_token>` on protected routes
-- User profile is loaded from backend `/users/profile/` after successful Supabase session
-- Role inferred from `user.agent_id` (null = Admin, present = Agent)
-- Redirect to dashboard on success
+- The backend profile is loaded from `/users/profile` and checked against the Supabase user ID
+- The backend `role` and active status control access; cached display data does not grant access
+- Successful login returns to the intended protected route, or to the dashboard
 
 ### Protected Routes
 - `PrivateRoute`: Checks authentication status
@@ -79,6 +79,21 @@ Admins can manage the full platform (properties, users, bookings, reports, setti
 - Supabase SDK manages session persistence and refresh
 - Auth slice manages user state derived from active Supabase session
 - Logout signs out Supabase session, clears credentials, and redirects to login
+
+See [portal state handling](docs/STATE_HANDLING.md) for cache rules, storage scope, session cleanup, page states, and the feature checklist. The [non-PM](docs/NON_PM_STATE_CHECKLIST.md) and [PM](docs/PM_STATE_CHECKLIST.md) route checklists record source checks and remaining acceptance work.
+
+### Verification
+
+```bash
+npm run typecheck
+npm run typecheck:tests
+npm run lint
+npm test
+npm run build
+npm run test:browser
+```
+
+The browser checks use deterministic API fixtures and a test-only Supabase session in browser storage. They do not add a production authentication bypass. Representative browser captures are in `artifacts/screenshots/`.
 
 ## Core Features
 
@@ -174,8 +189,8 @@ variant remains available via the theme toggle in the top bar).
   `--accent`/`--destructive`/`--border`/`--ring` (per-variant), Cohere accents
   (`cohere-coral`, `cohere-action-blue`, ...), and command-center glass tokens
   (`--glass-bg`, `--glass-border`, `.card-glow`).
-- **Typography**: Inter everywhere (Tailwind `sans`); Space Grotesk is configured as the
-  `display` token and loaded via Google Fonts for display moments (apply via `font-display`).
+- **Typography**: Inter Variable everywhere (Tailwind `sans`); Space Grotesk Variable is the
+  `display` token. Both fonts are bundled locally so the production CSP can keep `font-src 'self'`.
 - **Motion**: ReactBits components vendored into `src/components/reactbits/` (MIT
   attribution headers; ~10 used across pages: FadeContent, CountUp, SplitText, TiltedCard,
   ShinyText, GlitchText, ambient-background, BlurText, Magnet, GradientText). All animation

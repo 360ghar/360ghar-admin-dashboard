@@ -1,6 +1,6 @@
 import FormsTab, { buildPublicFormUrl } from "@/features/pm/components/FormsTab";
 import InboxTab from "@/features/pm/components/InboxTab";
-import type { RentalApplication, RentalApplicationForm, TenantStatus } from "@/types/pm";
+import type { RentalApplication, RentalApplicationForm, RentalApplicationStatus } from "@/types/pm";
 
 interface ApplicationTableProps {
   tab: "forms" | "inbox";
@@ -27,14 +27,15 @@ interface ApplicationTableProps {
   appsCanNext: boolean;
   onAppsPrev: () => void;
   onAppsNext: () => void;
-  status: TenantStatus | "";
-  onStatusChange: (status: TenantStatus | "") => void;
+  status: RentalApplicationStatus | "";
+  onStatusChange: (status: RentalApplicationStatus | "") => void;
+  formId: number | null;
+  onClearForm: () => void;
   appsLimitValue: number;
   onAppsLimitChange: (limit: number) => void;
   decideIsLoading: boolean;
   onApprove: (application: RentalApplication) => void;
   onReject: (application: RentalApplication) => void;
-  onDeleteApplication: (applicationId: number) => Promise<void>;
 }
 
 const ApplicationTable: React.FC<ApplicationTableProps> = ({
@@ -64,12 +65,13 @@ const ApplicationTable: React.FC<ApplicationTableProps> = ({
   onAppsNext,
   status,
   onStatusChange,
+  formId,
+  onClearForm,
   appsLimitValue,
   onAppsLimitChange,
   decideIsLoading,
   onApprove,
   onReject,
-  onDeleteApplication,
 }) => {
   if (tab === "forms") {
     return (
@@ -105,12 +107,13 @@ const ApplicationTable: React.FC<ApplicationTableProps> = ({
       onAppsNext={onAppsNext}
       status={status}
       onStatusChange={onStatusChange}
+      formId={formId}
+      onClearForm={onClearForm}
       appsLimitValue={appsLimitValue}
       onAppsLimitChange={onAppsLimitChange}
       decideIsLoading={decideIsLoading}
       onApprove={onApprove}
       onReject={onReject}
-      onDeleteApplication={onDeleteApplication}
     />
   );
 };

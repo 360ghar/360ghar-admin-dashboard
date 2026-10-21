@@ -61,11 +61,12 @@ const BlogGenerateDialog = ({ open, onOpenChange }: BlogGenerateDialogProps) => 
         })
       } else {
         const safeCount = Math.min(Math.max(count || 1, 1), 20)
+        // The bulk route returns a CursorPage: the drafts are in `items`.
         const res = await generateBulk({ count: safeCount }).unwrap()
-        setResults(res)
+        setResults(res.items)
         toast({
           title: 'Drafts generated',
-          description: `${res.length} draft blog ${res.length === 1 ? 'post' : 'posts'} have been created.`,
+          description: `${res.items.length} draft blog ${res.items.length === 1 ? 'post' : 'posts'} have been created.`,
         })
       }
     } catch (error: unknown) {

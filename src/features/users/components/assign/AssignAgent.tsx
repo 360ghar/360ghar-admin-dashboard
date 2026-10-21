@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import Combobox from '@/components/ui/combobox'
-import { useListAgentsQuery } from '@/features/agents/api/agentsApi'
+import { useListAllAgentsQuery } from '@/features/agents/api/agentsApi'
 import { useAssignAgentMutation } from '@/features/users/api/usersApi'
 import { getErrorMessage } from '@/lib/errors'
 import { ErrorState } from '@/components/ui/error-state'
@@ -17,7 +17,8 @@ interface AssignAgentProps {
 
 const AssignAgent = ({ userId, currentAgentId, currentAgentLabel }: AssignAgentProps) => {
   const [agentId, setAgentId] = useState<number | ''>(currentAgentId ?? '')
-  const agents = useListAgentsQuery({ include_inactive: false, limit: 100 })
+  // The picker needs every active agent: the hook follows next_cursor.
+  const agents = useListAllAgentsQuery({ include_inactive: false })
   const { toast } = useToast()
   const [assignAgent, { isLoading }] = useAssignAgentMutation()
 
@@ -54,7 +55,7 @@ const AssignAgent = ({ userId, currentAgentId, currentAgentLabel }: AssignAgentP
     return <LoadingState type="skeleton" rows={2} />
   }
 
-  const items = (agents.data?.items ?? []).map((a) => ({
+  const items = (agents.data ?? []).map((a) => ({
     value: a.id,
     label: a.name || `Agent #${a.id}`,
   }))

@@ -22,6 +22,7 @@ interface RecentActivityCardProps {
   feed: ActivityEntry[]
   isLoading: boolean
   isError: boolean
+  isPartialError: boolean
   onRetry: () => void
 }
 
@@ -50,7 +51,7 @@ function AnimatedActivityItem({ children, index }: { children: ReactNode; index:
   )
 }
 
-export function RecentActivityCard({ feed, isLoading, isError, onRetry }: RecentActivityCardProps) {
+export function RecentActivityCard({ feed, isLoading, isError, isPartialError, onRetry }: RecentActivityCardProps) {
   return (
     <Card className="rounded-cohere-md border-cohere-card-border card-glow">
       <CardHeader>
@@ -71,10 +72,14 @@ export function RecentActivityCard({ feed, isLoading, isError, onRetry }: Recent
           </div>
         ) : isError ? (
           <ErrorState title="Couldn't load activity" onRetry={onRetry} />
+        ) : feed.length === 0 && isPartialError ? (
+          <ErrorState title="Some recent activity is unavailable" onRetry={onRetry} />
         ) : feed.length === 0 ? (
           <EmptyState title="No recent activity" description="New visits, bookings and listings will show up here." />
         ) : (
-          <ul className="divide-y divide-cohere-hairline">
+          <div>
+            {isPartialError && <p role="status" className="mb-3 text-sm text-destructive">Some activity could not load. This list is incomplete. <button className="underline" onClick={onRetry}>Retry</button></p>}
+            <ul className="divide-y divide-cohere-hairline">
             {feed.map((entry, index) => {
               const Icon = KIND_ICON[entry.kind]
               return (
@@ -106,7 +111,8 @@ export function RecentActivityCard({ feed, isLoading, isError, onRetry }: Recent
                 </AnimatedActivityItem>
               )
             })}
-          </ul>
+            </ul>
+          </div>
         )}
       </CardContent>
     </Card>

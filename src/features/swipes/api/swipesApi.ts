@@ -1,67 +1,28 @@
 import { api } from '@/store/api'
-import type { SwipeListResponse } from '@/types/api'
+import type { SwipeResult } from '@/types/api'
+import type { components } from '@/lib/api/schema.gen'
 
-export interface SwipeRequest {
-    property_id: number
-    is_liked: boolean
-}
-
-export interface SwipeResponse {
-    success: boolean
-    match?: boolean
-}
-
-export interface SwipeListParams {
-    cursor?: string | null
-    limit?: number
-    is_liked?: boolean
-    q?: string
-    city?: string
-    property_type?: string
-    purpose?: string
-    price_min?: number
-    price_max?: number
-}
+/** Body of `POST /swipes`: only `property_id` and `is_liked` (any other key is a 422). */
+export type SwipeRequest = components['schemas']['SwipeCreate']
 
 export const swipesApi = api.injectEndpoints({
     endpoints: (builder) => ({
-        swipeProperty: builder.mutation<SwipeResponse, SwipeRequest>({
+        // 201 for a new swipe, 200 when an existing swipe is updated. The body is `{ id, property_id, is_liked }`.
+        // There is no match flag: a swipe on a property never produces a match.
+        // Errors: 404 PROPERTY_NOT_FOUND, 403 OWN_PROPERTY_SWIPE.
+        swipeProperty: builder.mutation<SwipeResult, SwipeRequest>({
             query: (data) => ({
                 url: '/swipes',
                 method: 'POST',
                 body: data,
             }),
-            // Only swipe history — do not invalidate RECOMMENDATIONS mid-deck
-            // (would re-order/shorten the feed and desync currentIndex).
-            invalidatesTags: [{ type: 'Swipe', id: 'LIST' }],
-        }),
-        listSwipes: builder.query<SwipeListResponse, SwipeListParams | void>({
-            query: (params) => ({
-                url: '/swipes',
-                params: { limit: 20, ...(params || {}) },
-            }),
-            providesTags: [{type: 'Swipe' as const, id: 'LIST'}],
-        }),
-        undoLastSwipe: builder.mutation<void, void>({
-            query: () => ({
-                url: '/swipes/undo',
-                method: 'DELETE',
-            }),
-            invalidatesTags: [{type: 'Swipe', id: 'LIST'}],
-        }),
-        toggleSwipeLike: builder.mutation<void, { swipeId: number | string }>({
-            query: ({ swipeId }) => ({
-                url: `/swipes/${swipeId}/toggle`,
-                method: 'PUT',
-            }),
-            invalidatesTags: [{type: 'Swipe', id: 'LIST'}],
+            // Search reflects liked/excluded properties. Keep the active deck
+            // stable; RECOMMENDATIONS has a separate tag.
+            invalidatesTags: [{ type: 'Swipe', id: 'LIST' }, { type: 'Property', id: 'LIST' }],
         }),
     }),
 })
 
 export const {
     useSwipePropertyMutation,
-    useListSwipesQuery,
-    useUndoLastSwipeMutation,
-    useToggleSwipeLikeMutation,
 } = swipesApi

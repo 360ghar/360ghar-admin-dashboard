@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
 import type { User } from '@/types'
-import { getOwnerLabel, getKycStatus } from '@/features/pm/utils'
+import { getOwnerLabel } from '@/features/pm/utils'
 import { PageHeader } from '@/components/ui/page-header'
 
 export default function PmOwnersPage() {
@@ -34,7 +34,7 @@ export default function PmOwnersPage() {
 
   const users = useOwnersSearch(debouncedQ, { cursor: pager.cursor })
 
-  const owners = useMemo(() => (users.data?.items || []).filter((u) => u.role === 'user'), [users.data?.items])
+  const owners = useMemo(() => (users.currentData?.items || []).filter((u) => u.role === 'user'), [users.currentData?.items])
 
   const columns = useMemo<ColumnDef<User>[]>(() => {
     return [
@@ -64,14 +64,6 @@ export default function PmOwnersPage() {
             {row.original.agent_id ? `Agent #${row.original.agent_id}` : 'Unassigned'}
           </span>
         )},
-      {
-        id: 'kyc',
-        header: 'KYC',
-        cell: ({ row }) => {
-          const status = getKycStatus(row.original)
-          const variant = status === 'verified' ? 'default' : status === 'pending' ? 'secondary' : 'outline'
-          return <Badge variant={variant}>{status}</Badge>
-        }},
       {
         id: 'actions',
         header: '',
@@ -142,17 +134,17 @@ export default function PmOwnersPage() {
               error={users.error}
               onRetry={() => { void users.refetch() }}
             />
-          ) : users.isLoading ? (
+          ) : (!users.currentData && users.isFetching) ? (
             <LoadingState type="spinner" />
           ) : owners.length ? (
             <>
               <ResponsiveDataTable columns={columns} data={owners} />
               <CursorPager
                 canPrev={pager.canPrev}
-                hasMore={users.data?.has_more ?? false}
+                hasMore={users.currentData?.has_more ?? false}
                 loading={users.isFetching}
                 onPrev={pager.prev}
-                onNext={() => users.data && pager.next(users.data.next_cursor)}
+                onNext={() => users.currentData && pager.next(users.currentData.next_cursor)}
               />
             </>
           ) : (

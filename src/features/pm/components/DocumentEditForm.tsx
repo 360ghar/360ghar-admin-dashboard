@@ -20,6 +20,8 @@ export default function DocumentEditForm({
   const [shareAgent, setShareAgent] = useState(doc.shared_with_agent);
   const [shareTenant, setShareTenant] = useState(doc.shared_with_tenant);
 
+  const changed = title.trim() !== doc.title || shareAgent !== doc.shared_with_agent || shareTenant !== doc.shared_with_tenant;
+
   useEffect(() => {
     setTitle(doc.title);
     setShareAgent(doc.shared_with_agent);
@@ -30,7 +32,8 @@ export default function DocumentEditForm({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Title</Label>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} aria-invalid={!title.trim()} />
+        {!title.trim() ? <p className="text-xs text-destructive">The title cannot be empty.</p> : null}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -51,14 +54,14 @@ export default function DocumentEditForm({
       <div className="flex justify-end">
         <Button
           onClick={() => {
-            const payload: DocumentUpdate = {
-              title,
-              shared_with_agent: shareAgent,
-              shared_with_tenant: shareTenant,
-            };
+            // PATCH: only the keys the user changed. The title cannot be empty.
+            const payload: DocumentUpdate = {};
+            if (title.trim() !== doc.title) payload.title = title.trim();
+            if (shareAgent !== doc.shared_with_agent) payload.shared_with_agent = shareAgent;
+            if (shareTenant !== doc.shared_with_tenant) payload.shared_with_tenant = shareTenant;
             void onSubmit(payload);
           }}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !title.trim() || !changed}
         >
           {isSubmitting ? "Saving…" : "Save"}
         </Button>

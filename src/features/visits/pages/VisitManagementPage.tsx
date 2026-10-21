@@ -15,7 +15,9 @@ import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import CursorPager from '@/components/ui/cursor-pager'
 import { useCursorPagination } from '@/hooks/useCursorPagination'
-import type { Visit } from '@/types/api'
+import type { Visit, VisitStatus } from '@/types/api'
+import { isVisitStatus, visitAgentName, visitorName } from '@/features/visits/constants'
+import { useDebounce } from '@/hooks/useDebounce'
 import { getErrorMessage } from '@/lib/errors'
 import { localInputToServerTimestamp } from '@/lib/dateTime'
 import { VisitCalendar } from '@/features/visits/components/VisitCalendar'
@@ -34,20 +36,28 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [showCompleteDialog, setShowCompleteDialog] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<VisitStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  // `/visits/all` searches on the server (`q`: property title, visitor name, agent name).
+  const debouncedQuery = useDebounce(searchQuery.trim(), 300)
 
   // API calls (cursor-paginated). `userVisits` is loaded only for the
   // "user" role; admin/agent roles page through `allVisits` instead.
-  const userPager = useCursorPagination(searchQuery)
-  const { data: userVisits, isLoading: userVisitsLoading, isError: userVisitsError, refetch: refetchUserVisits } = useGetUserVisitsQuery(
+  const userPager = useCursorPagination(`${user?.supabase_user_id ?? ''}|${user?.role ?? ''}|${searchQuery}`)
+  const { currentData: userVisits, isLoading: userVisitsLoading, isFetching: userVisitsFetching, isError: userVisitsError, refetch: refetchUserVisits } = useGetUserVisitsQuery(
     { cursor: userPager.cursor, limit: VISITS_PAGE_SIZE },
     { skip: user?.role !== 'user' }
   )
 
-  const allPager = useCursorPagination(`${statusFilter}|${searchQuery}`)
-  const { data: allVisits, isLoading: allVisitsLoading, isError: allVisitsError, refetch: refetchAllVisits } = useGetAllVisitsQuery(
-    { status: statusFilter === 'all' ? undefined : statusFilter, cursor: allPager.cursor, limit: VISITS_PAGE_SIZE },
+  const allPager = useCursorPagination(`${user?.supabase_user_id ?? ''}|${user?.role ?? ''}|${user?.agent_id ?? ''}|${statusFilter}|${debouncedQuery}`)
+  const { currentData: allVisits, isLoading: allVisitsLoading, isFetching: allVisitsFetching, isError: allVisitsError, refetch: refetchAllVisits } = useGetAllVisitsQuery(
+    {
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      q: debouncedQuery || undefined,
+      agent_id: user?.role === 'agent' && user.agent_id ? user.agent_id : undefined,
+      cursor: allPager.cursor,
+      limit: VISITS_PAGE_SIZE,
+    },
     { skip: !user || user.role === 'user' }
   )
 
@@ -61,37 +71,42 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
   const rescheduledVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true, status: 'reschedule_suggested' }, { skip: skipStats })
   const completedVisitsQ = useGetUserVisitsQuery({ limit: 1, include_total: true, status: 'completed' }, { skip: skipStats })
 
-  const statsFetching = totalVisitsQ.isFetching || requestedVisitsQ.isFetching || confirmedVisitsQ.isFetching || rescheduledVisitsQ.isFetching || completedVisitsQ.isFetching
   const visitStats = {
-    total: totalVisitsQ.data?.total ?? 0,
-    upcoming: (requestedVisitsQ.data?.total ?? 0) + (confirmedVisitsQ.data?.total ?? 0) + (rescheduledVisitsQ.data?.total ?? 0),
-    completed: completedVisitsQ.data?.total ?? 0,
+    total: totalVisitsQ.isError ? '—' : totalVisitsQ.data?.total ?? '…',
+    upcoming: requestedVisitsQ.isError || confirmedVisitsQ.isError || rescheduledVisitsQ.isError
+      ? '—'
+      : requestedVisitsQ.data?.total != null && confirmedVisitsQ.data?.total != null && rescheduledVisitsQ.data?.total != null
+        ? requestedVisitsQ.data.total + confirmedVisitsQ.data.total + rescheduledVisitsQ.data.total
+        : '…',
+    completed: completedVisitsQ.isError ? '—' : completedVisitsQ.data?.total ?? '…',
   }
 
   const [rescheduleVisit] = useRescheduleVisitMutation()
   const [cancelVisit] = useCancelVisitMutation()
 
   const visits = user?.role === 'user' ? userVisits?.items || [] : allVisits?.items || []
-  const isVisitsFetching = user?.role === 'user' ? userVisitsLoading : allVisitsLoading
+  const isVisitsFetching = user?.role === 'user' ? userVisitsFetching : allVisitsFetching
+  const isVisitsLoading = user?.role === 'user' ? userVisitsLoading : allVisitsLoading
   const isVisitsError = user?.role === 'user' ? userVisitsError : allVisitsError
   const canPrev = user?.role === 'user' ? userPager.canPrev : allPager.canPrev
   const hasMore = user?.role === 'user' ? (userVisits?.has_more ?? false) : (allVisits?.has_more ?? false)
 
+  // Staff search runs on the server. The own-visits list (`/visits`) has no `q`, so it filters the loaded page.
   const filteredVisits = visits.filter(visit => {
-    if (searchQuery) {
+    if (user?.role === 'user' && searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
         (visit.property?.title?.toLowerCase().includes(query) ?? false) ||
-        (visit.user?.full_name?.toLowerCase().includes(query) ?? false) ||
-        (visit.agent?.user?.full_name?.toLowerCase().includes(query) ?? false)
+        visitorName(visit).toLowerCase().includes(query) ||
+        (visitAgentName(visit)?.toLowerCase().includes(query) ?? false)
       )
     }
     return true
   })
 
-  const refetchAll = () => {
-    void refetchUserVisits()
-    void refetchAllVisits()
+  const refetchActiveVisits = () => {
+    if (user?.role === 'user') void refetchUserVisits()
+    else void refetchAllVisits()
   }
 
   const handleLoadMore = () => {
@@ -114,19 +129,17 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         toast({ title: 'Reschedule Failed', description: 'Enter a valid date and time.', variant: 'destructive' })
         return
       }
-      await rescheduleVisit({ visitId, newDate: normalizedDate, reason: 'Rescheduled by user' }).unwrap()
+      await rescheduleVisit({ visitId, newDate: normalizedDate }).unwrap()
       toast({ title: 'Visit Rescheduled', description: 'Visit has been rescheduled successfully.' })
-      refetchAll()
     } catch (error) {
       toast({ title: 'Reschedule Failed', description: getErrorMessage(error, 'Failed to reschedule visit. Please try again.'), variant: 'destructive' })
     }
   }
 
-  const handleCancelVisit = async (visitId: number) => {
+  const handleCancelVisit = async (visitId: number, reason: string) => {
     try {
-      await cancelVisit({ visitId, reason: 'Cancelled by user' }).unwrap()
+      await cancelVisit({ visitId, reason }).unwrap()
       toast({ title: 'Visit Cancelled', description: 'Visit has been cancelled successfully.' })
-      refetchAll()
     } catch (error) {
       toast({ title: 'Cancellation Failed', description: getErrorMessage(error, 'Failed to cancel visit. Please try again.'), variant: 'destructive' })
     }
@@ -169,7 +182,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                 <CalendarIcon className="h-4 w-4 text-cohere-action-blue" />
               </span>
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{statsFetching ? '…' : visitStats.total}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{visitStats.total}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -178,7 +191,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                 <Clock className="h-4 w-4 text-cohere-coral" />
               </span>
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{statsFetching ? '…' : visitStats.upcoming}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{visitStats.upcoming}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -187,7 +200,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                 <Check className="h-4 w-4 text-cohere-deep-green" />
               </span>
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{statsFetching ? '…' : visitStats.completed}</div></CardContent>
+            <CardContent><div className="text-2xl font-bold">{visitStats.completed}</div></CardContent>
           </Card>
         </FadeContent>
       )}
@@ -208,17 +221,17 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             statusFilter={statusFilter}
-            onStatusChange={setStatusFilter}
+            onStatusChange={(value) => setStatusFilter(isVisitStatus(value) ? value : 'all')}
             showStatusFilter={user.role !== 'user'}
           />
 
           <div className="space-y-4">
-            {isVisitsFetching && visits.length === 0 ? (
+            {(isVisitsLoading || (isVisitsFetching && !(user?.role === 'user' ? userVisits : allVisits))) ? (
               <LoadingState type="cards" />
             ) : isVisitsError ? (
               <ErrorState
                 title="Failed to load visits"
-                onRetry={() => refetchAll()}
+                onRetry={refetchActiveVisits}
               />
             ) : filteredVisits.length === 0 ? (
               <EmptyState
@@ -236,7 +249,7 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
                     isUser={user.role === 'user'}
                     onComplete={(v) => { setSelectedVisit(v); setShowCompleteDialog(true) }}
                     onReschedule={(id, date) => { void handleRescheduleVisit(id, date) }}
-                    onCancel={(id) => { void handleCancelVisit(id) }}
+                    onCancel={(id, reason) => { void handleCancelVisit(id, reason) }}
                   />
                 ))}
                 <CursorPager
@@ -257,7 +270,6 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         <ScheduleVisitDialog
           open={showScheduleDialog}
           onOpenChange={setShowScheduleDialog}
-          onSuccess={refetchAll}
         />
       )}
 
@@ -266,7 +278,6 @@ const VisitManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fals
         visit={selectedVisit}
         open={showCompleteDialog}
         onOpenChange={setShowCompleteDialog}
-        onSuccess={refetchAll}
       />
     </div>
   )

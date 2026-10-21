@@ -20,14 +20,13 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
   // card is derived from a bounded sample anymore. Skipped in detail mode,
   // where the stat row is not rendered.
   const skipStats = mode === 'detail'
-  const { data: totalUsersData, isFetching: totalUsersFetching } = useGetUsersQuery({ limit: 1, include_total: true }, { skip: skipStats })
-  const { data: activeUsersData, isFetching: activeUsersFetching } = useGetUsersQuery({ limit: 1, include_total: true, is_active: true }, { skip: skipStats })
-  const { data: phoneVerifiedData, isFetching: phoneVerifiedFetching } = useGetUsersQuery({ limit: 1, include_total: true, phone_verified: true }, { skip: skipStats })
-  const { data: systemStats, isFetching: systemStatsFetching } = useGetSystemStatsQuery(undefined, {
+  const { data: totalUsersData, isFetching: totalUsersFetching, isError: totalUsersError } = useGetUsersQuery({ limit: 1, include_total: true }, { skip: skipStats })
+  const { data: activeUsersData, isFetching: activeUsersFetching, isError: activeUsersError } = useGetUsersQuery({ limit: 1, include_total: true, is_active: true }, { skip: skipStats })
+  const { data: phoneVerifiedData, isFetching: phoneVerifiedFetching, isError: phoneVerifiedError } = useGetUsersQuery({ limit: 1, include_total: true, phone_verified: true }, { skip: skipStats })
+  const { data: systemStats, isFetching: systemStatsFetching, isError: systemStatsError } = useGetSystemStatsQuery(undefined, {
     skip: role !== 'admin',
   })
 
-  const statsFetching = totalUsersFetching || activeUsersFetching || phoneVerifiedFetching
   const totalUsers = totalUsersData?.total ?? 0
   const activeUsers = activeUsersData?.total ?? 0
   const phoneVerified = phoneVerifiedData?.total ?? 0
@@ -61,7 +60,9 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Total Users</p>
-                  {statsFetching ? (
+                  {totalUsersError ? (
+                    <p className="text-2xl font-semibold tracking-tight">—</p>
+                  ) : totalUsersFetching && !totalUsersData ? (
                     <p className="text-2xl font-semibold tracking-tight">…</p>
                   ) : (
                     <CountUp
@@ -80,7 +81,9 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Active Users</p>
-                  {statsFetching ? (
+                  {activeUsersError ? (
+                    <p className="text-2xl font-semibold tracking-tight">—</p>
+                  ) : activeUsersFetching && !activeUsersData ? (
                     <p className="text-2xl font-semibold tracking-tight">…</p>
                   ) : (
                     <CountUp
@@ -99,7 +102,9 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">Phone Verified</p>
-                  {statsFetching ? (
+                  {phoneVerifiedError ? (
+                    <p className="text-2xl font-semibold tracking-tight">—</p>
+                  ) : phoneVerifiedFetching && !phoneVerifiedData ? (
                     <p className="text-2xl font-semibold tracking-tight">…</p>
                   ) : (
                     <CountUp
@@ -119,7 +124,9 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">Agents</p>
-                    {systemStatsFetching ? (
+                    {systemStatsError ? (
+                      <p className="text-2xl font-semibold tracking-tight">—</p>
+                    ) : systemStatsFetching && !systemStats ? (
                       <p className="text-2xl font-semibold tracking-tight">…</p>
                     ) : (
                       <CountUp
@@ -134,6 +141,9 @@ const UsersPage = ({ mode }: { mode?: 'detail' }) => {
               )}
             </div>
           </FadeContent>
+          {(totalUsersError || activeUsersError || phoneVerifiedError || systemStatsError) && (
+            <p role="alert" className="text-xs text-muted-foreground">Could not load some counts. The user list may still work.</p>
+          )}
         </div>
 
         {/* Users List */}

@@ -129,12 +129,17 @@ export function filterByRole(routes: readonly NavRoute[], role: string): NavRout
     .map((r) => (r.children ? { ...r, children: filterByRole(r.children, role) } : r))
 }
 
-/** Depth-first flatten of a route tree (for search palettes / mobile nav). */
+/** Unique destinations for search. A leaf supplies the label when its parent has the same URL. */
 export function flattenRoutes(routes: readonly NavRoute[]): NavRoute[] {
   const out: NavRoute[] = []
+  const seen = new Set<string>()
   const walk = (list: readonly NavRoute[]) => {
     for (const route of list) {
-      out.push(route)
+      const duplicateChild = route.children?.some((child) => child.href === route.href)
+      if (!duplicateChild && !seen.has(route.href)) {
+        out.push(route)
+        seen.add(route.href)
+      }
       if (route.children) walk(route.children)
     }
   }

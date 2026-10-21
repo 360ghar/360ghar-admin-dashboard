@@ -15,8 +15,11 @@ const DashboardPage = () => {
   const pageTitle = role === 'agent' ? 'Agent Dashboard' : 'Admin Dashboard'
   useDocumentTitle(pageTitle)
   const prefersReducedMotion = usePrefersReducedMotion()
-  const { trend, feed, metrics, statusBreakdown, isLoading, isError, isMetricsLoading, isMetricsError, refetch } =
-    useDashboardData()
+  const {
+    trend, feed, metrics, statusBreakdown, isLoading, isError, isPartialError,
+    isTrendLoading, isTrendError, isTrendPartialError,
+    isMetricsLoading, isMetricsError, refetchActivity, refetchTrend, refetchMetrics,
+  } = useDashboardData()
 
   return (
     <ErrorBoundary>
@@ -43,16 +46,17 @@ const DashboardPage = () => {
         {role === 'agent' ? <AgentKpis agentId={user?.agent_id} /> : <AdminKpis />}
 
         {role !== 'agent' && (
-          <BusinessMetrics metrics={metrics} isLoading={isMetricsLoading} isError={isMetricsError} onRetry={refetch} />
+          <BusinessMetrics metrics={metrics} isLoading={isMetricsLoading} isError={isMetricsError} onRetry={refetchMetrics} />
         )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           <ActivityTrendCard
             className="lg:col-span-2"
             trend={trend}
-            isLoading={isLoading}
-            isError={isError}
-            onRetry={refetch}
+            isLoading={isTrendLoading}
+            isError={isTrendError}
+            isPartialError={isTrendPartialError}
+            onRetry={refetchTrend}
           />
           <PropertyStatusCard
             data={statusBreakdown.data}
@@ -63,7 +67,7 @@ const DashboardPage = () => {
           />
         </div>
 
-        <RecentActivityCard feed={feed} isLoading={isLoading} isError={isError} onRetry={refetch} />
+        <RecentActivityCard feed={feed} isLoading={isLoading} isError={isError} isPartialError={isPartialError} onRetry={refetchActivity} />
       </div>
     </ErrorBoundary>
   )

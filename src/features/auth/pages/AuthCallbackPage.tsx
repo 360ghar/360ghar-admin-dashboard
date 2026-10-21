@@ -12,6 +12,7 @@ import { isLoginInProgress } from '@/lib/loginState'
 import { setLastAuthMethod } from '@/lib/lastAuthMethod'
 import { mapSupabaseAuthError } from '@/lib/authErrors'
 import { LoadingState } from '@/components/ui/loading-state'
+import { consumePostLoginDestination } from '../lib/postLoginDestination'
 
 /**
  * OAuth (Google) redirect landing page.
@@ -93,9 +94,9 @@ export default function AuthCallbackPage() {
         }
 
         const accessToken = session.access_token
-        const { user, status } = await fetchUserProfileWithStatus(accessToken)
-        if (!user) {
-          if (status === 404) {
+        const { user, status } = await fetchUserProfileWithStatus(accessToken, session.user.id)
+        if (!user || !user.is_active || (user.role !== 'admin' && user.role !== 'agent')) {
+          if (status === 401 || status === 403 || status === 404 || user) {
             // No backend profile -> not a provisioned staff member.
             try { await client.auth.signOut() } catch { /* best-effort signout */ }
             failTo('Your account is not authorized for the admin portal.')
@@ -113,7 +114,7 @@ export default function AuthCallbackPage() {
 
         // Staff gate (step 2): RoleBasedRoute bounces non-staff to /access-denied.
         isLoginInProgress.current = false
-        navigate('/dashboard', { replace: true })
+        navigate(consumePostLoginDestination(), { replace: true })
       } catch (err) {
         // If the timeout fired, the exchange may still complete in the
         // background and set a Supabase session. Sign out to be safe.

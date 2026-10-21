@@ -14,8 +14,12 @@ import type {
   InspectionType,
   DocumentType,
   ManagedPropertyStatus,
-  TenantStatus,
+  RentalApplicationStatus,
+  RentPaymentStatus,
+  PaymentMethod,
+  ApplicationFieldType,
 } from '@/types/pm'
+import { MAX_PAGE_LIMIT } from '@/types/api'
 
 // ============================================================================
 // Lease Status
@@ -36,6 +40,15 @@ export const LEASE_STATUSES: { value: LeaseStatus; label: string }[] = [
  * returns 400 for any other status (e.g. expired/renewed/draft).
  */
 export const TERMINATABLE_LEASE_STATUSES: LeaseStatus[] = ['active', 'expiring_soon', 'pending_signature']
+
+/**
+ * Lease statuses the backend allows renewing. POST /pm/leases/{id}/renew returns 400 for any
+ * other status. An `expiring_soon` lease still occupies its property, as an `active` one does.
+ */
+export const RENEWABLE_LEASE_STATUSES: LeaseStatus[] = ['active', 'expiring_soon']
+
+/** A lease in one of these statuses occupies the property (`expiring_soon` is the notice window before the end date). */
+export const OCCUPYING_LEASE_STATUSES: LeaseStatus[] = ['active', 'expiring_soon']
 
 // ============================================================================
 // Rent Charge Status
@@ -154,29 +167,55 @@ export const MANAGED_PROPERTY_STATUSES: { value: ManagedPropertyStatus; label: s
 ]
 
 // ============================================================================
-// Tenant/Application Status
+// Application and payment status
 // ============================================================================
 
-export const TENANT_STATUSES: { value: TenantStatus; label: string }[] = [
+/** An application is `applicant`, `approved` or `rejected`. The inbox filter accepts only these. */
+export const APPLICATION_STATUSES: { value: RentalApplicationStatus; label: string }[] = [
   { value: 'applicant', label: 'Applicant' },
   { value: 'approved', label: 'Approved' },
-  { value: 'active', label: 'Active' },
-  { value: 'notice_period', label: 'Notice Period' },
-  { value: 'vacated', label: 'Vacated' },
   { value: 'rejected', label: 'Rejected' },
 ]
 
+/** A tenant claim is `pending` until the owner settles it. Owner, agent and admin payments are `settled`. */
+export const RENT_PAYMENT_STATUSES: { value: RentPaymentStatus; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'settled', label: 'Settled' },
+]
+
 // ============================================================================
-// Payment Methods (commonly used values)
+// Payment Methods (aligned with the backend PaymentMethod enum)
 // ============================================================================
 
-export const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'upi', label: 'UPI' },
-  { value: 'cheque', label: 'Cheque' },
-  { value: 'card', label: 'Card' },
-  { value: 'other', label: 'Other' },
+export const PAYMENT_METHOD_VALUES = [
+  'cash', 'bank_transfer', 'upi', 'cheque', 'online', 'other',
+] as const satisfies readonly PaymentMethod[]
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'Cash',
+  bank_transfer: 'Bank Transfer',
+  upi: 'UPI',
+  cheque: 'Cheque',
+  online: 'Online',
+  other: 'Other',
+}
+
+export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = PAYMENT_METHOD_VALUES.map((value) => ({
+  value,
+  label: PAYMENT_METHOD_LABELS[value],
+}))
+
+// ============================================================================
+// Application form field types (aligned with the backend ApplicationFieldType enum)
+// ============================================================================
+
+export const APPLICATION_FIELD_TYPES: { value: ApplicationFieldType; label: string }[] = [
+  { value: 'text', label: 'Short text' },
+  { value: 'textarea', label: 'Long text' },
+  { value: 'number', label: 'Number' },
+  { value: 'date', label: 'Date' },
+  { value: 'boolean', label: 'Yes / no' },
+  { value: 'select', label: 'Choice list' },
 ]
 
 // ============================================================================
@@ -198,11 +237,14 @@ export const VALIDATION = {
   /** Default grace period days */
   GRACE_PERIOD_DAYS_DEFAULT: 5,
 
+  /** The backend accepts a property grace period of 0 to 365 days */
+  GRACE_PERIOD_DAYS_MAX: 365,
+
   /** Maximum months for rent charge generation */
   RENT_GENERATE_MONTHS_MAX: 24,
 
-  /** Pagination limits enforced by backend */
-  PAGINATION_LIMIT_MAX: 200,
+  /** Pagination limit enforced by backend: above this the request returns 422 */
+  PAGINATION_LIMIT_MAX: MAX_PAGE_LIMIT,
 
   /** Minimum amount for expenses/payments (must be > 0) */
   AMOUNT_MIN: 0.01,

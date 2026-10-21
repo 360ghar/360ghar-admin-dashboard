@@ -3,18 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import type { UseFormReturn } from 'react-hook-form'
 import type { UserProfileFormValues } from '@/features/users/validations'
 import { FormRootError } from '@/components/ui/form-root-error'
 
 interface ProfileTabProps {
   profileForm: UseFormReturn<UserProfileFormValues>
+  /** Shown read-only: email changes go through the sign-in provider, not the profile save. */
+  email?: string | null
   onSubmit: (e: React.FormEvent) => void
   updating: boolean
 }
 
-const ProfileTab: React.FC<ProfileTabProps> = ({ profileForm, onSubmit, updating }) => (
+const ProfileTab: React.FC<ProfileTabProps> = ({ profileForm, email, onSubmit, updating }) => (
   <Card>
     <CardHeader>
       <CardTitle>Profile Information</CardTitle>
@@ -33,10 +34,8 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ profileForm, onSubmit, updating
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" {...profileForm.register('email')} placeholder="Enter your email" />
-            {profileForm.formState.errors.email && (
-              <p className="text-sm text-destructive">{profileForm.formState.errors.email.message}</p>
-            )}
+            <Input id="email" type="email" value={email ?? ''} readOnly disabled placeholder="No email on file" />
+            <p className="text-xs text-muted-foreground">Email is managed by your sign-in provider.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
@@ -52,13 +51,6 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ profileForm, onSubmit, updating
               <p className="text-sm text-destructive">{profileForm.formState.errors.date_of_birth.message}</p>
             )}
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="bio">Bio</Label>
-          <Textarea id="bio" {...profileForm.register('bio')} placeholder="Tell us about yourself..." rows={4} />
-          {profileForm.formState.errors.bio && (
-            <p className="text-sm text-destructive">{profileForm.formState.errors.bio.message}</p>
-          )}
         </div>
         <Button type="submit" disabled={updating}>
           {updating ? 'Updating...' : 'Save Changes'}

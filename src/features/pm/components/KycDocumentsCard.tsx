@@ -1,5 +1,5 @@
 import type { Document } from "@/types/pm";
-import { Button } from "@/components/ui/button";
+import DocumentViewButton from "@/features/pm/components/DocumentViewButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -7,15 +7,16 @@ import { ErrorState } from "@/components/ui/error-state";
 interface KycDocumentsCardProps {
   kycDocs: {
     isLoading: boolean;
+    isFetching: boolean;
     isError?: boolean;
     error?: unknown;
     refetch?: () => void;
-    data?: { items: Document[] };
+    currentData?: { items: Document[] };
   };
 }
 
 export default function KycDocumentsCard({ kycDocs }: KycDocumentsCardProps) {
-  const docs = kycDocs.data?.items ?? [];
+  const docs = kycDocs.currentData?.items ?? [];
   return (
     <>
       {kycDocs.isError ? (
@@ -24,7 +25,7 @@ export default function KycDocumentsCard({ kycDocs }: KycDocumentsCardProps) {
           error={kycDocs.error}
           onRetry={kycDocs.refetch ? () => { void kycDocs.refetch?.(); } : undefined}
         />
-      ) : kycDocs.isLoading ? (
+      ) : !kycDocs.currentData && kycDocs.isFetching ? (
         <div className="space-y-2">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />
@@ -37,11 +38,7 @@ export default function KycDocumentsCard({ kycDocs }: KycDocumentsCardProps) {
                 <div className="truncate font-medium">{d.title}</div>
                 <div className="truncate text-xs text-muted-foreground">{d.document_type}</div>
               </div>
-              <Button asChild variant="outline" size="sm">
-                <a href={d.file_url} target="_blank" rel="noreferrer">
-                  View
-                </a>
-              </Button>
+              <DocumentViewButton fileUrl={d.file_url} />
             </div>
           ))}
         </div>

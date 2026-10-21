@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Download, FileBarChart } from 'lucide-react'
 import { downloadCsv } from '@/features/pm/utils'
 import { formatCurrency } from '@/lib/format'
@@ -13,6 +13,7 @@ import {
   useGetOccupancyReportQuery,
   useGetPnLReportQuery,
   useGetRentRollReportQuery,
+  useLazyGetAllRentRollItemsQuery,
 } from '@/features/pm/api/pmApi'
 import { formatDate } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import { LoadingState } from '@/components/ui/loading-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/errors'
 import CountUp from '@/components/reactbits/CountUp'
 import { PageHeader } from '@/components/ui/page-header'
 
@@ -41,7 +43,9 @@ export default function PmReportsPage() {
 
   const [isExporting, setIsExporting] = useState(false)
 
-  const rentRoll = useGetRentRollReportQuery({ owner_id: ownerId })
+  // The rent roll is a CursorPage. The card previews the first page; the CSV export reads every page.
+  const rentRoll = useGetRentRollReportQuery({ owner_id: ownerId, limit: 100, include_total: true })
+  const [loadAllRentRoll] = useLazyGetAllRentRollItemsQuery()
   const income = useGetIncomeReportQuery(
     { owner_id: ownerId, start: start || undefined, end: end || undefined },
     { skip: !dateRangeValid },
@@ -57,18 +61,35 @@ export default function PmReportsPage() {
   const occupancy = useGetOccupancyReportQuery({ owner_id: ownerId })
   const maintenance = useGetMaintenanceReportQuery({ owner_id: ownerId })
 
-  const rentRollCsvRows = useMemo(
-    () =>
-      (rentRoll.data || []).map((r) => ({
-        property_id: r.property_id,
-        title: r.title,
-        occupancy: r.occupancy,
-        tenant_user_id: r.tenant_user_id,
-        monthly_rent: r.monthly_rent,
-        lease_end_date: r.lease_end_date,
-      })),
-    [rentRoll.data],
-  )
+  const rentRollItems = rentRoll.currentData?.items ?? []
+
+  const exportRentRoll = async () => {
+    setIsExporting(true)
+    toast({ title: 'Downloading...', description: 'Preparing your export.' })
+    try {
+      const rows = await loadAllRentRoll({ owner_id: ownerId }).unwrap()
+      if (!rows.length) {
+        toast({ title: 'Nothing to export', description: 'Rent roll is empty.' })
+        return
+      }
+      downloadCsv(
+        `rent_roll_${new Date().toISOString().slice(0, 10)}.csv`,
+        rows.map((r) => ({
+          property_id: r.property_id,
+          title: r.title,
+          occupancy: r.occupancy,
+          tenant_user_id: r.tenant_user_id,
+          monthly_rent: r.monthly_rent,
+          lease_end_date: r.lease_end_date,
+        })),
+      )
+      toast({ title: 'Download complete', description: `Exported ${rows.length} rows.` })
+    } catch (e: unknown) {
+      toast({ title: 'Export failed', description: getErrorMessage(e, 'Could not load the rent roll.'), variant: 'destructive' })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <OwnerScopeGate allowAllOwners>
@@ -94,12 +115,12 @@ export default function PmReportsPage() {
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Start</Label>
-              <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <Label htmlFor="report-start">Start</Label>
+              <Input id="report-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>End</Label>
-              <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className={!dateRangeValid ? 'border-destructive' : ''} />
+              <Label htmlFor="report-end">End (inclusive)</Label>
+              <Input id="report-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} className={!dateRangeValid ? 'border-destructive' : ''} />
             </div>
             {!dateRangeValid && <p className="text-xs text-destructive md:col-span-2">End date must be on or after start date</p>}
           </CardContent>
@@ -111,14 +132,16 @@ export default function PmReportsPage() {
               <CardTitle className="text-base">Income</CardTitle>
             </CardHeader>
             <CardContent>
-              {income.isLoading ? (
+              {!dateRangeValid ? (
+                <EmptyState title="Invalid date range" description="Set an end date on or after the start date." />
+              ) : (!income.currentData && income.isFetching) ? (
                 <LoadingState type="spinner" />
               ) : income.isError ? (
                 <ErrorState title="Failed to load" onRetry={() => void income.refetch()} />
               ) : (
                 <>
                   <CountUp
-                    to={income.data?.total_income ?? 0}
+                    to={income.currentData?.total_income ?? 0}
                     duration={1.2}
                     format={(n) => formatCurrency(n)}
                     className="text-2xl font-semibold tracking-tight tabular-nums"
@@ -135,14 +158,16 @@ export default function PmReportsPage() {
               <CardTitle className="text-base">Expenses</CardTitle>
             </CardHeader>
             <CardContent>
-              {expenses.isLoading ? (
+              {!dateRangeValid ? (
+                <EmptyState title="Invalid date range" description="Set an end date on or after the start date." />
+              ) : (!expenses.currentData && expenses.isFetching) ? (
                 <LoadingState type="spinner" />
               ) : expenses.isError ? (
                 <ErrorState title="Failed to load" onRetry={() => void expenses.refetch()} />
               ) : (
                 <>
                   <CountUp
-                    to={expenses.data?.total_expenses ?? 0}
+                    to={expenses.currentData?.total_expenses ?? 0}
                     duration={1.2}
                     format={(n) => formatCurrency(n)}
                     className="text-2xl font-semibold tracking-tight tabular-nums"
@@ -159,14 +184,16 @@ export default function PmReportsPage() {
               <CardTitle className="text-base">Net Income (P&amp;L)</CardTitle>
             </CardHeader>
             <CardContent>
-              {pnl.isLoading ? (
+              {!dateRangeValid ? (
+                <EmptyState title="Invalid date range" description="Set an end date on or after the start date." />
+              ) : (!pnl.currentData && pnl.isFetching) ? (
                 <LoadingState type="spinner" />
               ) : pnl.isError ? (
                 <ErrorState title="Failed to load" onRetry={() => void pnl.refetch()} />
               ) : (
                 <>
                   <CountUp
-                    to={pnl.data?.net_income ?? 0}
+                    to={pnl.currentData?.net_income ?? 0}
                     duration={1.2}
                     format={(n) => formatCurrency(n)}
                     className="text-2xl font-semibold tracking-tight tabular-nums"
@@ -183,15 +210,15 @@ export default function PmReportsPage() {
               <CardTitle className="text-base">Occupancy</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {occupancy.isLoading ? (
+              {(!occupancy.currentData && occupancy.isFetching) ? (
                 <LoadingState type="spinner" />
               ) : occupancy.isError ? (
                 <ErrorState title="Failed to load" onRetry={() => void occupancy.refetch()} />
               ) : (
                 <>
-                  <div className="text-sm">Total: <span className="font-medium">{occupancy.data?.total ?? 0}</span></div>
-                  <div className="text-sm">Occupied: <span className="font-medium">{occupancy.data?.occupied ?? 0}</span></div>
-                  <div className="text-sm">Vacant: <span className="font-medium">{occupancy.data?.vacant ?? 0}</span></div>
+                  <div className="text-sm">Total: <span className="font-medium">{occupancy.currentData?.total ?? 0}</span></div>
+                  <div className="text-sm">Occupied: <span className="font-medium">{occupancy.currentData?.occupied ?? 0}</span></div>
+                  <div className="text-sm">Vacant: <span className="font-medium">{occupancy.currentData?.vacant ?? 0}</span></div>
                 </>
               )}
             </CardContent>
@@ -201,12 +228,12 @@ export default function PmReportsPage() {
               <CardTitle className="text-base">Maintenance</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {maintenance.isLoading ? (
+              {(!maintenance.currentData && maintenance.isFetching) ? (
                 <LoadingState type="spinner" />
               ) : maintenance.isError ? (
                 <ErrorState title="Failed to load" onRetry={() => void maintenance.refetch()} />
               ) : (
-                <div className="text-sm">Total requests: <span className="font-medium">{maintenance.data?.total_requests ?? 0}</span></div>
+                <div className="text-sm">Total requests: <span className="font-medium">{maintenance.currentData?.total_requests ?? 0}</span></div>
               )}
             </CardContent>
           </Card>
@@ -219,32 +246,20 @@ export default function PmReportsPage() {
               variant="outline"
               size="sm"
               disabled={isExporting}
-              onClick={() => {
-                if (!rentRollCsvRows.length) {
-                  toast({ title: 'Nothing to export', description: 'Rent roll is empty.' })
-                  return
-                }
-                setIsExporting(true)
-                toast({ title: 'Downloading...', description: 'Preparing your export.' })
-                setTimeout(() => {
-                  downloadCsv(`rent_roll_${new Date().toISOString().slice(0, 10)}.csv`, rentRollCsvRows)
-                  setIsExporting(false)
-                  toast({ title: 'Download complete', description: 'Export ready.' })
-                }, 50)
-              }}
+              onClick={() => { void exportRentRoll() }}
             >
               <Download className="mr-2 h-4 w-4" />
               {isExporting ? 'Exporting...' : 'Export CSV'}
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {rentRoll.isLoading ? (
+            {(!rentRoll.currentData && rentRoll.isFetching) ? (
               <LoadingState type="spinner" />
             ) : rentRoll.isError ? (
               <ErrorState title="Failed to load rent roll" onRetry={() => void rentRoll.refetch()} />
-            ) : rentRoll.data?.length ? (
+            ) : rentRollItems.length ? (
               <div className="space-y-2">
-                {rentRoll.data.slice(0, 15).map((r) => (
+                {rentRollItems.slice(0, 15).map((r) => (
                   <div key={r.property_id} className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <div className="truncate font-medium">{r.title}</div>
@@ -260,8 +275,10 @@ export default function PmReportsPage() {
                     </div>
                   </div>
                 ))}
-                {rentRoll.data.length > 15 ? (
-                  <div className="text-xs text-muted-foreground">Showing first 15 rows… export CSV for full list.</div>
+                {rentRoll.currentData?.has_more || rentRollItems.length > 15 ? (
+                  <div className="text-xs text-muted-foreground">
+                    Showing first {Math.min(15, rentRollItems.length)} of {rentRoll.currentData?.total ?? rentRollItems.length} rows… export CSV for the full list.
+                  </div>
                 ) : null}
               </div>
             ) : (

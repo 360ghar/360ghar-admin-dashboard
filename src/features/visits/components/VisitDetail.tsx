@@ -17,6 +17,7 @@ import { formatDateTime } from '@/lib/format'
 import { localInputToServerTimestamp, serverTimestampToLocalInput } from '@/lib/dateTime'
 import { getVisitStatusColor, getVisitStatusLabel } from '@/lib/statusColors'
 import FadeContent from '@/components/reactbits/FadeContent'
+import { VISIT_CONTEXT_LABELS, counterpartyName, visitAgentName, visitorName } from '@/features/visits/constants'
 
 const VisitDetail = ({ id }: { id: number }) => {
   const navigate = useNavigate()
@@ -29,8 +30,8 @@ const VisitDetail = ({ id }: { id: number }) => {
   const [complete, compState] = useCompleteVisitMutation()
   const { toast } = useToast()
 
-  const data = visit.data
-  const isLoading = visit.isLoading
+  const data = visit.currentData
+  const isLoading = visit.isLoading || (visit.isFetching && !data)
   const error = visit.error
 
   if (!id || Number.isNaN(id)) {
@@ -45,6 +46,10 @@ const VisitDetail = ({ id }: { id: number }) => {
     return <LoadingState type="card" rows={6} />
   }
 
+  if (!data) {
+    return <EmptyState title="Visit not found" description="This visit is no longer available." />
+  }
+
   const doReschedule = async () => {
     const newDate = localInputToServerTimestamp(date)
     if (!newDate) {
@@ -52,7 +57,7 @@ const VisitDetail = ({ id }: { id: number }) => {
       return
     }
     try {
-      await reschedule({ visitId: id, newDate, reason: text || 'Rescheduled' }).unwrap()
+      await reschedule({ visitId: id, newDate, reason: text.trim() || undefined }).unwrap()
       toast({ title: 'Rescheduled', description: 'Visit rescheduled' })
       setOpen(null)
     } catch (err: unknown) {
@@ -61,8 +66,14 @@ const VisitDetail = ({ id }: { id: number }) => {
   }
 
   const doCancel = async () => {
+    // The backend requires a reason (1 to 1000 characters after trimming). Do not invent one.
+    const reason = text.trim()
+    if (!reason) {
+      toast({ title: 'Reason required', description: 'Enter why the visit is cancelled.', variant: 'destructive' })
+      return
+    }
     try {
-      await cancel({ visitId: id, reason: text || 'Cancelled' }).unwrap()
+      await cancel({ visitId: id, reason: reason.slice(0, 1000) }).unwrap()
       toast({ title: 'Cancelled', description: 'Visit cancelled' })
       setOpen(null)
     } catch (err: unknown) {
@@ -105,12 +116,17 @@ const VisitDetail = ({ id }: { id: number }) => {
           <CardContent>
             <div className="grid gap-2 text-sm">
               <div><span className="text-muted-foreground">Property:</span> {data?.property?.title || (data?.property_id != null ? `#${data.property_id}` : '-')}</div>
-              <div><span className="text-muted-foreground">User:</span> {data?.user?.full_name || (data?.user_id != null ? `#${data.user_id}` : '-')}</div>
+              <div><span className="text-muted-foreground">Visitor:</span> {visitorName(data)}</div>
+              <div><span className="text-muted-foreground">Type:</span> {data.visit_context ? VISIT_CONTEXT_LABELS[data.visit_context] : '-'}</div>
+              {counterpartyName(data) ? <div><span className="text-muted-foreground">Meeting with:</span> {counterpartyName(data)}</div> : null}
+              {visitAgentName(data) ? <div><span className="text-muted-foreground">Agent:</span> {visitAgentName(data)}</div> : null}
               <div><span className="text-muted-foreground">Scheduled:</span> {data?.scheduled_date ? formatDateTime(data.scheduled_date) : '-'}</div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Status:</span>
                 {data?.status ? <Badge variant={getVisitStatusColor(data.status)}>{getVisitStatusLabel(data.status)}</Badge> : <span>-</span>}
               </div>
+              {data.actual_date ? <div><span className="text-muted-foreground">Completed:</span> {formatDateTime(data.actual_date)}</div> : null}
+              {data.cancellation_reason ? <div><span className="text-muted-foreground">Reason:</span> {data.cancellation_reason}</div> : null}
               {data?.visit_notes ? <div><span className="text-muted-foreground">Notes:</span> {data.visit_notes}</div> : null}
               {data?.visitor_feedback ? <div><span className="text-muted-foreground">Feedback:</span> {data.visitor_feedback}</div> : null}
             </div>
@@ -135,13 +151,13 @@ const VisitDetail = ({ id }: { id: number }) => {
           {open === 'reschedule' && (
             <Input type="datetime-local" value={date} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDate(e.target.value)} />
           )}
-          <Input placeholder={open === 'complete' ? 'Notes' : 'Reason'} value={text} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setText(e.target.value)} />
+          <Input placeholder={open === 'complete' ? 'Notes' : open === 'reschedule' ? 'Reason (optional)' : 'Reason'} maxLength={1000} value={text} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setText(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(null)}>Close</Button>
             {open === 'reschedule' && (
               <Button onClick={() => { void doReschedule() }} disabled={!date || resState.isLoading}>{resState.isLoading ? 'Saving…' : 'Reschedule'}</Button>
             )}
-            {open === 'cancel' && <Button onClick={() => { void doCancel() }} disabled={cancelState.isLoading}>{cancelState.isLoading ? 'Cancelling…' : 'Cancel Visit'}</Button>}
+            {open === 'cancel' && <Button onClick={() => { void doCancel() }} disabled={cancelState.isLoading || !text.trim()}>{cancelState.isLoading ? 'Cancelling…' : 'Cancel Visit'}</Button>}
             {open === 'complete' && <Button onClick={() => { void doComplete() }} disabled={compState.isLoading || !text.trim()}>{compState.isLoading ? 'Saving…' : 'Complete'}</Button>}
           </DialogFooter>
         </DialogContent>

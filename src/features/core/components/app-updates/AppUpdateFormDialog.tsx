@@ -16,6 +16,7 @@ import { useCreateAppUpdateMutation, useUpdateAppUpdateMutation } from '@/featur
 import { useToast } from '@/hooks/use-toast'
 import { appUpdateSchema, type AppUpdateFormValues } from '@/features/core/validations'
 import type { AppUpdate } from '@/types/api'
+import { APP_KEYS, APP_KEY_LABELS, DEVICE_PLATFORMS, DEVICE_PLATFORM_LABELS, isAppKey, isDevicePlatform } from '@/features/core/constants'
 
 interface AppUpdateFormDialogProps {
   open: boolean
@@ -26,7 +27,7 @@ interface AppUpdateFormDialogProps {
   onSuccess: () => void
 }
 
-const defaultFormData: AppUpdateFormValues = { platform: 'ios', version: '', build_number: '', release_notes: '', download_url: '', is_mandatory: false, is_active: true, min_supported_version: '' }
+const defaultFormData: AppUpdateFormValues = { app: 'ghar', platform: 'ios', version: '', build_number: '', release_notes: '', download_url: '', is_mandatory: false, is_active: true, min_supported_version: '' }
 
 const AppUpdateFormDialog: React.FC<AppUpdateFormDialogProps> = ({ open, onOpenChange, editingUpdate, formData, setFormData, onSuccess }) => {
   const { toast } = useToast()
@@ -44,12 +45,26 @@ const AppUpdateFormDialog: React.FC<AppUpdateFormDialogProps> = ({ open, onOpenC
 
   const handleSubmit = async (values: AppUpdateFormValues) => {
     form.clearErrors()
+    // `app` and `platform` are required on create and accepted on update. The schema refines them to the enums.
+    if (!isAppKey(values.app) || !isDevicePlatform(values.platform)) return
+    const common = {
+      app: values.app,
+      platform: values.platform,
+      version: values.version,
+      build_number: Number(values.build_number),
+      // Blank optional text is null so an edit clears the stored value.
+      release_notes: values.release_notes || null,
+      download_url: values.download_url,
+      is_mandatory: values.is_mandatory,
+      is_active: values.is_active,
+      min_supported_version: values.min_supported_version || null,
+    }
     try {
       if (editingUpdate) {
-        await updateUpdate({ id: editingUpdate.id, data: { version: values.version, build_number: Number(values.build_number), release_notes: values.release_notes, download_url: values.download_url, is_mandatory: values.is_mandatory, is_active: values.is_active, min_supported_version: values.min_supported_version } }).unwrap()
+        await updateUpdate({ id: editingUpdate.id, data: common }).unwrap()
         toast({ title: 'Success', description: 'App update updated successfully' })
       } else {
-        await createUpdate({ platform: values.platform, version: values.version, build_number: Number(values.build_number), release_notes: values.release_notes || '', download_url: values.download_url, is_mandatory: values.is_mandatory, is_active: values.is_active, min_supported_version: values.min_supported_version || undefined }).unwrap()
+        await createUpdate(common).unwrap()
         toast({ title: 'Success', description: 'App update created successfully' })
       }
       setFormData(values)
@@ -77,12 +92,20 @@ const AppUpdateFormDialog: React.FC<AppUpdateFormDialogProps> = ({ open, onOpenC
               )} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="platform" render={({ field }) => (
-                <FormItem><FormLabel>Platform</FormLabel><Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent><SelectItem value="android">Android</SelectItem><SelectItem value="ios">iOS</SelectItem><SelectItem value="web">Web</SelectItem></SelectContent>
+              <FormField control={form.control} name="app" render={({ field }) => (
+                <FormItem><FormLabel>App *</FormLabel><Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select app" /></SelectTrigger></FormControl>
+                  <SelectContent>{APP_KEYS.map((key) => (<SelectItem key={key} value={key}>{APP_KEY_LABELS[key]}</SelectItem>))}</SelectContent>
                 </Select><FormMessage /></FormItem>
               )} />
+              <FormField control={form.control} name="platform" render={({ field }) => (
+                <FormItem><FormLabel>Platform *</FormLabel><Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>{DEVICE_PLATFORMS.map((key) => (<SelectItem key={key} value={key}>{DEVICE_PLATFORM_LABELS[key]}</SelectItem>))}</SelectContent>
+                </Select><FormMessage /></FormItem>
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="min_supported_version" render={({ field }) => (
                 <FormItem><FormLabel>Min Supported Version</FormLabel><FormControl><Input placeholder="1.0.0" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />

@@ -24,6 +24,10 @@ npm run test:watch       # Watch mode
 # Tests live in src/**/__tests__/ and ARE covered by typecheck:tests + eslint.
 # Config: vitest.config.ts + vitest.setup.ts (jest-dom + a jest→vi shim).
 
+# API types (generated from the backend OpenAPI document)
+npm run api:sync         # Copy ../360ghar-backend/docs/openapi.json to openapi/openapi.json (override with BACKEND_DIR=...)
+npm run api:types        # Regenerate src/lib/api/schema.gen.ts (never hand-edit it; ESLint ignores it)
+
 # Setup
 npm install              # Install dependencies
 cp .env.example .env     # Copy environment variables
@@ -56,6 +60,7 @@ build injects a CSP meta tag (`script-src 'self'`) — keep bootstrap/theme scri
 - Role-specific routes via `RoleBasedRoute` component
 - Access token is sourced from active Supabase session for API requests with 401/403 handling
 - `fetchUserProfileWithToken` centralized in `src/lib/auth.ts` (do not copy-paste)
+- Browser storage is scoped per account (`scopedStorageKey`) and versioned. Sign-out (`clearCredentials`, see `src/store/index.ts`) removes the profile hint, the PM owner selection and every saved list filter; the RTK Query cache is reset. A 401 refreshes the Supabase session once and retries; a retried 401 signs out. A GET 503 waits for `Retry-After` before it retries.
 
 ### Project Structure
 ```
@@ -108,8 +113,9 @@ The project uses a centralized API setup:
 - All API responses are type-safe through TypeScript generics
 
 ### Type Organization
-- Core domain types in `src/types/api.ts` (User, Property, Visit, Booking, Agent, etc.)
-- PM-specific types in `src/types/pm.ts` (prefixed with `Pm` — e.g., `PmPropertyCreate`, `PmProperty`, `PmPropertyImage`)
+- Core domain types in `src/types/api.ts` (User, Property, Visit, Booking, Agent, etc.) are aliases of the generated components in `src/lib/api/schema.gen.ts`. Only UI-only shapes (filters, view models) and the unauthenticated `/health` root are hand-written. List query types come from `QueryOf<path>`, so an undeclared query key fails the type check.
+- Wire rules: errors are read only from `{ error: { code, message, details } }` (`@/lib/errors`); lists are `CursorPage` and a read that needs every row uses `fetchAllPages` (`@/store/fetchAllPages`); `limit` is at most 100; a PATCH-style write sends only changed keys and `null` to clear a field.
+- PM-specific types in `src/types/pm.ts` are aliases of the generated components (e.g., `PmProperty`, `PmPropertyCreate`, `Lease`); no hand-written wire types
 - No duplicate types across files — each type defined once
 - Orphaned types removed from deleted modules
 

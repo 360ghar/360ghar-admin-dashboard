@@ -10,6 +10,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { getOwnerLabel } from '@/features/pm/utils'
+import { useGetUserQuery } from '@/features/users/api/usersApi'
+import { isApiError } from '@/lib/errors'
 
 export default function OwnerSelector() {
   const dispatch = useAppDispatch()
@@ -22,21 +24,29 @@ export default function OwnerSelector() {
   const debouncedQuery = useDebounce(query, 250)
 
   const usersQuery = useOwnersSearch(debouncedQuery, { skip: !open })
+  // The search is paginated. Check the selected owner by ID so a missing
+  // search row never clears a valid selection.
+  const selectedOwnerQuery = useGetUserQuery(selected?.id ?? 0, {
+    skip: !isAgent || !selected?.id,
+    refetchOnMountOrArgChange: true,
+  })
+
+  useEffect(() => {
+    if (!isAgent || !selected?.id || selectedOwnerQuery.originalArgs !== selected.id) return
+    if (isApiError(selectedOwnerQuery.error) && [403, 404].includes(selectedOwnerQuery.error.status)) {
+      dispatch(setSelectedOwner(null))
+    }
+  }, [dispatch, isAgent, selected?.id, selectedOwnerQuery.error, selectedOwnerQuery.originalArgs])
 
   const items = useMemo(() => {
-    const owners = (usersQuery.data?.items ?? []).filter((u) => u.role === 'user')
+    const owners = (usersQuery.currentData?.items ?? []).filter((u) => u.role === 'user')
     const ownerItems = owners.map((u) => ({ id: u.id, label: getOwnerLabel(u), user: u }))
     if (isAgent) return ownerItems
     return [{ id: null, label: 'All owners' }, ...ownerItems]
-  }, [isAgent, usersQuery.data?.items])
+  }, [isAgent, usersQuery.currentData?.items])
 
-  useEffect(() => {
-    if (!isAgent) return
-    if (!selected?.id) return
-    if (usersQuery.isFetching || !usersQuery.data) return
-    const accessibleIds = new Set(items.map((i) => i.id).filter((id): id is number => typeof id === 'number'))
-    if (!accessibleIds.has(selected.id)) dispatch(setSelectedOwner(null))
-  }, [dispatch, isAgent, items, selected?.id, usersQuery.data, usersQuery.isFetching])
+  // A combobox takes no name from its content, so the name holds the visible text.
+  const triggerLabel = selected ? selected.label : isAgent ? 'Select owner…' : 'All owners'
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -45,15 +55,10 @@ export default function OwnerSelector() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[280px] justify-between"
+          aria-label={`Owner scope: ${triggerLabel}`}
+          className="w-[min(280px,42vw)] justify-between"
         >
-          <span className="truncate">
-            {selected
-              ? selected.label
-              : isAgent
-                ? 'Select owner…'
-                : 'All owners'}
-          </span>
+          <span className="truncate">{triggerLabel}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

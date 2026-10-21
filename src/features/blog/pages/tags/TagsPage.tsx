@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { PageHeader } from '@/components/ui/page-header'
 import { toast } from '@/hooks/use-toast'
-import { useGetBlogTagsQuery, useDeleteBlogTagMutation } from '@/features/blog/api/blogsApi'
+import { useListAllBlogTagsQuery, useDeleteBlogTagMutation } from '@/features/blog/api/blogsApi'
 import { Plus, Edit2, Trash2, Tag, FileText } from 'lucide-react'
 import { getErrorMessage } from '@/lib/errors'
 import { formatDate } from '@/lib/format'
@@ -22,15 +22,13 @@ const TagsPage = () => {
   const [editingTag, setEditingTag] = useState<BlogTag | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
-  const { data: tagsData, isFetching, error, refetch } = useGetBlogTagsQuery({ limit: 100 })
-  // Exact total via a COUNT-style query (limit=1 + include_total), so the
-  // "N tags total" label is never derived from the bounded list sample.
-  const { data: tagsTotal } = useGetBlogTagsQuery({ limit: 1, include_total: true })
+  // Every tag: follows next_cursor, so no tag past the first page is hidden from the table or the total.
+  const { data: tags, isFetching, error, refetch } = useListAllBlogTagsQuery()
   const [deleteTag, { isLoading: isDeleting }] = useDeleteBlogTagMutation()
 
   const handleDeleteTag = useCallback(async (tag: BlogTag) => {
     try { await deleteTag(tag.id).unwrap(); toast({ title: 'Success', description: 'Tag deleted successfully' }) }
-    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete tag'), variant: 'destructive' }) }
+    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to delete tag'), variant: 'destructive' }); throw error }
   }, [deleteTag])
 
   const openEditDialog = (tag: BlogTag) => { setEditingTag(tag); setIsEditDialogOpen(true) }
@@ -79,19 +77,21 @@ const TagsPage = () => {
         }
       />
       <Card className="p-6">
-        {isFetching ? <LoadingState type="card" rows={5} /> : error ? (
+        {error ? (
           <ErrorState title="Failed to load tags" error={error} onRetry={() => { void refetch() }} />
-        ) : !tagsData?.items?.length ? (
+        ) : isFetching && !tags ? (
+          <LoadingState type="card" rows={5} />
+        ) : !tags?.length ? (
           <EmptyState icon={<Tag className="h-12 w-12" />} title="No tags found" description="Create your first tag to label blog posts." action={{ label: 'New Tag', onClick: () => setIsCreateDialogOpen(true) }} />
         ) : (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">{tagsTotal?.total ?? '…'} tags total</div>
-            <DataTable columns={columns} data={tagsData.items} />
+            <div className="text-sm text-muted-foreground">{tags.length} tags total</div>
+            <DataTable columns={columns} data={tags} />
           </div>
         )}
       </Card>
-      <TagFormDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} onSuccess={() => { setIsCreateDialogOpen(false); void refetch() }} />
-      {editingTag && <TagFormDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} editingTag={editingTag} onSuccess={() => { setEditingTag(null); setIsEditDialogOpen(false); void refetch() }} />}
+      <TagFormDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} onSuccess={() => setIsCreateDialogOpen(false)} />
+      {editingTag && <TagFormDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} editingTag={editingTag} onSuccess={() => { setEditingTag(null); setIsEditDialogOpen(false) }} />}
     </div>
   )
 }

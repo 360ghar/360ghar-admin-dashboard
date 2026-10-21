@@ -5,13 +5,14 @@ import { Separator } from '@/components/ui/separator'
 import { CalendarDays } from 'lucide-react'
 import { isAfter, isBefore, differenceInDays, startOfDay } from 'date-fns'
 import { formatCurrency } from '@/lib/format'
-import type { BookingPricing, AvailabilityInfo } from '@/types/api'
+import type { BookingPricing, BookingOccupancyResult } from '@/types/api'
 
 interface BookingDateSelectionProps {
   selectedDates: { from: Date | undefined; to: Date | undefined }
   setSelectedDates: React.Dispatch<React.SetStateAction<{ from: Date | undefined; to: Date | undefined }>>
   pricingInfo: BookingPricing | null
-  availabilityInfo: AvailabilityInfo | null
+  /** Guest-count check. `occupancy_ok` is about the guest count only: overlapping bookings are not checked. */
+  availabilityInfo: BookingOccupancyResult | null
 }
 
 const BookingDateSelection: React.FC<BookingDateSelectionProps> = ({ selectedDates, setSelectedDates, pricingInfo, availabilityInfo }) => (
@@ -46,8 +47,8 @@ const BookingDateSelection: React.FC<BookingDateSelectionProps> = ({ selectedDat
     {selectedDates.from && selectedDates.to && (
       <div className="text-sm text-muted-foreground"><CalendarDays className="h-4 w-4 inline mr-1" />{differenceInDays(selectedDates.to, selectedDates.from)} nights</div>
     )}
-    {availabilityInfo && !availabilityInfo.available && (
-      <div className="rounded-cohere-sm border border-destructive/30 bg-destructive/10 p-3"><p className="text-sm text-destructive">{availabilityInfo.reason || 'Property is not available for selected dates'}</p></div>
+    {availabilityInfo && !availabilityInfo.occupancy_ok && (
+      <div className="rounded-cohere-sm border border-destructive/30 bg-destructive/10 p-3"><p className="text-sm text-destructive">{availabilityInfo.reason || (availabilityInfo.max_occupancy != null ? `This property sleeps at most ${availabilityInfo.max_occupancy} guests` : 'The guest count does not fit this property')}</p></div>
     )}
     {pricingInfo && (
       <Card>

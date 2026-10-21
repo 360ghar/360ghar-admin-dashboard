@@ -1,4 +1,6 @@
 import { api } from '@/store/api'
+import type { components } from '@/lib/api/schema.gen'
+import type { ListingModerationStatus, UserReportStatus } from '@/types/api'
 import type {
   ModerationAction,
   ModerationQueueResponse,
@@ -6,15 +8,20 @@ import type {
   ReportsQueueResponse,
 } from '../types'
 
-interface QueueParams {
-  status?: string
+interface QueueParams<Status extends string> {
+  status?: Status
   limit?: number
   cursor?: string | null
 }
 
+/** `{ listing_id, action, status, reason }` */
+type ListingModerationResult = components['schemas']['ListingModerationResult']
+/** `{ report_id, action, status, moderator_notes }`. The moderator text no longer overwrites the reporter text. */
+type ReportModerationResult = components['schemas']['ReportModerationResult']
+
 export const flatmatesApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getPendingListings: builder.query<ModerationQueueResponse, QueueParams | void>({
+    getPendingListings: builder.query<ModerationQueueResponse, QueueParams<ListingModerationStatus> | void>({
       query: (params) => ({
         url: '/flatmates/moderation/listings',
         params: {
@@ -35,7 +42,7 @@ export const flatmatesApi = api.injectEndpoints({
           : [{ type: 'FlatmatesListing' as const, id: 'LIST' }],
     }),
     moderateListing: builder.mutation<
-      { listing_id: number; action: string; status: string; reason?: string },
+      ListingModerationResult,
       { listingId: number; payload: ModerationAction }
     >({
       query: ({ listingId, payload }) => ({
@@ -46,9 +53,12 @@ export const flatmatesApi = api.injectEndpoints({
       invalidatesTags: (_result, _error, { listingId }) => [
         { type: 'FlatmatesListing', id: listingId },
         { type: 'FlatmatesListing', id: 'LIST' },
+        { type: 'Property', id: listingId },
+        { type: 'Property', id: 'LIST' },
+        { type: 'Property', id: 'RECOMMENDATIONS' },
       ],
     }),
-    getPendingReports: builder.query<ReportsQueueResponse, QueueParams | void>({
+    getPendingReports: builder.query<ReportsQueueResponse, QueueParams<UserReportStatus> | void>({
       query: (params) => ({
         url: '/flatmates/moderation/reports',
         params: {
@@ -69,7 +79,7 @@ export const flatmatesApi = api.injectEndpoints({
           : [{ type: 'FlatmatesReport' as const, id: 'LIST' }],
     }),
     moderateReport: builder.mutation<
-      { report_id: number; action: string; status: string; notes?: string },
+      ReportModerationResult,
       { reportId: number; payload: ReportModerationAction }
     >({
       query: ({ reportId, payload }) => ({
@@ -77,9 +87,10 @@ export const flatmatesApi = api.injectEndpoints({
         method: 'PUT',
         body: payload,
       }),
-      invalidatesTags: (_result, _error, { reportId }) => [
+      invalidatesTags: (_result, _error, { reportId, payload }) => [
         { type: 'FlatmatesReport', id: reportId },
         { type: 'FlatmatesReport', id: 'LIST' },
+        ...(payload.action === 'suspend_user' ? [{ type: 'User' as const }] : []),
       ],
     }),
   }),

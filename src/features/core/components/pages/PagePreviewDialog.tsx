@@ -23,7 +23,9 @@ const PagePreviewDialog: React.FC<PagePreviewDialogProps> = ({ open, onOpenChang
         <div className="space-y-4">
           <div className="prose max-w-none">
             <h1>{title}</h1>
-            <SanitizedHtml html={content} />
+            {format === 'json'
+              ? <pre className="whitespace-pre-wrap text-sm">{content}</pre>
+              : <SanitizedHtml html={content} />}
           </div>
           <Alert>
             <AlertDescription>

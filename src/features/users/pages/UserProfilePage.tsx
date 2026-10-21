@@ -21,13 +21,14 @@ import {
 } from '@/features/users/validations'
 import { LoadingState } from '@/components/ui/loading-state'
 import { ErrorState } from '@/components/ui/error-state'
-import { getErrorMessage } from '@/lib/errors'
+import { getErrorMessage, isApiError } from '@/lib/errors'
 import { applyServerValidation } from '@/lib/formErrors'
 import FadeContent from '@/components/reactbits/FadeContent'
 import ProfileTab from '@/features/users/components/ProfileTab'
 import PreferencesTab from '@/features/users/components/PreferencesTab'
 import LocationTab from '@/features/users/components/LocationTab'
-import { PROPERTY_PURPOSES } from '@/features/properties/constants'
+import { PROPERTY_PURPOSES, PROPERTY_TYPES } from '@/features/properties/constants'
+import type { PropertyPurpose, PropertyType, UserUpdate } from '@/types'
 
 const UserProfilePage: React.FC = () => {
   const { toast } = useToast()
@@ -35,11 +36,13 @@ const UserProfilePage: React.FC = () => {
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<string[]>([])
   const allowedPurposes = PROPERTY_PURPOSES.map((p) => p.value)
-  const isPurpose = (value: string): value is UserPreferencesFormValues['purpose'] =>
-    allowedPurposes.includes(value as UserPreferencesFormValues['purpose'])
+  const isPurpose = (value: string): value is PropertyPurpose =>
+    allowedPurposes.some((purpose) => purpose === value)
+  const isPropertyType = (value: string): value is PropertyType =>
+    PROPERTY_TYPES.some((type) => type.value === value)
 
   const { data: profile, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useGetProfileQuery()
-  const { data: assignedAgent } = useGetAssignedAgentQuery()
+  const { data: assignedAgent, error: assignedAgentError, refetch: refetchAssignedAgent } = useGetAssignedAgentQuery()
   const [updateProfile, { isLoading: updatingProfile }] = useUpdateProfileMutation()
   const [updatePreferences, { isLoading: updatingPreferences }] = useUpdatePreferencesMutation()
   const [updateLocation, { isLoading: updatingLocation }] = useUpdateLocationMutation()
@@ -51,14 +54,8 @@ const UserProfilePage: React.FC = () => {
     allow_location_tracking?: boolean
   }) => {
     try {
-      await updatePrivacySettings({
-        profile_visibility: profile?.privacy_settings?.profile_visibility || 'public',
-        show_phone: settings.show_phone ?? profile?.privacy_settings?.show_phone ?? false,
-        show_email: settings.show_email ?? profile?.privacy_settings?.show_email ?? false,
-        allow_location_tracking:
-          settings.allow_location_tracking ?? profile?.privacy_settings?.allow_location_tracking ?? false,
-        data_sharing_consent: profile?.privacy_settings?.data_sharing_consent ?? false,
-      }).unwrap()
+      // Partial merge: send only the keys that changed.
+      await updatePrivacySettings(settings).unwrap()
       toast({ title: 'Privacy updated', description: 'Your privacy settings have been saved.' })
     } catch (e: unknown) {
       toast({
@@ -73,10 +70,8 @@ const UserProfilePage: React.FC = () => {
     resolver: zodResolver(userProfileSchema),
     defaultValues: {
       full_name: '',
-      email: '',
       phone: '',
       date_of_birth: '',
-      bio: '',
     },
   })
 
@@ -84,7 +79,7 @@ const UserProfilePage: React.FC = () => {
     resolver: zodResolver(userPreferencesSchema),
     defaultValues: {
       property_type: [],
-      purpose: 'rent',
+      purpose: undefined,
       budget_min: 0,
       budget_max: 0,
       bedrooms_min: 0,
@@ -100,10 +95,8 @@ const UserProfilePage: React.FC = () => {
     if (profile) {
       profileForm.reset({
         full_name: profile.full_name || '',
-        email: profile.email || '',
         phone: profile.phone || '',
         date_of_birth: profile.date_of_birth || '',
-        bio: '',
       })
       if (profile.preferences) {
         const prefs = profile.preferences
@@ -113,7 +106,7 @@ const UserProfilePage: React.FC = () => {
         setSelectedPropertyTypes(types)
         preferencesForm.reset({
           property_type: types,
-          purpose: prefs.purpose && isPurpose(prefs.purpose) ? prefs.purpose : 'rent',
+          purpose: prefs.purpose && isPurpose(prefs.purpose) ? prefs.purpose : undefined,
           budget_min: prefs.budget_min ?? 0,
           budget_max: prefs.budget_max ?? 0,
           bedrooms_min: prefs.bedrooms_min ?? 0,
@@ -130,12 +123,27 @@ const UserProfilePage: React.FC = () => {
 
   const handleProfileSubmit = async (data: UserProfileFormValues) => {
     profileForm.clearErrors()
+    // Compare with the loaded profile instead of RHF dirty flags (those are only tracked when read during render).
+    // Send only what changed. A blank phone is never sent (the backend ignores "" and rejects null),
+    // and a blank date of birth is sent as null so it clears the stored date.
+    const payload: UserUpdate = {}
+    const fullName = data.full_name.trim()
+    const phone = data.phone?.trim() ?? ''
+    const dateOfBirth = data.date_of_birth?.trim() ?? ''
+    if (!phone && profile?.phone) { profileForm.setError('phone', { type: 'validate', message: 'A phone number cannot be removed here. Enter a new number to change it.' }); return }
+    if (fullName !== (profile?.full_name ?? '')) payload.full_name = fullName
+    if (phone && phone !== (profile?.phone ?? '')) payload.phone = phone
+    if (dateOfBirth !== (profile?.date_of_birth ?? '')) payload.date_of_birth = dateOfBirth || null
+    if (Object.keys(payload).length === 0) {
+      toast({ title: 'No changes', description: 'Edit a field before saving.' })
+      return
+    }
     try {
-      await updateProfile(data).unwrap()
+      await updateProfile(payload).unwrap()
       toast({ title: 'Profile Updated', description: 'Your profile has been updated successfully.' })
     } catch (e: unknown) {
       applyServerValidation(e, profileForm.setError, {
-        knownFields: ['full_name', 'email', 'phone', 'date_of_birth', 'bio'],
+        knownFields: ['full_name', 'phone', 'date_of_birth'],
       })
       toast({
         title: 'Update Failed',
@@ -150,7 +158,7 @@ const UserProfilePage: React.FC = () => {
     try {
       await updatePreferences({
         ...data,
-        property_type: selectedPropertyTypes,
+        property_type: selectedPropertyTypes.filter(isPropertyType),
         location_preference: selectedLocations,
       }).unwrap()
       toast({ title: 'Preferences Updated', description: 'Your preferences have been saved successfully.' })
@@ -271,9 +279,14 @@ const UserProfilePage: React.FC = () => {
               {assignedAgent && (
                 <div className="mt-2">
                   <Badge variant="secondary">
-                    Assigned Agent: {assignedAgent.name || assignedAgent.user?.full_name || '—'}
+                    Assigned Agent: {assignedAgent.name || '—'}
                   </Badge>
                 </div>
+              )}
+              {assignedAgentError && !(isApiError(assignedAgentError) && assignedAgentError.status === 404) && (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                  Could not load the assigned agent. <button type="button" className="underline" onClick={() => { void refetchAssignedAgent() }}>Retry</button>
+                </p>
               )}
             </div>
           </div>
@@ -305,6 +318,7 @@ const UserProfilePage: React.FC = () => {
         <div role="tabpanel" id="profile-panel" aria-labelledby="profile-tab">
           <ProfileTab
             profileForm={profileForm}
+            email={profile?.email}
             onSubmit={(e) => {
               e.preventDefault()
               void profileForm.handleSubmit(handleProfileSubmit)(e)

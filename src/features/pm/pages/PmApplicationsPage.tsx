@@ -1,13 +1,14 @@
-import {useCallback,  useState} from "react";
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
+import {useCallback, useEffect, useState} from "react";
+import { useSearchParams } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAppSelector } from "@/hooks/redux";
 import { selectSelectedOwnerId } from "@/features/pm/slices/pmSlice";
 import { useDebounce } from "@/hooks/useDebounce";
-import type { RentalApplication, TenantStatus } from "@/types/pm";
+import type { RentalApplication, RentalApplicationStatus } from "@/types/pm";
 import {
   useDecideApplicationMutation,
-  useDeleteApplicationMutation,
   useListApplicationFormsQuery,
   useListApplicationsQuery} from "@/features/pm/api/pmApi";
 import {
@@ -19,6 +20,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import OwnerScopeGate from "@/features/pm/components/OwnerScopeGate";
@@ -34,13 +37,22 @@ export default function PmApplicationsPage() {
 
   const ownerId = selectedOwnerId;
 
-  const [tab, setTab] = useState<"forms" | "inbox">("forms");
+  // The Forms tab links here with `?tab=inbox&form_id=N`: the URL holds the tab and the form filter.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: "forms" | "inbox" = searchParams.get("tab") === "inbox" ? "inbox" : "forms";
+  const formIdParam = Number(searchParams.get("form_id"));
+  const formId = Number.isInteger(formIdParam) && formIdParam > 0 ? formIdParam : null;
+  const setTab = useCallback(
+    (next: "forms" | "inbox") => setSearchParams(next === "inbox" ? { tab: "inbox" } : {}, { replace: true }),
+    [setSearchParams],
+  );
+  const clearFormFilter = useCallback(() => setSearchParams({ tab: "inbox" }, { replace: true }), [setSearchParams]);
 
   // Forms list
   const [formsQ, setFormsQ] = useState("");
   const debouncedFormsQ = useDebounce(formsQ, 300);
   const [formsLimit, setFormsLimit] = useState(50);
-  const formsPager = useCursorPagination(`${debouncedFormsQ}|${formsLimit}|${ownerId}`);
+  const formsPager = useCursorPagination(pmCursorKey(ownerId, debouncedFormsQ, formsLimit));
   const forms = useListApplicationFormsQuery(
     {
       owner_id: ownerId,
@@ -50,25 +62,26 @@ export default function PmApplicationsPage() {
     { skip: tab !== "forms" || (role === "agent" && !ownerId) },
   );
 
-  const formsDisplayData = forms.data?.items;
+  const formsDisplayData = forms.currentData?.items;
 
   // Inbox list
-  const [status, setStatus] = useState<TenantStatus | "">("");
+  const [status, setStatus] = useState<RentalApplicationStatus | "">("");
   const [appsLimit, setAppsLimit] = useState(50);
-  const appsPager = useCursorPagination(`${status}|${appsLimit}|${ownerId}`);
+  const appsPager = useCursorPagination(pmCursorKey(ownerId, status, formId, appsLimit));
   const applications = useListApplicationsQuery(
     {
       owner_id: ownerId,
       status: status || undefined,
+      form_id: formId ?? undefined,
       limit: appsLimit,
       cursor: appsPager.cursor},
     { skip: tab !== "inbox" || (role === "agent" && !ownerId) },
   );
 
-  const appsDisplayData = applications.data?.items;
+  const appsDisplayData = applications.currentData?.items;
+  const inboxScopeKey = pmCursorKey(ownerId, status, formId, appsLimit, appsPager.cursor);
 
   const [decideApplication, decideState] = useDecideApplicationMutation();
-  const [deleteApplication] = useDeleteApplicationMutation();
 
   // Confirmation dialog state for approve/reject actions
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -77,17 +90,24 @@ export default function PmApplicationsPage() {
     applicationId: number | null;
     applicantName: string;
   }>({ open: false, type: "approve", applicationId: null, applicantName: "" });
+  const [decisionNotes, setDecisionNotes] = useState("");
 
   const handleDecisionConfirm = useCallback(async () => {
-    if (!confirmDialog.applicationId) return;
+    if (!confirmDialog.applicationId || !appsDisplayData?.some((app) => app.id === confirmDialog.applicationId)) return;
     const decision = confirmDialog.type === "approve" ? "approved" : "rejected";
     try {
       await decideApplication({
         application_id: confirmDialog.applicationId,
-        payload: { decision }}).unwrap();
+        payload: { decision, notes: decisionNotes.trim() || undefined }}).unwrap();
       toast({
         title: confirmDialog.type === "approve" ? "Approved" : "Rejected",
         description: `Application ${decision}.`});
+      setConfirmDialog({
+        open: false,
+        type: "approve",
+        applicationId: null,
+        applicantName: ""});
+      setDecisionNotes("");
     } catch (e: unknown) {
       toast({
         title: "Failed",
@@ -96,19 +116,20 @@ export default function PmApplicationsPage() {
           `Could not ${confirmDialog.type} application.`,
         ),
         variant: "destructive"});
-    } finally {
-      setConfirmDialog({
-        open: false,
-        type: "approve",
-        applicationId: null,
-        applicantName: ""});
     }
   }, [
+    appsDisplayData,
     confirmDialog.applicationId,
     confirmDialog.type,
     decideApplication,
+    decisionNotes,
     toast,
   ]);
+
+  useEffect(() => {
+    setConfirmDialog({ open: false, type: "approve", applicationId: null, applicantName: "" });
+    setDecisionNotes("");
+  }, [inboxScopeKey]);
 
   const openConfirmDialog = useCallback(
     (type: "approve" | "reject", application: RentalApplication) => {
@@ -131,6 +152,7 @@ export default function PmApplicationsPage() {
           icon={ClipboardList}
           actions={
             <CreateApplicationFormDialog
+              key={ownerId ?? 'all'}
               ownerId={ownerId}
               isAgentWithoutOwner={role === "agent" && !ownerId}
             />
@@ -163,58 +185,54 @@ export default function PmApplicationsPage() {
         </div>
 
         <ApplicationTable
+          key={tab === "inbox" ? inboxScopeKey : "forms"}
           tab={tab}
           formsData={formsDisplayData}
-          formsIsLoading={forms.isLoading}
+          formsIsLoading={(!forms.currentData && forms.isFetching)}
           formsIsError={forms.isError}
           formsRefetch={() => { void forms.refetch() }}
           formsLimit={formsLimit}
           formsCanPrev={formsPager.canPrev}
-          formsCanNext={forms.data?.has_more ?? false}
+          formsCanNext={forms.currentData?.has_more ?? false}
           onFormsPrev={formsPager.prev}
-          onFormsNext={() => forms.data && formsPager.next(forms.data.next_cursor)}
+          onFormsNext={() => forms.currentData && formsPager.next(forms.currentData.next_cursor)}
           formsQ={formsQ}
           onFormsQChange={setFormsQ}
           formsLimitValue={formsLimit}
           onFormsLimitChange={setFormsLimit}
           toast={toast}
           applicationsData={appsDisplayData}
-          applicationsIsLoading={applications.isLoading}
+          applicationsIsLoading={!applications.currentData && applications.isFetching}
           applicationsIsError={applications.isError}
           applicationsRefetch={() => { void applications.refetch() }}
           appsLimit={appsLimit}
           appsCanPrev={appsPager.canPrev}
-          appsCanNext={applications.data?.has_more ?? false}
+          appsCanNext={applications.currentData?.has_more ?? false}
           onAppsPrev={appsPager.prev}
-          onAppsNext={() => applications.data && appsPager.next(applications.data.next_cursor)}
+          onAppsNext={() => applications.currentData && appsPager.next(applications.currentData.next_cursor)}
           status={status}
           onStatusChange={setStatus}
+          formId={formId}
+          onClearForm={clearFormFilter}
           appsLimitValue={appsLimit}
           onAppsLimitChange={setAppsLimit}
           decideIsLoading={decideState.isLoading}
           onApprove={(app) => openConfirmDialog("approve", app)}
           onReject={(app) => openConfirmDialog("reject", app)}
-          onDeleteApplication={async (applicationId) => {
-            try {
-              await deleteApplication(applicationId).unwrap();
-              toast({ title: "Deleted", description: "Application deleted." });
-            } catch (e: unknown) {
-              toast({ title: "Failed", description: getErrorMessage(e, "Could not delete application."), variant: "destructive" });
-            }
-          }}
         />
       </div>
 
       {/* Confirmation Dialog for Approve/Reject */}
       <AlertDialog
-        open={confirmDialog.open}
+        open={confirmDialog.open && Boolean(appsDisplayData?.some((app) => app.id === confirmDialog.applicationId))}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !decideState.isLoading) {
             setConfirmDialog({
               open: false,
               type: "approve",
               applicationId: null,
               applicantName: ""});
+            setDecisionNotes("");
           }
         }}
       >
@@ -231,12 +249,22 @@ export default function PmApplicationsPage() {
                 : `Are you sure you want to reject "${confirmDialog.applicantName}"? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="decision-notes">Notes (optional)</Label>
+            <Textarea
+              id="decision-notes"
+              rows={3}
+              value={decisionNotes}
+              onChange={(e) => setDecisionNotes(e.target.value)}
+              disabled={decideState.isLoading}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={decideState.isLoading}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => void handleDecisionConfirm()}
+              onClick={(event) => { event.preventDefault(); void handleDecisionConfirm(); }}
               disabled={decideState.isLoading}
               className={
                 confirmDialog.type === "reject"

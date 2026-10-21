@@ -1,16 +1,18 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { LeaseCreate } from "@/types/pm";
 import { useCreatePmLeaseMutation } from "@/features/pm/api/pmApi";
-import { usePmPropertyOptions } from "@/features/pm/hooks/usePmPropertyOptions";
-import { PmPropertySelectItems } from "@/features/pm/components/PmPropertySelectItems";
+import { PmPropertyPicker } from "@/features/pm/components/PmPropertyPicker";
+import type { PmProperty } from "@/types/pm";
 import { LEASE_STATUSES } from "@/features/pm/constants";
+import { parseLateFeePolicy } from "@/features/pm/propertyForm";
+import { buildLeaseCreate } from "@/features/pm/leaseForm";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -49,7 +51,8 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
 
   const [open, setOpen] = useState(false);
 
-  const properties = usePmPropertyOptions(ownerId, { enabled: open && !(role === "agent" && !ownerId) });
+  // The picked property: its settings are the lease defaults, and its owner owns the lease.
+  const [selectedProperty, setSelectedProperty] = useState<PmProperty | null>(null);
 
   const form = useForm<PmLeaseCreateForm>({
     resolver: zodResolver(pmLeaseCreateSchema),
@@ -63,34 +66,39 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
       end_date: "",
       monthly_rent: "",
       security_deposit: "",
+      payment_due_day: "",
+      grace_period_days: "",
+      late_fee_amount: "",
+      late_fee_percentage: "",
     },
   });
+
+  // The lease is what billing reads: due day, grace period and late fee. A blank due day or grace period
+  // takes the property's settings (the backend copies them). The property's late fee policy is not read
+  // by billing, so it is copied into the lease fields here, where the owner can still change it.
+  const prefilledFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (!selectedProperty || prefilledFor.current === selectedProperty.id) return;
+    prefilledFor.current = selectedProperty.id;
+    const fee = parseLateFeePolicy(selectedProperty.late_fee_policy);
+    form.setValue("late_fee_amount", fee.type === "fixed" ? fee.amount : "");
+    form.setValue("late_fee_percentage", fee.type === "percentage" ? fee.percent : "");
+  }, [selectedProperty, form]);
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
       setOpen(isOpen);
-      if (!isOpen) form.reset();
+      if (!isOpen) {
+        form.reset();
+        setSelectedProperty(null);
+        prefilledFor.current = null;
+      }
     },
     [form],
   );
 
   const onSubmit = async (values: PmLeaseCreateForm) => {
-    const selectedPropertyOwnerId = (properties.data?.items ?? []).find(
-      (p) => String(p.id) === values.property_id,
-    )?.owner_id;
-
-    const payload: LeaseCreate = {
-      owner_id: ownerId ?? selectedPropertyOwnerId ?? undefined,
-      property_id: Number(values.property_id),
-      tenant_name: values.tenant_name || undefined,
-      tenant_phone: values.tenant_phone || undefined,
-      tenant_email: values.tenant_email || undefined,
-      status: values.status,
-      start_date: values.start_date,
-      end_date: values.end_date,
-      monthly_rent: Number(values.monthly_rent),
-      security_deposit: Number(values.security_deposit),
-    };
+    const payload = buildLeaseCreate(values, ownerId ?? selectedProperty?.owner_id ?? undefined);
     try {
       await createLease(payload).unwrap();
       toast({ title: "Created", description: "Lease created." });
@@ -109,12 +117,13 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
           Create Lease
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create lease</DialogTitle>
+          <DialogDescription className="sr-only">Enter the lease terms for a managed property.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="grid gap-4 md:grid-cols-2">
+          <form noValidate onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2"><FormRootError form={form} /></div>
             <FormField
               control={form.control}
@@ -122,16 +131,17 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Property</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select property…" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <PmPropertySelectItems properties={properties} />
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <PmPropertyPicker
+                      ownerId={ownerId}
+                      enabled={open && !(role === "agent" && !ownerId)}
+                      selected={selectedProperty}
+                      onSelect={(property) => {
+                        setSelectedProperty(property);
+                        field.onChange(property ? String(property.id) : "");
+                      }}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -232,11 +242,74 @@ export default function CreateLeaseDialog({ ownerId }: CreateLeaseDialogProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Security deposit</FormLabel>
-                  <FormControl><Input placeholder="e.g. 50000" {...field} /></FormControl>
+                  <FormControl><Input placeholder="e.g. 50000 (0 for none)" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="payment_due_day"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payment due day (1-28)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={28}
+                      placeholder={selectedProperty ? `Property default: ${selectedProperty.payment_due_day ?? 1}` : "Property default"}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="grace_period_days"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Grace period (days)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder={selectedProperty ? `Property default: ${selectedProperty.grace_period_days ?? 5}` : "Property default"}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="late_fee_amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Late fee, fixed amount (₹)</FormLabel>
+                  <FormControl><Input type="number" min={0} step="0.01" placeholder="None" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="late_fee_percentage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Late fee, percent of rent</FormLabel>
+                  <FormControl><Input type="number" min={0} max={100} step="0.1" placeholder="None" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <p className="text-xs text-muted-foreground md:col-span-2">
+              The fee is charged once, after the grace period, on a charge that is still unpaid. A fixed amount is
+              charged instead of the percentage when both are set.
+            </p>
             <div className="flex justify-end gap-2 pt-2 md:col-span-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel

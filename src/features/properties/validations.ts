@@ -12,27 +12,29 @@ export const propertyFormSchema = z.object({
   ], { required_error: 'Property type is required' }),
   purpose: z.enum(['buy', 'rent', 'short_stay'], { required_error: 'Purpose is required' }),
   status: z.string().optional(),
-  base_price: z.preprocess(numPreprocess, z.number({ required_error: 'Price is required', invalid_type_error: 'Price is required' }).min(1, 'Price must be greater than 0')),
+  base_price: z.preprocess(numPreprocess, z.number({ required_error: 'Price is required', invalid_type_error: 'Price is required' }).min(1, 'Price must be greater than 0').max(9999999999.99, 'Price is too large')),
   city: z.string().min(1, 'City is required'),
   locality: z.string().min(1, 'Locality is required'),
   address: z.string().optional(),
-  latitude: z.preprocess(numPreprocess, z.number().optional()),
-  longitude: z.preprocess(numPreprocess, z.number().optional()),
+  latitude: z.preprocess(numPreprocess, z.number().min(-90, 'Latitude must be between -90 and 90').max(90, 'Latitude must be between -90 and 90').optional()),
+  longitude: z.preprocess(numPreprocess, z.number().min(-180, 'Longitude must be between -180 and 180').max(180, 'Longitude must be between -180 and 180').optional()),
   owner_id: z.preprocess((v) => (v === '' || v === null || v === undefined ? undefined : Number(v)), z.number().optional()),
   is_available: z.preprocess((v) => (v === 'true' ? true : v === 'false' ? false : v), z.boolean().optional()),
   available_from: z.string().optional(),
   amenity_ids: z.array(z.number()).optional(),
   pincode: z.string().optional(),
-  area_sqft: z.preprocess(numPreprocess, z.number({ required_error: 'Area is required', invalid_type_error: 'Area is required' }).min(1, 'Area must be greater than 0')),
-  bedrooms: z.preprocess(numPreprocess, z.number().min(0).default(0)),
-  bathrooms: z.preprocess(numPreprocess, z.number().min(0).default(0)),
-  balconies: z.preprocess(numPreprocess, z.number().min(0).default(0)),
-  parking_spaces: z.preprocess(numPreprocess, z.number().min(0).default(0)),
-  floor_number: z.preprocess(numPreprocess, z.number().min(0).default(0)),
-  total_floors: z.preprocess(numPreprocess, z.number().min(1).default(1)),
-  age_of_property: z.preprocess(numPreprocess, z.number().min(0).default(0)),
-  max_occupancy: z.preprocess(numPreprocess, z.number().min(1).default(1)),
-  minimum_stay_days: z.preprocess(numPreprocess, z.number().min(1).default(1)),
+  area_sqft: z.preprocess(numPreprocess, z.number({ required_error: 'Area is required', invalid_type_error: 'Area is required' }).min(1, 'Area must be greater than 0').max(1000000, 'Area is too large')),
+  // Bounds follow the backend: counts are whole numbers (bedrooms, bathrooms, balconies 0..50),
+  // floor_number -5..200, total_floors 0..200, parking_spaces 0..100, age 0..500, minimum stay 1..3650.
+  bedrooms: z.preprocess(numPreprocess, z.number().int().min(0).max(50).default(0)),
+  bathrooms: z.preprocess(numPreprocess, z.number().int().min(0).max(50).default(0)),
+  balconies: z.preprocess(numPreprocess, z.number().int().min(0).max(50).default(0)),
+  parking_spaces: z.preprocess(numPreprocess, z.number().int().min(0).max(100).default(0)),
+  floor_number: z.preprocess(numPreprocess, z.number().int().min(-5).max(200).default(0)),
+  total_floors: z.preprocess(numPreprocess, z.number().int().min(1).max(200).default(1)),
+  age_of_property: z.preprocess(numPreprocess, z.number().int().min(0).max(500).default(0)),
+  max_occupancy: z.preprocess(numPreprocess, z.number().int().min(1).max(1000).default(1)),
+  minimum_stay_days: z.preprocess(numPreprocess, z.number().int().min(1).max(3650).default(1)),
   features: z.array(z.string()).optional(),
   owner_name: z.string().optional(),
   owner_contact: z.string().optional(),
@@ -50,7 +52,16 @@ export const propertyFormSchema = z.object({
 }).refine(
   (d) => d.floor_number == null || d.total_floors == null || d.total_floors >= d.floor_number,
   { message: 'Total floors must be >= floor number', path: ['total_floors'] },
-)
+).superRefine((d, ctx) => {
+  // Backend rules: PG and flatmate listings are rent listings, and a rent listing needs a positive monthly_rent.
+  const isSharedListing = d.property_type === 'pg' || d.property_type === 'flatmate'
+  if (isSharedListing && d.purpose !== 'rent') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['purpose'], message: 'PG and flatmate listings must be for rent' })
+  }
+  if ((d.purpose === 'rent' || isSharedListing) && (d.monthly_rent == null || d.monthly_rent <= 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['monthly_rent'], message: 'Monthly rent is required for rent listings' })
+  }
+})
 
 // Export inferred types
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>
@@ -81,7 +92,6 @@ export const propertySearchSchema = z.object({
   pincode: z.string().optional(),
   amenities: z.array(z.string()).optional(),
   features: z.array(z.string()).optional(),
-  radius: z.number().optional(),
   sort_by: z.string().optional(),
   cursor: z.string().nullable().optional(),
   limit: z.number().optional(),

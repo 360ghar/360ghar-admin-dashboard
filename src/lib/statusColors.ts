@@ -1,27 +1,31 @@
 import type { BadgeProps } from '@/components/ui/badge'
+import type { components } from '@/lib/api/schema.gen'
 
 /**
  * Shared status-to-Badge variant mapper. Used by BookingCard, VisitCard,
  * and any other component that displays entity statuses as badges.
  */
 
-type BookingStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'refunded'
-type BookingPaymentStatus = 'paid' | 'partial' | 'unpaid' | 'refunded'
-type VisitStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled' | 'reschedule_suggested'
+type BookingStatus = components['schemas']['BookingStatus']
+type BookingPaymentStatus = components['schemas']['PaymentStatus']
+type VisitStatus = components['schemas']['VisitStatus']
 
+// Every map is typed over the generated union: a value the backend adds fails the type check until it is placed here.
 const BOOKING_STATUS_COLORS: Record<BookingStatus, BadgeProps['variant']> = {
-  confirmed: 'default',
   pending: 'secondary',
+  confirmed: 'default',
+  checked_in: 'default',
+  checked_out: 'default',
   cancelled: 'destructive',
   completed: 'default',
-  refunded: 'outline',
 }
 
 const BOOKING_PAYMENT_STATUS_COLORS: Record<BookingPaymentStatus, BadgeProps['variant']> = {
-  paid: 'default',
+  pending: 'secondary',
   partial: 'secondary',
-  unpaid: 'destructive',
+  paid: 'default',
   refunded: 'outline',
+  failed: 'destructive',
 }
 
 const VISIT_STATUS_COLORS: Record<VisitStatus, BadgeProps['variant']> = {
@@ -32,16 +36,21 @@ const VISIT_STATUS_COLORS: Record<VisitStatus, BadgeProps['variant']> = {
   cancelled: 'destructive',
 }
 
-export function getBookingStatusColor(status: string): BadgeProps['variant'] {
-  return BOOKING_STATUS_COLORS[status as BookingStatus] ?? 'outline'
+/** Own-key lookup. An unknown value is `undefined`, never a real status. */
+function lookup<T>(map: Record<string, T>, key: string | null | undefined): T | undefined {
+  return key != null && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined
 }
 
-export function getBookingPaymentStatusColor(status: string): BadgeProps['variant'] {
-  return BOOKING_PAYMENT_STATUS_COLORS[status as BookingPaymentStatus] ?? 'outline'
+export function getBookingStatusColor(status: string | null | undefined): BadgeProps['variant'] {
+  return lookup(BOOKING_STATUS_COLORS, status) ?? 'outline'
 }
 
-export function getVisitStatusColor(status: string): BadgeProps['variant'] {
-  return VISIT_STATUS_COLORS[status as VisitStatus] ?? 'outline'
+export function getBookingPaymentStatusColor(status: string | null | undefined): BadgeProps['variant'] {
+  return lookup(BOOKING_PAYMENT_STATUS_COLORS, status) ?? 'outline'
+}
+
+export function getVisitStatusColor(status: string | null | undefined): BadgeProps['variant'] {
+  return lookup(VISIT_STATUS_COLORS, status) ?? 'outline'
 }
 
 const VISIT_STATUS_LABELS: Record<VisitStatus, string> = {
@@ -53,14 +62,14 @@ const VISIT_STATUS_LABELS: Record<VisitStatus, string> = {
 }
 
 export function getVisitStatusLabel(status: string): string {
-  return VISIT_STATUS_LABELS[status as VisitStatus] ?? status
+  return lookup(VISIT_STATUS_LABELS, status) ?? status
 }
 
-type PropertyStatus = 'available' | 'sold' | 'rented' | 'under_offer' | 'maintenance'
-type ManagedPropertyStatus = 'active' | 'draft' | 'archived'
+type PropertyStatus = components['schemas']['PropertyStatus']
+type ManagedPropertyStatus = components['schemas']['ManagedPropertyStatus']
 type Occupancy = 'occupied' | 'vacant'
-type BugSeverity = 'low' | 'medium' | 'high' | 'critical'
-type ModerationStatus = 'pending' | 'approved' | 'rejected' | 'flagged'
+type BugSeverity = components['schemas']['BugSeverity']
+type ListingModerationStatus = components['schemas']['ListingModerationStatus']
 
 const PROPERTY_STATUS_COLORS: Record<PropertyStatus, BadgeProps['variant']> = {
   available: 'default',
@@ -88,29 +97,30 @@ const BUG_SEVERITY_COLORS: Record<BugSeverity, BadgeProps['variant']> = {
   critical: 'destructive',
 }
 
-const MODERATION_STATUS_COLORS: Record<ModerationStatus, BadgeProps['variant']> = {
-  pending: 'secondary',
-  approved: 'default',
+const LISTING_MODERATION_STATUS_COLORS: Record<ListingModerationStatus, BadgeProps['variant']> = {
+  pending_review: 'secondary',
+  live: 'default',
+  paused: 'outline',
   rejected: 'destructive',
-  flagged: 'destructive',
 }
 
-export function getPropertyStatusColor(status: string): BadgeProps['variant'] {
-  return PROPERTY_STATUS_COLORS[status as PropertyStatus] ?? 'outline'
+export function getPropertyStatusColor(status: string | null | undefined): BadgeProps['variant'] {
+  return lookup(PROPERTY_STATUS_COLORS, status) ?? 'outline'
 }
 
-export function getManagedPropertyStatusColor(status: string): BadgeProps['variant'] {
-  return MANAGED_STATUS_COLORS[status as ManagedPropertyStatus] ?? 'outline'
+export function getManagedPropertyStatusColor(status: string | null | undefined): BadgeProps['variant'] {
+  return lookup(MANAGED_STATUS_COLORS, status) ?? 'outline'
 }
 
 export function getOccupancyColor(occupied: boolean): BadgeProps['variant'] {
   return OCCUPANCY_COLORS[occupied ? 'occupied' : 'vacant']
 }
 
-export function getBugSeverityColor(severity: string): BadgeProps['variant'] {
-  return BUG_SEVERITY_COLORS[severity as BugSeverity] ?? 'outline'
+export function getBugSeverityColor(severity: string | null | undefined): BadgeProps['variant'] {
+  return lookup(BUG_SEVERITY_COLORS, severity) ?? 'outline'
 }
 
-export function getModerationStatusColor(status: string): BadgeProps['variant'] {
-  return MODERATION_STATUS_COLORS[status as ModerationStatus] ?? 'outline'
+/** Badge variant for a flatmates listing moderation status (`pending_review`, `live`, `paused`, `rejected`). */
+export function getListingModerationStatusColor(status: string | null | undefined): BadgeProps['variant'] {
+  return lookup(LISTING_MODERATION_STATUS_COLORS, status) ?? 'outline'
 }

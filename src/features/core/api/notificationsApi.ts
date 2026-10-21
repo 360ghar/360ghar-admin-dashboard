@@ -1,72 +1,48 @@
 import { api } from '@/store/api'
+import type { components } from '@/lib/api/schema.gen'
 import type { PaginatedResponse } from '@/types/api'
 
-export interface UserNotificationLogEntry {
-  id: string
-  title: string
-  body: string
-  data?: Record<string, unknown>
-  audience_type?: string
-  target_user_id?: string
-  topic?: string
-  opened?: boolean
-  is_read?: boolean
-  created_at?: string
-}
+type S = components['schemas']
+
+/** One inbox row. `id` is the delivery id (the value `opened` takes), `type` is the notification type key, `read_at` is null until opened. */
+export type NotificationItem = S['NotificationItem']
+export type NotificationPage = S['NotificationPage']
+export type DeliveryRead = S['DeliveryReadOut']
+export type MarketingNotificationBody = S['MarketingNotification']
+export type MarketingSegmentBody = S['MarketingSegmentRequest']
+export type MarketingSegmentFilter = S['SegmentFilter']
+/** `{ requested, processed, succeeded }`. `requested` is the audience size (active users), `processed` is the users the send was dispatched to, and `succeeded` counts dispatches with no error. Consent can still block a channel. */
+export type MarketingSendResult = S['MarketingSendResult']
 
 export interface MarketingNotificationPayload {
-  typeKey: string
+  typeKey: MarketingNotificationBody['type_key']
   title: string
   body: string
   data?: Record<string, string>
+  /** Push route (for example `/property/123`). The backend delivers it to the app as `data.route`. */
   deep_link?: string
-}
-
-export interface MarketingSegmentFilter {
-  role?: 'user' | 'agent' | 'admin'
-  agent_id?: number
-  is_active?: boolean
 }
 
 export interface MarketingSegmentRequest extends MarketingNotificationPayload {
   filter: MarketingSegmentFilter
 }
 
-export interface DeviceRegistrationPayload {
-  token: string
-  platform?: string
-  app_version?: string
-  locale?: string
-}
-
-export interface NotificationSendPayload {
-  title: string
-  body: string
-  data?: Record<string, string>
-  deep_link?: string
-  image?: string
-}
-
-export interface NotificationSendToTokenPayload extends NotificationSendPayload {
-  token: string
-}
-
-export interface NotificationSendToUserPayload extends NotificationSendPayload {
-  user_id: string | number
-}
-
-export interface NotificationSendToTopicPayload extends NotificationSendPayload {
-  topic: string
-}
-
-export interface NotificationSendBulkPayload extends NotificationSendPayload {
-  tokens: string[]
-}
-
 export const notificationsApi = api.injectEndpoints({
   endpoints: (builder) => ({
+    // The signed-in user's own inbox, newest first. Rows stay listed after they are opened.
+    getMyNotifications: builder.query<NotificationPage, { limit?: number; cursor?: string | null; unread_only?: boolean } | void>({
+      query: (params) => ({
+        url: '/notifications/me',
+        params: { limit: 50, ...(params || {}) },
+      }),
+      providesTags: (res) => res?.items
+        ? [...res.items.map((n) => ({type: 'Notification' as const, id: n.id})), {type: 'Notification', id: 'LIST'}]
+        : [{type: 'Notification', id: 'LIST'}],
+    }),
+
+    // Delivery history of one user (admin view). Same row shape as the inbox.
     getUserNotifications: builder.query<
-      PaginatedResponse<UserNotificationLogEntry>,
+      PaginatedResponse<NotificationItem>,
       number | { userId: number; limit?: number; cursor?: string | null }
     >({
       query: (params) => {
@@ -85,52 +61,8 @@ export const notificationsApi = api.injectEndpoints({
         : [{type: 'Notification', id: 'LIST'}],
     }),
 
-    registerDeviceToken: builder.mutation<void, DeviceRegistrationPayload>({
-      query: (data) => ({
-        url: '/notifications/devices/register',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: [{type: 'Notification', id: 'LIST'}],
-    }),
-
-    sendToToken: builder.mutation<void, NotificationSendToTokenPayload>({
-      query: (data) => ({
-        url: '/notifications/send/token',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: [{type: 'Notification', id: 'LIST'}],
-    }),
-
-    sendToUser: builder.mutation<void, NotificationSendToUserPayload>({
-      query: (data) => ({
-        url: '/notifications/send/user',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: [{type: 'Notification', id: 'LIST'}],
-    }),
-
-    sendToTopic: builder.mutation<void, NotificationSendToTopicPayload>({
-      query: (data) => ({
-        url: '/notifications/send/topic',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: [{type: 'Notification', id: 'LIST'}],
-    }),
-
-    sendBulkTokens: builder.mutation<void, NotificationSendBulkPayload>({
-      query: (data) => ({
-        url: '/notifications/send/bulk',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: [{type: 'Notification', id: 'LIST'}],
-    }),
-
-    markDeliveryOpened: builder.mutation<void, { deliveryId: string | number }>({
+    // Mark one inbox row read. `deliveryId` is the row `id` from the inbox, not a notification id.
+    markDeliveryOpened: builder.mutation<DeliveryRead, { deliveryId: string }>({
       query: ({ deliveryId }) => ({
         url: `/notifications/deliveries/${deliveryId}/opened`,
         method: 'POST',
@@ -138,54 +70,28 @@ export const notificationsApi = api.injectEndpoints({
       invalidatesTags: [{type: 'Notification', id: 'LIST'}],
     }),
 
-    sendMarketingBroadcast: builder.mutation<
-      { requested: number; processed: number },
-      MarketingNotificationPayload
-    >({
-      query: ({ typeKey, title, body, data, deep_link }) => ({
-        url: '/notifications/marketing/broadcast',
-        method: 'POST',
-        body: {
-          type_key: typeKey,
-          title,
-          body,
-          data,
-          deep_link,
-        },
-      }),
+    sendMarketingBroadcast: builder.mutation<MarketingSendResult, MarketingNotificationPayload>({
+      query: ({ typeKey, title, body, data, deep_link }) => {
+        const payload: MarketingNotificationBody = { type_key: typeKey, title, body, data, deep_link }
+        return { url: '/notifications/marketing/broadcast', method: 'POST', body: payload }
+      },
       invalidatesTags: [{type: 'Notification', id: 'LIST'}],
     }),
 
-    sendMarketingToSegment: builder.mutation<
-      { requested: number; processed: number },
-      MarketingSegmentRequest
-    >({
-      query: ({ typeKey, title, body, data, deep_link, filter }) => ({
-        url: '/notifications/marketing/segment',
-        method: 'POST',
-        body: {
-          type_key: typeKey,
-          title,
-          body,
-          data,
-          deep_link,
-          filter,
-        },
-      }),
+    sendMarketingToSegment: builder.mutation<MarketingSendResult, MarketingSegmentRequest>({
+      query: ({ typeKey, title, body, data, deep_link, filter }) => {
+        const payload: MarketingSegmentBody = { type_key: typeKey, title, body, data, deep_link, filter }
+        return { url: '/notifications/marketing/segment', method: 'POST', body: payload }
+      },
       invalidatesTags: [{type: 'Notification', id: 'LIST'}],
     }),
   }),
 })
 
 export const {
+  useGetMyNotificationsQuery,
   useGetUserNotificationsQuery,
-  useRegisterDeviceTokenMutation,
-  useSendToTokenMutation,
-  useSendToUserMutation,
-  useSendToTopicMutation,
-  useSendBulkTokensMutation,
   useMarkDeliveryOpenedMutation,
   useSendMarketingBroadcastMutation,
   useSendMarketingToSegmentMutation,
 } = notificationsApi
-

@@ -48,7 +48,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
   const navigate = useNavigate()
   const prefersReducedMotion = usePrefersReducedMotion()
   const { toast } = useToast()
-  const { data: post, isFetching, error, refetch } = useGetBlogPostQuery(identifier)
+  const { currentData: post, isFetching, error, refetch } = useGetBlogPostQuery(identifier)
   const [updateBlogPost, { isLoading: isTogglingStatus }] = useUpdateBlogPostMutation()
   const [deleteBlogPost, { isLoading: isDeleting }] = useDeleteBlogPostMutation()
 
@@ -84,10 +84,10 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
       await deleteBlogPost(post.id).unwrap()
       toast({ title: 'Deleted', description: 'Blog post deleted successfully' })
       navigate('/blogs')
-    } catch (e: unknown) { toast({ title: 'Delete failed', description: getErrorMessage(e, 'Failed to delete blog post'), variant: 'destructive' }) }
+    } catch (e: unknown) { toast({ title: 'Delete failed', description: getErrorMessage(e, 'Failed to delete blog post'), variant: 'destructive' }); throw e }
   }
 
-  if (isFetching) {
+  if (isFetching && !post) {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
@@ -103,7 +103,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
     )
   }
 
-  if (error) {
+  if (error && (!post || getErrorStatus(error) === 404)) {
     const status = getErrorStatus(error)
     const isNotFound = status === 404
 
@@ -150,6 +150,11 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not refresh this post. <Button variant="link" size="sm" onClick={() => { void refetch() }}>Retry</Button>
+        </p>
+      )}
       <PageHeader
         title={post.title}
         description={

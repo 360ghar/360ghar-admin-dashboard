@@ -1,5 +1,7 @@
 import { useScheduleVisitMutation } from '@/features/visits/api/visitsApi'
 import { useGetUsersQuery } from '@/features/users/api/usersApi'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useState } from 'react'
 import { useSearchPropertiesQuery } from '@/features/properties/api/propertiesApi'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -29,8 +31,13 @@ const VisitForm = () => {
   })
   const { toast } = useToast()
   const [scheduleVisit, createState] = useScheduleVisitMutation()
-  const users = useGetUsersQuery({})
-  const properties = useSearchPropertiesQuery({})
+  // Both pickers search on the server: a list of the first 20 rows would hide most users and properties.
+  const [userSearch, setUserSearch] = useState('')
+  const [propertySearch, setPropertySearch] = useState('')
+  const debouncedUserSearch = useDebounce(userSearch.trim(), 300)
+  const debouncedPropertySearch = useDebounce(propertySearch.trim(), 300)
+  const users = useGetUsersQuery({ limit: 20, q: debouncedUserSearch || undefined })
+  const properties = useSearchPropertiesQuery({ limit: 20, q: debouncedPropertySearch || undefined })
   const { control, handleSubmit } = form
 
   const onSubmit = async (values: VisitFormValues) => {
@@ -41,6 +48,7 @@ const VisitForm = () => {
         form.setError('scheduled_date', { message: 'Enter a valid date and time' })
         return
       }
+      // `user_id` is the visitor. The backend honours it for admins and agents.
       await scheduleVisit({
         property_id: values.property_id,
         user_id: values.user_id,
@@ -78,16 +86,38 @@ const VisitForm = () => {
             <Form {...form}>
               <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
                 <FormRootError form={form} />
+                {users.error && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Could not load users</AlertTitle>
+                    <AlertDescription>
+                      Select Retry to load users. <Button type="button" variant="link" size="sm" onClick={() => { void users.refetch() }}>Retry</Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {properties.error && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Could not load properties</AlertTitle>
+                    <AlertDescription>
+                      Select Retry to load properties. <Button type="button" variant="link" size="sm" onClick={() => { void properties.refetch() }}>Retry</Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <FormField
                   control={control}
                   name="user_id"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>User</FormLabel>
+                      <Input
+                        aria-label="Search users"
+                        placeholder="Search users by name, phone or email"
+                        value={userSearch}
+                        onChange={(e) => setUserSearch(e.target.value)}
+                      />
                       <Select
                         onValueChange={(v) => field.onChange(Number(v))}
                         value={field.value ? String(field.value) : undefined}
-                        disabled={users.isFetching}
+                        disabled={users.isFetching || Boolean(users.error)}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -97,7 +127,7 @@ const VisitForm = () => {
                         <SelectContent>
                           {users.data?.items?.map((u) => (
                             <SelectItem key={u.id} value={String(u.id)}>
-                              {u.full_name || u.phone || `User ${u.id}`}
+                              {u.full_name || u.phone || u.email || `User ${u.id}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -112,10 +142,16 @@ const VisitForm = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Property</FormLabel>
+                      <Input
+                        aria-label="Search properties"
+                        placeholder="Search properties by title or location"
+                        value={propertySearch}
+                        onChange={(e) => setPropertySearch(e.target.value)}
+                      />
                       <Select
                         onValueChange={(v) => field.onChange(Number(v))}
                         value={field.value ? String(field.value) : undefined}
-                        disabled={properties.isFetching}
+                        disabled={properties.isFetching || Boolean(properties.error)}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -134,6 +170,9 @@ const VisitForm = () => {
                     </FormItem>
                   )}
                 />
+                {!properties.isFetching && !properties.error && properties.data?.items.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No properties are available for a visit.</p>
+                )}
                 <FormField
                   control={control}
                   name="scheduled_date"
@@ -148,7 +187,7 @@ const VisitForm = () => {
                   )}
                 />
                 {/* Status is server-managed for scheduling; removed from form */}
-                <Button type="submit" disabled={createState.isLoading}>
+                <Button type="submit" disabled={createState.isLoading || Boolean(properties.error) || properties.data?.items.length === 0}>
                   {createState.isLoading ? 'Scheduling...' : 'Schedule Visit'}
                 </Button>
               </form>

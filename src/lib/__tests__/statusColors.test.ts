@@ -6,7 +6,9 @@ import {
   getManagedPropertyStatusColor,
   getOccupancyColor,
   getBugSeverityColor,
-  getModerationStatusColor,
+  getListingModerationStatusColor,
+  getBookingStatusColor,
+  getBookingPaymentStatusColor,
 } from '../statusColors'
 
 describe('visit status wire labels', () => {
@@ -37,6 +39,20 @@ describe('extended status colors', () => {
     expect(getOccupancyColor(true)).toBe('default')
     expect(getOccupancyColor(false)).toBe('outline')
     expect(getBugSeverityColor('critical')).toBe('destructive')
-    expect(getModerationStatusColor('pending')).toBe('secondary')
+    expect(getListingModerationStatusColor('pending_review')).toBe('secondary')
+    expect(getListingModerationStatusColor('paused')).toBe('outline')
+    // The old made-up labels are not backend values.
+    expect(getListingModerationStatusColor('approved')).toBe('outline')
+  })
+})
+
+describe('booking colour maps follow the backend vocabulary', () => {
+  it('covers checked_in, checked_out and every payment status', () => {
+    expect(getBookingStatusColor('checked_in')).toBe('default')
+    expect(getBookingStatusColor('checked_out')).toBe('default')
+    expect(getBookingStatusColor('refunded')).toBe('outline')
+    expect(getBookingPaymentStatusColor('pending')).toBe('secondary')
+    expect(getBookingPaymentStatusColor('failed')).toBe('destructive')
+    expect(getBookingPaymentStatusColor('unpaid')).toBe('outline')
   })
 })

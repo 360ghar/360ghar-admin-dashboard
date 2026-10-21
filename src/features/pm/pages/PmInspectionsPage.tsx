@@ -1,4 +1,5 @@
-import {useCallback,  useMemo, useState} from 'react'
+import { pmCursorKey } from '@/features/pm/hooks/pmCursorKey'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import { safeJsonObject } from '@/lib/json'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -14,7 +15,7 @@ import type { InspectionChecklist, InspectionChecklistCreate } from '@/types/pm'
 import {
   useCreatePmInspectionMutation,
   useListPmInspectionsQuery,
-  useListPmLeasesQuery} from '@/features/pm/api/pmApi'
+  useListAllPmLeasesQuery} from '@/features/pm/api/pmApi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,15 +48,10 @@ export default function PmInspectionsPage() {
 
   const [limit, setLimit] = useState(50)
 
-  const pager = useCursorPagination(`${limit}`)
+  const pager = useCursorPagination(pmCursorKey(ownerId, limit))
 
   const inspections = useListPmInspectionsQuery(
     { owner_id: ownerId, limit, cursor: pager.cursor },
-    { skip: role === 'agent' && !ownerId },
-  )
-
-  const leases = useListPmLeasesQuery(
-    { owner_id: ownerId, limit: 200 },
     { skip: role === 'agent' && !ownerId },
   )
 
@@ -103,6 +99,13 @@ export default function PmInspectionsPage() {
   // Create form
   const [createOpen, setCreateOpen] = useState(false)
 
+  // The lease picker needs every lease: it follows next_cursor (the backend caps one page at 100 rows).
+  // Nothing is read until the dialog opens.
+  const leases = useListAllPmLeasesQuery(
+    { owner_id: ownerId },
+    { skip: !createOpen || (role === 'agent' && !ownerId) },
+  )
+
   const form = useForm<PmInspectionCreateForm>({
     resolver: zodResolver(pmInspectionCreateSchema),
     defaultValues: {
@@ -111,6 +114,12 @@ export default function PmInspectionsPage() {
       conducted_at: '',
       rooms_json: '{}',
       overall_notes: ''}})
+
+  const resetCreateForm = form.reset
+  useEffect(() => {
+    resetCreateForm()
+    setCreateOpen(false)
+  }, [ownerId, resetCreateForm])
 
   const handleCreateOpenChange = useCallback(
     (open: boolean) => {
@@ -121,7 +130,7 @@ export default function PmInspectionsPage() {
   )
 
   const submitCreate = async (values: PmInspectionCreateForm) => {
-    const selectedLease = (leases.data?.items ?? []).find((l) => String(l.id) === values.lease_id)
+    const selectedLease = (leases.currentData ?? []).find((l) => String(l.id) === values.lease_id)
     if (!selectedLease) {
       toast({ title: 'Lease not found', description: 'Selected lease could not be found. Please refresh and try again.', variant: 'destructive' })
       return
@@ -150,7 +159,7 @@ export default function PmInspectionsPage() {
     }
   }
 
-  const inspectionItems = inspections.data?.items ?? []
+  const inspectionItems = inspections.currentData?.items ?? []
 
   return (
     <OwnerScopeGate>
@@ -187,13 +196,13 @@ export default function PmInspectionsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {leases.isLoading ? (
+                            {(!leases.currentData && leases.isFetching) ? (
                               <SelectItem value="loading" disabled>Loading leases…</SelectItem>
                             ) : leases.isError ? (
                               <SelectItem value="error" disabled>Failed to load leases</SelectItem>
-                            ) : (leases.data?.items ?? []).length === 0 ? (
+                            ) : (leases.currentData ?? []).length === 0 ? (
                               <SelectItem value="none" disabled>No leases available</SelectItem>
-                            ) : (leases.data?.items ?? []).map((l) => (
+                            ) : (leases.currentData ?? []).map((l) => (
                               <SelectItem key={l.id} value={String(l.id)}>
                                 #{l.id} • Property #{l.property_id}
                               </SelectItem>
@@ -278,7 +287,7 @@ export default function PmInspectionsPage() {
             error={inspections.error}
             onRetry={() => { void inspections.refetch() }}
           />
-        ) : inspections.isLoading ? (
+        ) : (!inspections.currentData && inspections.isFetching) ? (
           <Card>
             <CardContent className="pt-6">
               <LoadingState type="spinner" />
@@ -319,10 +328,10 @@ export default function PmInspectionsPage() {
                 </div>
                 <CursorPager
                   canPrev={pager.canPrev}
-                  hasMore={inspections.data?.has_more ?? false}
+                  hasMore={inspections.currentData?.has_more ?? false}
                   loading={inspections.isFetching}
                   onPrev={pager.prev}
-                  onNext={() => inspections.data && pager.next(inspections.data.next_cursor)}
+                  onNext={() => inspections.currentData && pager.next(inspections.currentData.next_cursor)}
                 />
               </div>
             </CardContent>
@@ -332,4 +341,3 @@ export default function PmInspectionsPage() {
     </OwnerScopeGate>
   )
 }
-

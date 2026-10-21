@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+playwright-report/
+test-results/
 
 # Logs
 npm-debug.log*
@@ -26,3 +28,6 @@ vite.config.js
 # Claude Code
 skills-lock.json
 
+# Scratch
+artifacts/
+.DS_Store

@@ -19,7 +19,7 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
       <div
         className={cn(
           'animate-spin rounded-full border-2 border-solid border-current border-r-transparent',
-          'text-primary motion-reduce:animate-[spin_1.5s_linear_infinite]',
+          'text-primary motion-reduce:animate-none',
           sizeClasses[size]
         )}
         role="status"

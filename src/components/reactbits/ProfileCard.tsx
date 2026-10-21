@@ -517,7 +517,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               }}
             >
               <img
-                className="w-full absolute left-1/2 bottom-[-1px] will-change-transform transition-transform duration-[120ms] ease-out"
+                className="w-full absolute left-1/2 bottom-[-1px] will-change-transform transition-transform [transition-duration:120ms] ease-out"
                 src={avatarUrl}
                 alt={`${name || 'User'} avatar`}
                 loading="lazy"

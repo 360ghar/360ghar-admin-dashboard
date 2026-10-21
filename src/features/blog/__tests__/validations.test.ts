@@ -38,6 +38,7 @@ describe('cmsPageSchema', () => {
     format: 'html',
     is_active: true,
     is_draft: false,
+    is_private: true,
   }
 
   it('accepts valid JSON custom config', () => {

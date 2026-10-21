@@ -13,6 +13,7 @@ interface MultiSelectProps {
   placeholder?: string
   emptyMessage?: string
   className?: string
+  disabled?: boolean
 }
 
 const MultiSelect: React.FC<MultiSelectProps> = ({
@@ -21,15 +22,18 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   onChange,
   placeholder = 'Select items...',
   emptyMessage = 'No items found.',
-  className
+  className,
+  disabled = false,
 }) => {
   const [open, setOpen] = React.useState(false)
 
   const handleUnselect = (item: string) => {
+    if (disabled) return
     onChange(selected.filter((i) => i !== item))
   }
 
   const handleSelect = (value: string) => {
+    if (disabled) return
     if (selected.includes(value)) {
       onChange(selected.filter((item) => item !== value))
     } else {
@@ -38,12 +42,13 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={disabled ? false : open} onOpenChange={(nextOpen) => { if (!disabled) setOpen(nextOpen) }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className={cn(
             "w-full justify-between text-left font-normal",
             !selected.length && "text-muted-foreground",
@@ -60,6 +65,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                 >
                   {options.find((option) => option.value === item)?.label || item}
                   <button
+                    disabled={disabled}
                     className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
