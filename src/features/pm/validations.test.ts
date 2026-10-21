@@ -137,6 +137,12 @@ describe('pmExpenseCreateSchema', () => {
     expect(pmExpenseCreateSchema.safeParse({ ...base, title: 'x'.repeat(200) }).success).toBe(true)
     expect(pmExpenseCreateSchema.safeParse({ ...base, title: 'x'.repeat(201) }).success).toBe(false)
   })
+
+  it('caps amount at 9999999999.99', () => {
+    const base = { property_id: '1', category: 'repairs', expense_date: '2026-01-01' }
+    expect(pmExpenseCreateSchema.safeParse({ ...base, amount: '9999999999.99' }).success).toBe(true)
+    expect(pmExpenseCreateSchema.safeParse({ ...base, amount: '10000000000' }).success).toBe(false)
+  })
 })
 
 describe('pmChargeGenerateSchema', () => {
