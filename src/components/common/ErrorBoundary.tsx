@@ -66,7 +66,7 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       const message = this.state.error?.message ?? ''
-      const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk \d+ failed|ChunkLoadError/i.test(message)
+      const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk \d+ failed|error loading dynamically imported module/i.test(message)
       const isNetworkError = !isChunkError && /Failed to fetch$|NetworkError|Network Error|network request failed/i.test(message)
 
       return (

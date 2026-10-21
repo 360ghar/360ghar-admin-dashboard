@@ -37,7 +37,7 @@ export function reportError(error: unknown, context: ReportedErrorContext = {}):
       message: redact(error instanceof Error ? error.message : String(error)),
       stack: redact(error instanceof Error ? error.stack : undefined),
       componentStack: redact(context.componentStack),
-      route: safeRoute(context.route ?? (typeof window !== 'undefined' ? window.location.pathname : '')),
+      route: redact(safeRoute(context.route ?? (typeof window !== 'undefined' ? window.location.pathname : ''))),
       operation: redact(context.operation),
       release: redact(context.release ?? (typeof configuredRelease === 'string' ? configuredRelease : import.meta.env.MODE)),
       requestId: redact(context.requestId),

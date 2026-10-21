@@ -30,7 +30,7 @@ export function AgentRowActions({ agent }: { agent: Agent }) {
       </Button>
       <ConfirmAlertDialog
         title="Delete Agent"
-        description={`Are you sure you want to delete ${name}? This action cannot be undone.`}
+        description={`Are you sure you want to delete ${name}? The agent is deactivated and can be reactivated from the edit form.`}
         confirmLabel="Delete"
         variant="destructive"
         onConfirm={async () => {

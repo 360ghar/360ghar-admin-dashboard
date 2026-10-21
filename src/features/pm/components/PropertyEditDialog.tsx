@@ -36,6 +36,12 @@ export function PropertyEditDialog({ property }: PropertyEditDialogProps) {
     values: initial ?? undefined,
   });
 
+  // Closing by Cancel, Escape or the close button drops abandoned edits.
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) form.reset(initial ?? undefined);
+  };
+
   const submit = async (values: PropertyFormValues) => {
     if (!property || !initial) return;
     const payload = buildUpdateBody(values, initial);
@@ -56,7 +62,7 @@ export function PropertyEditDialog({ property }: PropertyEditDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" disabled={!property} className="rounded-cohere-pill">
           <Settings2 className="mr-2 h-4 w-4" />
@@ -73,7 +79,7 @@ export function PropertyEditDialog({ property }: PropertyEditDialogProps) {
             <FormRootError form={form} />
             <PropertyFormFields form={form} mode="edit" hideOwnerContact={role !== "admin"} />
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={updateState.isLoading}>

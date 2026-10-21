@@ -11,7 +11,7 @@ export type DeliveryRead = S['DeliveryReadOut']
 export type MarketingNotificationBody = S['MarketingNotification']
 export type MarketingSegmentBody = S['MarketingSegmentRequest']
 export type MarketingSegmentFilter = S['SegmentFilter']
-/** `{ requested, processed, succeeded }`. `requested` counts every active user and the send covers all of them. */
+/** `{ requested, processed, succeeded }`. `requested` is the audience size (active users), `processed` is the users the send was dispatched to, and `succeeded` counts dispatches with no error. Consent can still block a channel. */
 export type MarketingSendResult = S['MarketingSendResult']
 
 export interface MarketingNotificationPayload {

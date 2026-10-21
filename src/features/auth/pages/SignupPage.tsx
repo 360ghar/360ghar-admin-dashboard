@@ -186,9 +186,11 @@ export default function SignupPage() {
           replace: true,
           state: {
             info:
-              status === 404
-                ? 'Account created! Your profile is being provisioned. Please try signing in shortly.'
-                : 'Could not verify your account. Please try signing in again.',
+              user
+                ? 'Account created, but it is not authorized for the admin portal.'
+                : status === 404
+                  ? 'Account created! Your profile is being provisioned. Please try signing in shortly.'
+                  : 'Could not verify your account. Please try signing in again.',
           },
         })
       }

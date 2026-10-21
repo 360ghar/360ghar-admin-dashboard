@@ -19,12 +19,16 @@ import { applyServerValidation } from '@/lib/formErrors'
 import { FormRootError } from '@/components/ui/form-root-error'
 import { useGetPropertyQuery, useSearchPropertiesQuery } from '@/features/properties/api/propertiesApi'
 import { Plus } from 'lucide-react'
+import { useUserRole } from '@/hooks/useUserRole'
 import { createBookingSchema, type CreateBookingFormValues } from '@/features/bookings/validations'
 import BookingDateSelection from './parts/BookingDateSelection'
 
 const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => void }> = ({ propertyId: externalPropertyId, onSuccess }) => {
   const { toast } = useToast()
   const [isOpen, setIsOpen] = useState(false)
+  // Staff book for a guest they pick. A guest user always books for themselves (the API ignores user_id).
+  const { isUser } = useUserRole()
+  const isStaff = !isUser
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | undefined>(externalPropertyId)
   const [propertySearch, setPropertySearch] = useState('')
   // Staff book on behalf of a guest: the guest owns the booking (`user_id`). Without it the booking would belong to the staff account.
@@ -80,7 +84,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
   }, [selectedDates, form])
 
   // Guest-count check: `{ property_id, guests }` only. The route rejects dates.
-  const occupancyArgs = propertyId ? { property_id: propertyId, guests: guestsCount } : skipToken
+  const occupancyArgs = isOpen && propertyId ? { property_id: propertyId, guests: guestsCount } : skipToken
   // Pricing needs the dates. An error (no rate, bad range) comes back as a 4xx envelope.
   const pricingArgs =
     propertyId && selectedDates.from && selectedDates.to
@@ -132,7 +136,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
       })
       return
     }
-    if (!guestUser) {
+    if (isStaff && !guestUser) {
       toast({ title: 'Guest required', description: 'Select the guest this booking is for.', variant: 'destructive' })
       return
     }
@@ -160,7 +164,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
       await createBooking({
         ...data,
         special_requests: data.special_requests?.trim() ? data.special_requests : undefined,
-        user_id: guestUser.id,
+        ...(guestUser ? { user_id: guestUser.id } : {}),
         property_id: propertyId,
         check_in_date: selectedDates.from.toISOString(),
         check_out_date: selectedDates.to.toISOString(),
@@ -237,7 +241,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
             )}
           </div>
         )}
-        <div className="space-y-2 mb-4">
+        {isStaff && <div className="space-y-2 mb-4">
           <Label>Guest</Label>
           {guestUser ? (
             <div className="flex items-center justify-between rounded-cohere-md border border-cohere-card-border bg-card/40 px-3 py-2 text-sm">
@@ -276,7 +280,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
               )}
             </>
           )}
-        </div>
+        </div>}
         {propertyError && (
           <p role="alert" className="text-sm text-destructive">
             Could not load the selected property. <Button type="button" variant="link" size="sm" onClick={() => { void refetchProperty() }}>Retry</Button>
@@ -392,7 +396,7 @@ const CreateBookingDialog: React.FC<{ propertyId?: number; onSuccess?: () => voi
                 Boolean(checkAvailability.error) ||
                 Boolean(calculatePricing.error) ||
                 Boolean(propertyError) ||
-                !guestUser ||
+                (isStaff && !guestUser) ||
                 !propertyId ||
                 !selectedDates.from ||
                 !selectedDates.to ||

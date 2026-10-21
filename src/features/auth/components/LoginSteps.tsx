@@ -92,7 +92,7 @@ export function LoginPasswordStep({
           {isSubmitting ? <><LoadingSpinner size="sm" className="mr-2" />Signing in...</> : 'Sign In'}
         </Button>
         <div className="flex items-center justify-between gap-2 text-sm">
-          <button type="button" onClick={onBack} className="flex items-center gap-1 text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Use a different account</button>
+          <button type="button" onClick={onBack} disabled={isSubmitting} className="flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:opacity-50"><ArrowLeft className="h-4 w-4" />Use a different account</button>
           <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
         </div>
       </form>
@@ -122,7 +122,7 @@ export function LoginOtpStep({
           {isSubmitting ? <><LoadingSpinner size="sm" className="mr-2" />Verifying...</> : 'Verify & Sign In'}
         </Button>
         <div className="flex items-center justify-between gap-2 text-sm">
-          <button type="button" onClick={onBack} className="flex items-center gap-1 text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back</button>
+          <button type="button" onClick={onBack} disabled={isSubmitting} className="flex items-center gap-1 text-muted-foreground hover:text-foreground disabled:opacity-50"><ArrowLeft className="h-4 w-4" />Back</button>
           <button type="button" onClick={onResend} disabled={isSubmitting || !resendTimer.canResend} className="text-primary hover:underline disabled:no-underline disabled:opacity-50">
             {resendTimer.isActive ? `Resend code in ${resendTimer.secondsLeft}s` : 'Resend code'}
           </button>

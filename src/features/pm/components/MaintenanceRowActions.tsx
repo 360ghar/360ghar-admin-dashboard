@@ -40,6 +40,7 @@ export default function MaintenanceRowActions({ request }: { request: Maintenanc
                 setUpdateOpen(false);
               } catch (e: unknown) {
                 toast({ title: "Failed", description: getErrorMessage(e, "Could not update request."), variant: "destructive" });
+                throw e;
               }
             }}
             isSubmitting={updateState.isLoading}

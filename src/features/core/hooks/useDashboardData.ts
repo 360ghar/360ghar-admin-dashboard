@@ -155,9 +155,10 @@ export function useDashboardData(): DashboardData {
     isLoading: activityLoading && feed.length === 0,
     isError: activityFailed && feed.length === 0 && !activityLoading,
     isPartialError: activityFailed && feed.length > 0,
-    isTrendLoading: trendLoading && !visits.data && !bookings.data,
-    isTrendError: trendQueries.every((q) => q.isError),
-    isTrendPartialError: trendFailed && !trendQueries.every((q) => q.isError),
+    isTrendLoading: trendLoading,
+    // A refetch that fails while earlier data is cached is a partial error, not a blank chart.
+    isTrendError: trendQueries.every((q) => q.isError) && !visits.data && !bookings.data,
+    isTrendPartialError: trendFailed && !(trendQueries.every((q) => q.isError) && !visits.data && !bookings.data),
     // Business metrics need the admin aggregates — a failed stats query would
     // silently zero out conversion rates if we only showed partial samples.
     isMetricsLoading: role === 'admin' && systemStats.isLoading,

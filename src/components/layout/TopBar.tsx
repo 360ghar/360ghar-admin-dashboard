@@ -14,7 +14,7 @@ import { HealthIndicator } from '@/components/common/HealthIndicator'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import { useEffect, useState } from 'react'
-import { confirmActiveUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { confirmActiveUnsavedChanges, runConfirmedExit } from '@/hooks/useUnsavedChanges'
 
 const TopBar = () => {
   const user = useAppSelector(selectCurrentUser)
@@ -40,7 +40,9 @@ const TopBar = () => {
 
   const logout = async () => {
     try {
-      if (supabase) await supabase.auth.signOut()
+      // signOut reports a failure in `error` and does not throw it.
+      const result = supabase ? await supabase.auth.signOut() : null
+      if (result?.error) throw result.error
     } catch {
       try {
         await supabase?.auth.signOut({ scope: 'local' })
@@ -49,7 +51,7 @@ const TopBar = () => {
       }
     } finally {
       dispatch(clearCredentials())
-      navigate('/login', { replace: true })
+      runConfirmedExit(() => navigate('/login', { replace: true }))
     }
   }
 

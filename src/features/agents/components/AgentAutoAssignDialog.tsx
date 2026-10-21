@@ -25,7 +25,7 @@ export function AgentAutoAssignDialog({ target, workloadByAgent }: AgentAutoAssi
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search.trim(), 300)
   const { currentData, isFetching, error, refetch } = useGetUsersQuery(
-    { limit: 100, unassigned: true, q: debouncedSearch || undefined },
+    { limit: 100, unassigned: true, is_active: true, q: debouncedSearch || undefined },
     { skip: !open },
   )
   const [assignAgent, { isLoading: assigning }] = useAssignAgentMutation()

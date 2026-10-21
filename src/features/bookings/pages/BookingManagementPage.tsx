@@ -256,6 +256,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
                   onCancel={(bookingId, reason) => { void handleCancelBooking(bookingId, reason) }}
                   onReview={(bookingId, review) => { void handleAddReview(bookingId, review) }}
                   showActions={user.role !== 'admin'}
+                  canRecordPayment={user.role === 'admin'}
                   canReview={booking.user_id === user.id}
                 />
               ))}

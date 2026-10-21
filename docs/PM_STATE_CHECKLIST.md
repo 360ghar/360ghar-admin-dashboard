@@ -21,7 +21,7 @@ Checked on 2026-09-25. This is a source code review and focused unit test record
 | `/pm/inspections` | List has loading, retry, and empty states. | Agent needs an owner. Create validates the selected lease and rooms JSON. | Owner change resets the form and cursor. Verify create with backend and a large lease list. |
 | `/pm/inspections/:inspectionId` | Invalid ID, loading skeletons, retry, missing record, and missing rooms data states are present. | Agent needs an owner; a record with another selected owner is hidden. No mutation. | Owner match is checked in code. Verify detail rendering with real inspection JSON. |
 | `/pm/reports` | Six report cards have loading and retry states; the date-scoped cards show invalid date range. | Admin and agent may view an aggregate scope according to the API. CSV export has busy state. No mutation. | Uses `currentData`; report invalidation has a focused API test. Verify report totals and exported rows against backend data. |
-| `/pm/audit` | Activity has loading skeletons, retry, and empty states. | Admin route only. No mutation. | Uses `currentData` when owner changes. Filters run on the latest 50 returned events only; pagination and server-side filtering remain to implement if a full audit history is required. |
+| `/pm/audit` | Activity has loading skeletons, retry, and empty states. | Admin route only. No mutation. | Uses `currentData` when owner changes. The log pages through `next_cursor` with Previous and Next. Filters run on the current 50-row page only; the backend has no server-side filter. |
 
 ## Focused checks run
 

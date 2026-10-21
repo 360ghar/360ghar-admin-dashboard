@@ -174,7 +174,7 @@ export function ActivityTrendCard({ trend, isLoading, isError, isPartialError, o
               <LegendDot color={BOOKING_COLOR} label="Bookings" />
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              {isPartialError ? 'Available activity' : 'Last 7 days'}: {formatNumber(totalVisits)} visits and {formatNumber(totalBookings)} bookings.
+              {isPartialError ? 'Available activity' : 'Latest records from the last 7 days'}: {formatNumber(totalVisits)} visits and {formatNumber(totalBookings)} bookings.
               {isPartialError && ' Counts may be incomplete.'}
             </p>
             <details className="mt-2 text-sm">

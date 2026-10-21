@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { FormRootError } from "@/components/ui/form-root-error";
+import { applyServerValidation } from "@/lib/formErrors";
 import { serverTimestampToLocalInput, localInputToServerTimestamp } from "@/lib/dateTime";
 import { pmMaintenanceUpdateSchema, type PmMaintenanceUpdateForm } from "@/features/pm/validations";
 
@@ -55,7 +57,7 @@ export default function MaintenanceUpdateForm({
   const handleSubmit = async (values: PmMaintenanceUpdateForm) => {
     // A field emptied in the form is sent as null to clear it. A field that was empty and stays empty is left out.
     const clearable = <T,>(next: T | undefined, previous: unknown): T | null | undefined =>
-      next !== undefined ? next : previous != null ? null : undefined;
+      next !== undefined ? next : previous != null && previous !== "" ? null : undefined;
     const payload: MaintenanceRequestUpdate = {
       request_status: values.request_status,
       work_order_status: values.work_order_status || undefined,
@@ -68,12 +70,19 @@ export default function MaintenanceUpdateForm({
       vendor_name: clearable(values.vendor_name || undefined, request.vendor_name),
       vendor_contact: clearable(values.vendor_contact || undefined, request.vendor_contact),
     };
-    await onSubmit(payload);
+    form.clearErrors();
+    try {
+      await onSubmit(payload);
+    } catch (e: unknown) {
+      // The caller already showed a toast. Put a 422 next to its fields.
+      applyServerValidation(e, form.setError);
+    }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)} className="space-y-4">
+        <FormRootError form={form} />
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}

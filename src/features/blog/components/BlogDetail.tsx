@@ -84,7 +84,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
       await deleteBlogPost(post.id).unwrap()
       toast({ title: 'Deleted', description: 'Blog post deleted successfully' })
       navigate('/blogs')
-    } catch (e: unknown) { toast({ title: 'Delete failed', description: getErrorMessage(e, 'Failed to delete blog post'), variant: 'destructive' }) }
+    } catch (e: unknown) { toast({ title: 'Delete failed', description: getErrorMessage(e, 'Failed to delete blog post'), variant: 'destructive' }); throw e }
   }
 
   if (isFetching && !post) {
@@ -103,7 +103,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
     )
   }
 
-  if (error && !post) {
+  if (error && (!post || getErrorStatus(error) === 404)) {
     const status = getErrorStatus(error)
     const isNotFound = status === 404
 

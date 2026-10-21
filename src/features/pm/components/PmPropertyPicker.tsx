@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { forwardRef, useState, type ComponentPropsWithoutRef } from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -23,18 +23,21 @@ interface PmPropertyPickerProps {
   placeholder?: string
 }
 
+type TriggerProps = Omit<ComponentPropsWithoutRef<typeof Button>, keyof PmPropertyPickerProps | 'children' | 'onSelect'>
+
 /**
  * Pick one managed property. The search runs on the server (`q` matches title and address), so an owner
  * or an admin with thousands of properties never loads them all: one page of 20 per search.
  */
-export function PmPropertyPicker({
+export const PmPropertyPicker = forwardRef<HTMLButtonElement, PmPropertyPickerProps & TriggerProps>(function PmPropertyPicker({
   ownerId,
   selected,
   onSelect,
   enabled,
   clearLabel,
   placeholder = 'Select property…',
-}: PmPropertyPickerProps) {
+  ...triggerProps
+}, ref) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search.trim(), 300)
@@ -55,7 +58,7 @@ export function PmPropertyPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" role="combobox" aria-expanded={open} aria-label="Property" className="w-full justify-between font-normal">
+        <Button ref={ref} type="button" variant="outline" role="combobox" aria-expanded={open} aria-label="Property" className="w-full justify-between font-normal" {...triggerProps}>
           <span className="truncate">
             {selected ? `#${selected.id} • ${selected.title}` : (clearLabel ?? placeholder)}
           </span>
@@ -105,4 +108,4 @@ export function PmPropertyPicker({
       </PopoverContent>
     </Popover>
   )
-}
+})

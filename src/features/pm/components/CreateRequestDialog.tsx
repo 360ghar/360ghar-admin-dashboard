@@ -118,15 +118,17 @@ export default function CreateRequestDialog({ ownerId }: CreateRequestDialogProp
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Property</FormLabel>
-                  <PmPropertyPicker
-                    ownerId={ownerId}
-                    enabled={open && !(role === "agent" && !ownerId)}
-                    selected={selectedProperty}
-                    onSelect={(property) => {
-                      setSelectedProperty(property);
-                      field.onChange(property ? String(property.id) : "");
-                    }}
-                  />
+                  <FormControl>
+                    <PmPropertyPicker
+                      ownerId={ownerId}
+                      enabled={open && !(role === "agent" && !ownerId)}
+                      selected={selectedProperty}
+                      onSelect={(property) => {
+                        setSelectedProperty(property);
+                        field.onChange(property ? String(property.id) : "");
+                      }}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

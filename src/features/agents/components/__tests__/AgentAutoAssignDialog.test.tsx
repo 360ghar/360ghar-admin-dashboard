@@ -61,7 +61,7 @@ it('searches unassigned users on the server instead of listing the first 100', a
   fireEvent.change(screen.getByLabelText('Search users'), { target: { value: ' Asha ' } })
 
   await waitFor(() => expect(mocks.useGetUsersQuery).toHaveBeenLastCalledWith(
-    { limit: 100, unassigned: true, q: 'Asha' },
+    { limit: 100, unassigned: true, is_active: true, q: 'Asha' },
     { skip: false },
   ))
 })

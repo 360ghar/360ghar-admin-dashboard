@@ -74,7 +74,7 @@ const CreateApplicationFormDialog: React.FC<CreateApplicationFormDialogProps> = 
     try {
       await createForm(payload).unwrap()
       toast({ title: 'Created', description: 'Application form created.' })
-      setCreateOpen(false)
+      handleOpenChange(false)
       onSuccess?.()
     } catch (e: unknown) {
       toast({

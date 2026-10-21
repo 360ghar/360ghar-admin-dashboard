@@ -60,6 +60,10 @@ export default function RenewLeaseDialog({ leaseId, canRenew }: RenewLeaseDialog
       toast({ title: "Invalid dates", description: "End date must be after start date.", variant: "destructive" });
       return;
     }
+    if (renewRent && !(Number(renewRent) > 0)) {
+      toast({ title: "Invalid rent", description: "Monthly rent must be greater than 0.", variant: "destructive" });
+      return;
+    }
     const payload: LeaseRenew = {
       start_date: renewStart,
       end_date: renewEnd,
@@ -101,7 +105,7 @@ export default function RenewLeaseDialog({ leaseId, canRenew }: RenewLeaseDialog
           </div>
           <div className="space-y-2">
             <Label>Monthly rent (optional)</Label>
-            <Input type="number" min={0} step="0.01" value={renewRent} onChange={(e) => setRenewRent(e.target.value)} placeholder="e.g. 27000" />
+            <Input type="number" min={0.01} step="0.01" value={renewRent} onChange={(e) => setRenewRent(e.target.value)} placeholder="e.g. 27000" />
           </div>
           <div className="space-y-2">
             <Label>Security deposit (optional)</Label>

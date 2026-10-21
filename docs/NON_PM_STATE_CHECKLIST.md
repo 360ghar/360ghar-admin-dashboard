@@ -22,7 +22,7 @@ This checklist covers every non-PM route declared in `src/App.tsx`. A route with
 | `/bookings` | List has loading, error/retry, and empty states; count errors show `—`. Manage view uses current-query data and mutation tags; failed counts show `—`. |
 | `/bookings/:id` | Detail has loading, error/retry, and missing-booking states. |
 | `/swipes` | Recommendation deck has loading, error/retry, and empty states. Swipe invalidation refreshes property search without refreshing the active deck. |
-| `/agents` | List uses current-query data with loading, error/retry, and empty states. Auto-assign shows lookup errors with retry. **Gap:** workload lookup covers only the first 20 agents, so auto-assign is disabled when workload data is incomplete. |
+| `/agents` | List uses current-query data with loading, error/retry, and empty states. Auto-assign shows lookup errors with retry. Workload and agent lookups follow `next_cursor` through every page. |
 | `/agents/new`, `/agents/:id`, `/agents/:id/stats` | Form and stats detail have loading and error/retry states; create has mutation error. |
 | `/analytics` | KPI and workload requests have separate loading and error/retry states; empty workload is explained. |
 | `/flatmates/moderation`, `/flatmates/reports` | Queues use current-query data and have loading, error/retry, and empty states. |
@@ -35,4 +35,4 @@ This checklist covers every non-PM route declared in `src/App.tsx`. A route with
 | `/pages`, `/faqs`, `/app-updates` | Paginated lists use current-query data with loading, error/retry, and empty states. |
 | `/notifications` | Composer mutation errors are shown. Optional agent lookup errors show retry. |
 
-The live OAuth smoke check and workload pagination are the remaining gaps. All listed routes also use the shared route error boundary and lazy-load fallback.
+The live OAuth smoke check is the remaining gap. All listed routes also use the shared route error boundary and lazy-load fallback.

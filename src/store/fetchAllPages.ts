@@ -11,6 +11,10 @@ type PageBaseQuery = (
 /** Upper bound on pages in one walk. A server that keeps returning `has_more` must not loop forever. */
 const MAX_PAGES = 100
 
+function incomplete(error: string) {
+  return { error: { status: 'PARSING_ERROR' as const, originalStatus: 200, data: '', error } }
+}
+
 function isCursorPage(value: unknown): value is CursorPage<unknown> {
   if (typeof value !== 'object' || value === null) return false
   const page = value as { items?: unknown; has_more?: unknown; next_cursor?: unknown }
@@ -40,8 +44,10 @@ export async function fetchAllPages<T>(
       return { error: { status: 'PARSING_ERROR', originalStatus: 200, data: String(result.data), error: 'Expected a cursor page' } }
     }
     items.push(...(result.data.items as T[]))
-    if (!result.data.has_more || !result.data.next_cursor) return { data: items }
+    if (!result.data.has_more) return { data: items }
+    // has_more without a cursor cannot continue. Report it, so a partial list never reads as complete.
+    if (!result.data.next_cursor) return incomplete('The server reported more pages but sent no cursor')
     cursor = result.data.next_cursor
   }
-  return { data: items }
+  return incomplete(`The list has more than ${MAX_PAGES} pages`)
 }

@@ -55,7 +55,7 @@ const AppUpdatesPage: React.FC = () => {
 
   const handleDeactivate = async (update: AppUpdate) => {
     try { await updateUpdate({ id: update.id, data: { is_active: false } }).unwrap(); toast({ title: 'Success', description: 'Update deactivated successfully' }) }
-    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to deactivate'), variant: 'destructive' }) }
+    catch (error: unknown) { toast({ title: 'Error', description: getErrorMessage(error, 'Failed to deactivate'), variant: 'destructive' }); throw error }
   }
 
   const resetForm = () => { setEditingUpdate(null); setFormData({ ...defaultFormData }) }

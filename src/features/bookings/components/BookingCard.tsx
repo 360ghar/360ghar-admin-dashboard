@@ -23,6 +23,8 @@ interface BookingCardProps {
   onCancel?: (bookingId: number, reason: string) => void
   onReview?: (bookingId: number, review: Omit<BookingReview, 'booking_id'>) => void
   showActions?: boolean
+  /** Manual payments are admin only. */
+  canRecordPayment?: boolean
   /** Only the guest of the booking can review it. */
   canReview?: boolean
 }
@@ -31,7 +33,7 @@ interface BookingCardProps {
 const TRANSPARENT_PIXEL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
-const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true, canReview = false }: BookingCardProps) => {
+const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true, canRecordPayment = false, canReview = false }: BookingCardProps) => {
   const prefersReducedMotion = usePrefersReducedMotion()
   const cardRef = useRef<HTMLDivElement>(null)
   const [cardHeight, setCardHeight] = useState(0)
@@ -176,7 +178,7 @@ const BookingCard = ({ booking, onUpdate, onCancel, onReview, showActions = true
               {showDetails ? 'Hide Details' : 'View Details'}
             </Button>
 
-            {showActions && booking.booking_status === 'confirmed' && booking.payment_status !== 'paid' && (
+            {canRecordPayment && booking.booking_status === 'confirmed' && booking.payment_status !== 'paid' && (
               <Button
                 size="sm"
                 onClick={() => onUpdate?.(booking)}

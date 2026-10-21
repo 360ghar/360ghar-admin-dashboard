@@ -98,6 +98,8 @@ const ScheduleVisitDialog: React.FC<ScheduleVisitDialogProps> = ({
               placeholder="Search properties by title or place"
               value={propertySearch}
               onChange={(e) => setPropertySearch(e.target.value)}
+              // Enter in the search box must not submit the form with the earlier selection.
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
             />
             <Select
               value={scheduleForm.watch('property_id')?.toString() || undefined}
@@ -118,6 +120,9 @@ const ScheduleVisitDialog: React.FC<ScheduleVisitDialogProps> = ({
             )}
             {!propertiesLoading && !propertiesError && properties?.items.length === 0 && (
               <p className="text-sm text-muted-foreground">{debouncedPropertySearch ? 'No properties match this search.' : 'No properties are available for a visit.'}</p>
+            )}
+            {properties?.has_more && (
+              <p className="text-sm text-muted-foreground">Showing the first {properties.items.length} matches. Type more of the title or place to narrow the list.</p>
             )}
           </div>
           <div className="space-y-2">
