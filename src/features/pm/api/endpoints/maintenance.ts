@@ -57,7 +57,7 @@ export const pmMaintenanceApi = pmExpensesApi.injectEndpoints({
               if (payload.vendor_name !== undefined && payload.vendor_name !== null) item.vendor_name = payload.vendor_name
               if (payload.vendor_contact !== undefined && payload.vendor_contact !== null) item.vendor_contact = payload.vendor_contact
             }
-          })) as { undo: () => void },
+          })),
         )
         try {
           await queryFulfilled
