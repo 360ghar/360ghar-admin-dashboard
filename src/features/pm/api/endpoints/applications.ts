@@ -63,7 +63,7 @@ export const pmApplicationsApi = pmReportsApi.injectEndpoints({
               item.decision_at = new Date().toISOString()
               if (payload.notes) item.decision_notes = payload.notes
             }
-          })) as { undo: () => void },
+          })),
         )
         try {
           await queryFulfilled

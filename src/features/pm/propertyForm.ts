@@ -216,11 +216,13 @@ export interface LateFeeTerms {
   percent: string
 }
 
+const scalarText = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
+
 /** Read the stored policy `{type: 'fixed', amount}` or `{type: 'percentage', percent}`. Anything else is "none". */
 export function parseLateFeePolicy(policy: unknown): LateFeeTerms {
   if (!isRecord(policy)) return { type: 'none', amount: '', percent: '' }
-  if (policy.type === 'fixed') return { type: 'fixed', amount: policy.amount != null ? String(policy.amount) : '', percent: '' }
-  if (policy.type === 'percentage') return { type: 'percentage', amount: '', percent: policy.percent != null ? String(policy.percent) : '' }
+  if (policy.type === 'fixed') return { type: 'fixed', amount: scalarText(policy.amount), percent: '' }
+  if (policy.type === 'percentage') return { type: 'percentage', amount: '', percent: scalarText(policy.percent) }
   return { type: 'none', amount: '', percent: '' }
 }
 

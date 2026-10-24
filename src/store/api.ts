@@ -107,7 +107,7 @@ function shouldRetryRequest({ error, args, attempt, extraOptions }: RetryDecisio
   // Never retry mutations — they may not be idempotent.
   const method =
     typeof args === 'object' && args !== null
-      ? ((args as { method?: unknown }).method ?? 'GET')
+      ? ((args as { method?: string }).method ?? 'GET')
       : 'GET'
   if (String(method).toUpperCase() !== 'GET') return false
   // Never retry 4xx — the backend's answer is authoritative.

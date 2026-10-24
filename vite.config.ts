@@ -36,6 +36,20 @@ function cspPlugin(): Plugin {
   }
 }
 
+const VENDOR_GROUPS: Record<string, string[]> = {
+  'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+  'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+  'vendor-charts': ['recharts'],
+  'vendor-maps': ['leaflet', 'react-leaflet'],
+  'vendor-markdown': ['react-markdown', 'dompurify'],
+  'vendor-supabase': ['@supabase/supabase-js', '@supabase/auth-js', '@supabase/functions-js', '@supabase/postgrest-js', '@supabase/realtime-js', '@supabase/storage-js', '@supabase/phoenix'],
+  'vendor-motion': ['motion'],
+  'vendor-table': ['@tanstack/react-table'],
+}
+const VENDOR_CHUNKS: Record<string, string> = Object.fromEntries(
+  Object.entries(VENDOR_GROUPS).flatMap(([chunk, pkgs]) => pkgs.map((pkg) => [pkg, chunk])),
+)
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Dev-only proxy target: where the dev server forwards API calls. Read via
@@ -68,15 +82,10 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           // Split heavy, independently-cacheable vendors out of the main bundle.
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
-            'vendor-charts': ['recharts'],
-            'vendor-maps': ['leaflet', 'react-leaflet'],
-            'vendor-markdown': ['react-markdown', 'dompurify'],
-            'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-motion': ['motion'],
-            'vendor-table': ['@tanstack/react-table'],
+          // Vite 8 (Rolldown) accepts only the function form of manualChunks.
+          manualChunks: (id: string) => {
+            const match = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(id)
+            return match ? VENDOR_CHUNKS[match[1]] : undefined
           },
         },
       },

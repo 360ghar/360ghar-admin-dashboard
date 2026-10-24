@@ -53,7 +53,7 @@ export const pmPropertiesApi = pmDashboardApi.injectEndpoints({
           (args) => dispatch(pmPropertiesApi.util.updateQueryData('listPmProperties', args as never, (draft) => {
             const item = draft.items.find((p) => p.id === property_id)
             if (item) applyManagedTerms(item, payload)
-          })) as { undo: () => void },
+          })),
         )
         const detailPatch = dispatch(
           pmPropertiesApi.util.updateQueryData('getPmPropertyDetail', property_id, (draft) => {
