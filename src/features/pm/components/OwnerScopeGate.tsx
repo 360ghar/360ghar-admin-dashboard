@@ -29,7 +29,7 @@ export default function OwnerScopeGate({
     <EmptyState
       title={title}
       description={description}
-      action={{ label: 'Go to Owners', onClick: () => navigate('/pm/owners') }}
+      action={{ label: 'Go to Owners', onClick: () => void navigate('/pm/owners') }}
     />
   )
 }

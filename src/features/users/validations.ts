@@ -56,3 +56,5 @@ export const userPreferencesSchema = z.object({
 export type UserDetailFormValues = z.infer<typeof userDetailSchema>
 export type UserProfileFormValues = z.infer<typeof userProfileSchema>
 export type UserPreferencesFormValues = z.infer<typeof userPreferencesSchema>
+export type UserProfileFormInput = z.input<typeof userProfileSchema>
+export type UserPreferencesFormInput = z.input<typeof userPreferencesSchema>

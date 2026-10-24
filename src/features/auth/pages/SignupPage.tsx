@@ -170,7 +170,7 @@ export default function SignupPage() {
       if (user?.is_active && (user.role === 'admin' || user.role === 'agent')) {
         dispatch(setCredentials({ token: accessToken, user }))
         isLoginInProgress.current = false
-        navigate('/dashboard', { replace: true })
+        void navigate('/dashboard', { replace: true })
       } else {
         // Profile not yet provisioned (404) or backend unreachable (transient).
         // Either way, leave the half-logged-in state — sign out of Supabase so
@@ -182,7 +182,7 @@ export default function SignupPage() {
         }
         dispatch(clearCredentials())
         isLoginInProgress.current = false
-        navigate('/login', {
+        void navigate('/login', {
           replace: true,
           state: {
             info:

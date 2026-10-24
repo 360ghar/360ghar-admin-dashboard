@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { safeJsonObject } from '@/lib/json'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,7 +42,7 @@ const PageFormDialog: React.FC<PageFormDialogProps> = ({ open, onOpenChange, edi
   const [createPage, { isLoading: isCreating }] = useCreatePageMutation()
   const [updatePage, { isLoading: isUpdating }] = useUpdatePageMutation()
 
-  const form = useForm<PageFormValues>({
+  const form = useForm<z.input<typeof cmsPageSchema>, unknown, PageFormValues>({
     resolver: zodResolver(cmsPageSchema),
     defaultValues: formData,
   })

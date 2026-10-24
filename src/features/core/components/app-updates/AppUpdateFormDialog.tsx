@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,7 +35,7 @@ const AppUpdateFormDialog: React.FC<AppUpdateFormDialogProps> = ({ open, onOpenC
   const [createUpdate, { isLoading: isCreating }] = useCreateAppUpdateMutation()
   const [updateUpdate, { isLoading: isUpdating }] = useUpdateAppUpdateMutation()
 
-  const form = useForm<AppUpdateFormValues>({
+  const form = useForm<z.input<typeof appUpdateSchema>, unknown, AppUpdateFormValues>({
     resolver: zodResolver(appUpdateSchema),
     defaultValues: formData,
   })

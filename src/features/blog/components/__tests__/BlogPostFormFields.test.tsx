@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useForm } from 'react-hook-form'
 import { Form } from '@/components/ui/form'
-import type { BlogPostForm } from '@/lib/blogValidation'
+import type { BlogPostForm, BlogPostFormInput } from '@/lib/blogValidation'
 import { BlogPostMetaForm } from '../BlogPostFormFields'
 
 vi.mock('@/components/common/media/ImageUpload', () => ({
@@ -17,7 +17,7 @@ vi.mock('@/components/common/media/ImageUpload', () => ({
 vi.mock('@/components/ui/rich-text-editor', () => ({ default: () => null }))
 
 function Harness() {
-  const form = useForm<BlogPostForm>({ defaultValues: { cover_image_url: 'cover.jpg', status: 'draft', categories: [], tags: [] } })
+  const form = useForm<BlogPostFormInput, unknown, BlogPostForm>({ defaultValues: { cover_image_url: 'cover.jpg', status: 'draft', categories: [], tags: [] } })
   const [images, setImages] = useState(['cover.jpg'])
   return (
     <Form {...form}>

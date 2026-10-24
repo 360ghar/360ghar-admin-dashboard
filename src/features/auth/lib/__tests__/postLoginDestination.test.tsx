@@ -19,7 +19,7 @@ it('passes a protected deep link to the login route without exposing it in the l
 
   render(
     <Provider store={store}>
-      <MemoryRouter initialEntries={['/pm/owners/42?status=open#documents']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <MemoryRouter initialEntries={['/pm/owners/42?status=open#documents']}>
         <Routes>
           <Route element={<PrivateRoute />}>
             <Route path="/pm/owners/:ownerId" element={<p>Private</p>} />

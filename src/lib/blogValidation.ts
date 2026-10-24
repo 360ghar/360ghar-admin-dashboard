@@ -94,5 +94,6 @@ export const blogTagSchema = z.object({
 
 // Export inferred types
 export type BlogPostForm = z.infer<typeof blogPostSchema>
+export type BlogPostFormInput = z.input<typeof blogPostSchema>
 export type BlogCategoryForm = z.infer<typeof blogCategorySchema>
 export type BlogTagForm = z.infer<typeof blogTagSchema>

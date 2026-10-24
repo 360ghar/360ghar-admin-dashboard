@@ -159,7 +159,7 @@ const AgentList = () => {
                   ? 'Try adjusting filters or checking other pages.'
                   : 'Get started by creating your first agent.'
             }
-            action={{ label: 'Create Agent', onClick: () => navigate('/agents/new') }}
+            action={{ label: 'Create Agent', onClick: () => void navigate('/agents/new') }}
           />
           {(pager.canPrev || currentData?.has_more) && pageControls}
         </div>

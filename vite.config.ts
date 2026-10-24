@@ -37,7 +37,7 @@ function cspPlugin(): Plugin {
 }
 
 const VENDOR_GROUPS: Record<string, string[]> = {
-  'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+  'vendor-react': ['react', 'react-dom', 'react-router', 'react-router-dom'],
   'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
   'vendor-charts': ['recharts'],
   'vendor-maps': ['leaflet', 'react-leaflet'],

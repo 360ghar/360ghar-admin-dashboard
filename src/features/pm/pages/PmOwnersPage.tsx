@@ -77,7 +77,7 @@ export default function PmOwnersPage() {
                 size="sm"
                 onClick={() => {
                   dispatch(setSelectedOwner({ id: row.original.id, label: getOwnerLabel(row.original) }))
-                  navigate('/pm/properties')
+                  void navigate('/pm/properties')
                 }}
               >
                 Select

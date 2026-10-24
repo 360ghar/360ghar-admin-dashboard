@@ -40,7 +40,7 @@ export default function AuthCallbackPage() {
     const failTo = (message: string) => {
       isLoginInProgress.current = false
       dispatch(setError(message))
-      navigate(`/login?error=${encodeURIComponent(message)}`, { replace: true })
+      void navigate(`/login?error=${encodeURIComponent(message)}`, { replace: true })
     }
 
     const run = async () => {
@@ -114,7 +114,7 @@ export default function AuthCallbackPage() {
 
         // Staff gate (step 2): RoleBasedRoute bounces non-staff to /access-denied.
         isLoginInProgress.current = false
-        navigate(consumePostLoginDestination(), { replace: true })
+        void navigate(consumePostLoginDestination(), { replace: true })
       } catch (err) {
         // If the timeout fired, the exchange may still complete in the
         // background and set a Supabase session. Sign out to be safe.

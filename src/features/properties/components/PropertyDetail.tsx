@@ -40,7 +40,7 @@ const PropertyDetail = ({ id }: { id: number }) => {
   const doDelete = async () => {
     try {
       await del(id).unwrap()
-      navigate('/properties')
+      void navigate('/properties')
     } catch (e) {
       toast({ title: 'Delete Failed', description: getErrorMessage(e, 'Could not delete property'), variant: 'destructive' })
       throw e

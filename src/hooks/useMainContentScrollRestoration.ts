@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, type RefObject } from 'react'
 /** Restore the dashboard scroller when a route is revisited during this session. */
 export function useMainContentScrollRestoration(
   routeKey: string,
-  scrollerRef: RefObject<HTMLElement>,
+  scrollerRef: RefObject<HTMLElement | null>,
 ) {
   const positions = useRef(new Map<string, number>())
 

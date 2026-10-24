@@ -25,7 +25,9 @@ export function runConfirmedExit(navigateAway: () => void) {
 export function useUnsavedChanges(enabled: boolean) {
   const formId = useRef(Symbol('unsaved-form'))
   const allowNext = useRef(false)
-  const confirming = useRef(false)
+  // The blocked location already asked about. React Router 7 can re-render with a new
+  // blocker object while the state is still 'blocked'; ask once per blocked navigation.
+  const handled = useRef<unknown>(null)
   const blocker = useBlocker(() => enabled && !confirmedExit && !allowNext.current)
 
   useEffect(() => {
@@ -40,11 +42,14 @@ export function useUnsavedChanges(enabled: boolean) {
   }, [enabled])
 
   useEffect(() => {
-    if (blocker.state !== 'blocked' || confirming.current) return
-    confirming.current = true
+    if (blocker.state !== 'blocked') {
+      handled.current = null
+      return
+    }
+    if (handled.current === blocker.location) return
+    handled.current = blocker.location
     if (window.confirm(message)) blocker.proceed()
     else blocker.reset()
-    queueMicrotask(() => { confirming.current = false })
   }, [blocker])
 
   useEffect(() => {

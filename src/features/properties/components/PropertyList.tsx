@@ -177,7 +177,7 @@ const PropertyList = () => {
               action={
                 hasActiveFilters
                   ? { label: 'Clear Filters', onClick: clearFilters, variant: 'outline' }
-                  : { label: 'Create Property', onClick: () => navigate('/properties/new') }
+                  : { label: 'Create Property', onClick: () => void navigate('/properties/new') }
               }
             />
           ) : (

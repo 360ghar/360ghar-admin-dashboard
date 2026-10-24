@@ -90,12 +90,12 @@ const BlogGenerateDialog = ({ open, onOpenChange }: BlogGenerateDialogProps) => 
 
   const handleOpenEditor = (slug: string) => {
     onOpenChange(false)
-    navigate(`/blogs/${slug}/edit`)
+    void navigate(`/blogs/${slug}/edit`)
   }
 
   const handleViewPost = (slug: string) => {
     onOpenChange(false)
-    navigate(`/blogs/${slug}`)
+    void navigate(`/blogs/${slug}`)
   }
 
   return (

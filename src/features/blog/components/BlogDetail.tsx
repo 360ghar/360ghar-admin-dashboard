@@ -83,7 +83,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
     try {
       await deleteBlogPost(post.id).unwrap()
       toast({ title: 'Deleted', description: 'Blog post deleted successfully' })
-      navigate('/blogs')
+      void navigate('/blogs')
     } catch (e: unknown) { toast({ title: 'Delete failed', description: getErrorMessage(e, 'Failed to delete blog post'), variant: 'destructive' }); throw e }
   }
 
@@ -91,7 +91,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => navigate('/blogs')}>
+          <Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Blog Posts
           </Button>
@@ -110,7 +110,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => navigate('/blogs')}>
+          <Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Blog Posts
           </Button>
@@ -133,7 +133,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => navigate('/blogs')}>
+          <Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Blog Posts
           </Button>
@@ -176,7 +176,7 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/blogs/${post.slug}/edit`)}
+              onClick={() => void navigate(`/blogs/${post.slug}/edit`)}
             >
               <Edit2 className="mr-2 h-4 w-4" />
               Edit
@@ -289,9 +289,9 @@ const BlogDetail = ({ identifier }: { identifier: string }) => {
           {contentIsHtml ? (
             <SanitizedHtml html={post.content} className="prose max-w-none" />
           ) : (
-            <ReactMarkdown className="prose max-w-none">
-              {post.content}
-            </ReactMarkdown>
+            <div className="prose max-w-none">
+              <ReactMarkdown>{post.content}</ReactMarkdown>
+            </div>
           )}
         </CardContent>
       </Card>

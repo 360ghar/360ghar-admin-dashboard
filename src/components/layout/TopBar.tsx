@@ -51,7 +51,7 @@ const TopBar = () => {
       }
     } finally {
       dispatch(clearCredentials())
-      runConfirmedExit(() => navigate('/login', { replace: true }))
+      runConfirmedExit(() => void navigate('/login', { replace: true }))
     }
   }
 

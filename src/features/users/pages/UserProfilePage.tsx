@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Mail, Phone } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -66,7 +67,7 @@ const UserProfilePage: React.FC = () => {
     }
   }
 
-  const profileForm = useForm<UserProfileFormValues>({
+  const profileForm = useForm<z.input<typeof userProfileSchema>, unknown, UserProfileFormValues>({
     resolver: zodResolver(userProfileSchema),
     defaultValues: {
       full_name: '',
@@ -75,7 +76,7 @@ const UserProfilePage: React.FC = () => {
     },
   })
 
-  const preferencesForm = useForm<UserPreferencesFormValues>({
+  const preferencesForm = useForm<z.input<typeof userPreferencesSchema>, unknown, UserPreferencesFormValues>({
     resolver: zodResolver(userPreferencesSchema),
     defaultValues: {
       property_type: [],

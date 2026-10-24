@@ -30,7 +30,7 @@ it('keeps the password after a failed login submission', async () => {
   function Harness() {
     const form = useForm<PasswordStepFormValues>({ resolver: zodResolver(passwordStepSchema), defaultValues: { password: '' } })
     const [failed, setFailed] = useState(false)
-    return <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    return <MemoryRouter>
       <LoginPasswordStep form={form} onSubmit={() => { setFailed(true) }} isSubmitting={false} identifier="agent@example.com" showPassword={false} onTogglePassword={() => {}} onBack={() => {}} />
       {failed && <p>Sign-in failed</p>}
     </MemoryRouter>

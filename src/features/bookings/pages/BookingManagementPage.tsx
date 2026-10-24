@@ -97,7 +97,7 @@ const BookingManagementPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
   }
 
   // A manual payment needs a method and a transaction id entered by the admin. Open the booking to record it.
-  const handleRecordPayment = (booking: Booking | BookingStaff) => { navigate(`/bookings/${booking.id}`) }
+  const handleRecordPayment = (booking: Booking | BookingStaff) => { void navigate(`/bookings/${booking.id}`) }
 
   const handleAddReview = async (bookingId: number, review: Omit<BookingReview, 'booking_id'>) => {
     try {
