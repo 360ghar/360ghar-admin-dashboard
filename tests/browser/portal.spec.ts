@@ -196,12 +196,15 @@ test('dirty property form blocks in-app navigation until confirmed', async ({ pa
   await installFixture(page, 'admin', 'dark')
   await page.goto('/properties/new')
   await page.getByRole('textbox', { name: 'Title' }).fill('Unsaved apartment')
-  page.once('dialog', async (dialog) => { await dialog.dismiss() })
+  // Wait for each confirm before the next step: the guard opens it from an effect.
+  const dismissed = page.waitForEvent('dialog')
   await page.getByRole('link', { name: 'All Properties' }).first().click()
+  await (await dismissed).dismiss()
   await expect(page).toHaveURL(/\/properties\/new/)
 
-  page.once('dialog', async (dialog) => { await dialog.accept() })
+  const accepted = page.waitForEvent('dialog')
   await page.getByRole('link', { name: 'All Properties' }).first().click()
+  await (await accepted).accept()
   await expect(page).toHaveURL(/\/properties$/)
 })
 
