@@ -107,7 +107,7 @@ src/
 - Toast notifications use a custom hook pattern.
 
 ## Type & API Conventions
-- **No duplicate types.** Each type is defined once. PM types are prefixed with `Pm` (e.g., `PmPropertyCreate`) and live in `src/types/pm.ts` as aliases of the generated components.
+- **No duplicate types.** Each type is defined once. PM types live in `src/types/pm.ts` as aliases of the generated components and keep the generated name (e.g., `Lease`, `LeaseStatus`). Only names that clash with a core type in `src/types/api.ts` get a `Pm` prefix (e.g., `PmProperty`, `PmPropertyCreate`).
 - **Types in `src/types/<domain>.ts`.** Use `src/types/api.ts` for core domain types, feature-specific types in their respective API or types files.
 - **Zod schemas in `validations.ts`.** Each feature that has forms should have a `validations.ts` file exporting named schemas and inferred types. Do not define `z.object()` inline in components.
 - **All API modules must be imported in `src/store/index.ts`.** Missing imports cause hooks to fail at runtime.
