@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LoadingState } from '@/components/ui/loading-state'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -36,7 +37,7 @@ const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
   const { data: categoriesData, error: categoriesError, refetch: refetchCategories } = useListAllBlogCategoriesQuery()
   const { data: tagsData, error: tagsError, refetch: refetchTags } = useListAllBlogTagsQuery()
 
-  const form = useForm<BlogPostForm>({ resolver: zodResolver(blogPostSchema), defaultValues: { title: '', content: '', excerpt: '', cover_image_url: '', status: 'draft', scheduled_at: '', categories: [], tags: [], meta_title: '', meta_description: '', focus_keyword: '', canonical_url: '', og_image_url: '' } })
+  const form = useForm<z.input<typeof blogPostSchema>, unknown, BlogPostForm>({ resolver: zodResolver(blogPostSchema), defaultValues: { title: '', content: '', excerpt: '', cover_image_url: '', status: 'draft', scheduled_at: '', categories: [], tags: [], meta_title: '', meta_description: '', focus_keyword: '', canonical_url: '', og_image_url: '' } })
   const allowSavedNavigation = useUnsavedChanges(form.formState.isDirty)
 
   useEffect(() => {
@@ -105,12 +106,12 @@ const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
   const categoryOptions = (categoriesData ?? []).flatMap((cat) => cat.slug ? [{ value: cat.slug, label: cat.name }] : [])
   const tagOptions = (tagsData ?? []).flatMap((tag) => tag.slug ? [{ value: tag.slug, label: tag.name }] : [])
 
-  if (isFetchingPost && !post) return <div className="space-y-4"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button></div><Card><CardContent className="p-6"><LoadingState type="card" rows={6} /></CardContent></Card></div>
+  if (isFetchingPost && !post) return <div className="space-y-4"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button></div><Card><CardContent className="p-6"><LoadingState type="card" rows={6} /></CardContent></Card></div>
   if (postError && !post) {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => navigate('/blogs')}>
+          <Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}>
             <ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts
           </Button>
         </div>
@@ -122,7 +123,7 @@ const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
       </div>
     )
   }
-  if (!post) return <div className="space-y-4"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button></div><Card><CardContent className="p-6"><EmptyState title="Post not found" /></CardContent></Card></div>
+  if (!post) return <div className="space-y-4"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button></div><Card><CardContent className="p-6"><EmptyState title="Post not found" /></CardContent></Card></div>
 
   return (
     <div className="space-y-4">
@@ -130,7 +131,7 @@ const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
       {isFetchingPost && <p role="status" className="text-sm text-muted-foreground">Checking for updates…</p>}
       {postError && <p role="alert" className="text-sm text-destructive">Could not refresh this post. Your edits are still here. <Button variant="link" size="sm" onClick={() => void refetch()}>Retry</Button></p>}
       {(categoriesError || tagsError) && <p role="alert" className="text-sm text-destructive">Could not load {categoriesError && tagsError ? 'categories and tags' : categoriesError ? 'categories' : 'tags'}. Saved selections remain. <Button type="button" variant="link" size="sm" onClick={() => { if (categoriesError) void refetchCategories(); if (tagsError) void refetchTags() }}>Retry options</Button></p>}
-      <div className="flex items-center justify-between"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button><h1 className="text-xl font-semibold">Edit Blog Post</h1></div></div>
+      <div className="flex items-center justify-between"><div className="flex items-center gap-4"><Button variant="outline" size="sm" onClick={() => void navigate('/blogs')}><ArrowLeft className="h-4 w-4 mr-2" />Back to Blog Posts</Button><h1 className="text-xl font-semibold">Edit Blog Post</h1></div></div>
       <Card><CardHeader><CardTitle>Edit Post Details</CardTitle></CardHeader>
         <CardContent><Form {...form}><form ref={formRef} onSubmit={(e) => {
           if (submitting.current || imageUploading) { e.preventDefault(); return }
@@ -141,7 +142,7 @@ const BlogEdit: React.FC<BlogEditProps> = ({ identifier, onSuccess }) => {
           <BlogPostContentForm form={form} disabled={isUpdating} />
           <BlogPostMetaForm form={form} images={images} setImages={setImages} categoryOptions={categoryOptions} tagOptions={tagOptions} onImageUploadingChange={setImageUploading} disabled={isUpdating} />
           <div className="md:col-span-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate('/blogs')}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => void navigate('/blogs')}>Cancel</Button>
             <Button type="submit" disabled={isUpdating || imageUploading}><Save className="h-4 w-4 mr-2" />{isUpdating ? 'Updating…' : 'Update Post'}</Button>
           </div>
           </fieldset>

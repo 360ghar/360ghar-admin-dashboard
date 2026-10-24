@@ -41,7 +41,7 @@ const useDeniedContent = (): DeniedContent => {
       }
     }
     dispatch(clearCredentials())
-    navigate('/login', { replace: true })
+    void navigate('/login', { replace: true })
   }, [dispatch, navigate])
 
   return useMemo<DeniedContent>(() => {
@@ -57,9 +57,9 @@ const useDeniedContent = (): DeniedContent => {
 
     const onSignInAgain = () => void signOutAndGoToLogin()
     const onSignOut = () => void signOutAndGoToLogin()
-    const onGoToLogin = () => navigate('/login', { replace: true })
-    const onGoBack = () => navigate(-1)
-    const onGoToDashboard = () => navigate('/dashboard', { replace: true })
+    const onGoToLogin = () => void navigate('/login', { replace: true })
+    const onGoBack = () => void navigate(-1)
+    const onGoToDashboard = () => void navigate('/dashboard', { replace: true })
 
     switch (condition) {
       case 'expired':

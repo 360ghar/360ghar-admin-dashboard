@@ -103,7 +103,7 @@ const VisitDetail = ({ id }: { id: number }) => {
         icon={CalendarDays}
         badge={data?.status ? getVisitStatusLabel(data.status) : undefined}
         actions={
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Go back">
+          <Button variant="ghost" size="sm" onClick={() => void navigate(-1)} aria-label="Go back">
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
         }

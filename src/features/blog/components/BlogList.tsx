@@ -196,7 +196,7 @@ const BlogList = () => {
             action={
               hasFilters
                 ? { label: 'Clear filters', onClick: clearFilters, variant: 'outline' }
-                : { label: 'Create Post', onClick: () => navigate('/blogs/new') }
+                : { label: 'Create Post', onClick: () => void navigate('/blogs/new') }
             }
           />
         ) : (

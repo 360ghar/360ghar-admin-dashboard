@@ -10,8 +10,8 @@ function Form() {
   return (
     <>
       <button onClick={() => setDirty(true)}>Edit</button>
-      <button onClick={() => navigate('/next')}>Go to next page</button>
-      <button onClick={() => { allowSavedNavigation(); navigate('/next') }}>Save and continue</button>
+      <button onClick={() => void navigate('/next')}>Go to next page</button>
+      <button onClick={() => { allowSavedNavigation(); void navigate('/next') }}>Save and continue</button>
     </>
   )
 }

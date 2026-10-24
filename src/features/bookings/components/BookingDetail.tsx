@@ -118,7 +118,7 @@ const BookingDetail = ({ id }: { id: number }) => {
         icon={CalendarCheck}
         badge={data?.booking_status}
         actions={
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Go back">
+          <Button variant="ghost" size="sm" onClick={() => void navigate(-1)} aria-label="Go back">
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
         }

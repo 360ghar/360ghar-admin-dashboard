@@ -133,7 +133,7 @@ export function useLoginFlow() {
   useEffect(() => {
     if (authInitialized && isAuthenticated && step !== 'set-password') {
       consumePostLoginDestination()
-      navigate(requestedDestination.current, { replace: true })
+      void navigate(requestedDestination.current, { replace: true })
     }
   }, [authInitialized, isAuthenticated, navigate, step])
 
@@ -149,7 +149,7 @@ export function useLoginFlow() {
     if (state?.info) {
       setInfoMessage(state.info)
       // Clear so a refresh doesn't re-show it.
-      navigate(location.pathname + location.search, { replace: true, state: { from: state.from } })
+      void navigate(location.pathname + location.search, { replace: true, state: { from: state.from } })
     }
   }, [location.state, location.pathname, location.search, navigate])
 
@@ -222,7 +222,7 @@ export function useLoginFlow() {
       setLastAuthMethod(method, displayIdentifier || normalized)
       void recordLastAuthMethod(currentToken, method)
       consumePostLoginDestination()
-      navigate(requestedDestination.current, { replace: true })
+      void navigate(requestedDestination.current, { replace: true })
     } finally {
       // Reset the flag if navigation didn't happen (e.g. profile fetch failed).
       isLoginInProgress.current = false

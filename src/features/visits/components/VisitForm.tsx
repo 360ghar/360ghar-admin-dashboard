@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { PageHeader } from '@/components/ui/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,7 +23,7 @@ import { CalendarClock } from 'lucide-react'
 import FadeContent from '@/components/reactbits/FadeContent'
 
 const VisitForm = () => {
-  const form = useForm<VisitFormValues>({
+  const form = useForm<z.input<typeof visitFormSchema>, unknown, VisitFormValues>({
     resolver: zodResolver(visitFormSchema),
     defaultValues: {
       property_id: 0,

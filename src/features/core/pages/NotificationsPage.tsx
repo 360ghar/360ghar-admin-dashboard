@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Megaphone, Send, Users2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,7 +46,7 @@ const ROLE_LABELS: Record<SegmentRole, string> = {
 
 const NotificationsPage = () => {
   const { toast } = useToast()
-  const form = useForm<NotificationComposerValues>({
+  const form = useForm<z.input<typeof notificationComposerSchema>, unknown, NotificationComposerValues>({
     resolver: zodResolver(notificationComposerSchema),
     defaultValues: notificationComposerDefaults,
   })

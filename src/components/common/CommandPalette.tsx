@@ -31,7 +31,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   const go = (path: string) => {
     onOpenChange(false)
-    navigate(path)
+    void navigate(path)
   }
 
   return (

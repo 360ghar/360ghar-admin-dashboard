@@ -184,7 +184,7 @@ export default function ForgotPasswordPage() {
       isLoginInProgress.current = false
       setInfoMessage('Your password has been updated. You can now sign in.')
       navigateTimerRef.current = setTimeout(() => {
-        navigate('/login', {
+        void navigate('/login', {
           replace: true,
           state: { info: 'Your password has been updated. You can now sign in.' },
         })

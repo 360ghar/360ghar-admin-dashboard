@@ -50,7 +50,7 @@ it('keeps completed URLs when the active batch is canceled', async () => {
   expect(second.abort).toHaveBeenCalledOnce()
   await waitFor(() => expect(within(screen.getByText('second.png').closest('li')!).getByText('Canceled')).toBeInTheDocument())
   expect(screen.getByTestId('images')).toHaveTextContent('existing.jpg,first-url.jpg')
-  expect(screen.getByRole('button', { name: 'Retry second.png' })).toBeEnabled()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Retry second.png' })).toBeEnabled())
 })
 
 it('retries only the failed file and adds its successful URL', async () => {

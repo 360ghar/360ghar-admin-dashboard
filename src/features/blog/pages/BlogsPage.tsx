@@ -26,7 +26,7 @@ const BlogsPage = ({ mode }: Props) => {
   const [generateMounted, setGenerateMounted] = useState(false)
 
   if (mode === 'create') {
-    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEditor onSuccess={(slug) => navigate(`/blogs/${slug}`)} /></Suspense>
+    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEditor onSuccess={(slug) => void navigate(`/blogs/${slug}`)} /></Suspense>
   }
   if (mode === 'detail') {
     const identifier = params.identifier as string
@@ -34,7 +34,7 @@ const BlogsPage = ({ mode }: Props) => {
   }
   if (mode === 'edit') {
     const identifier = params.identifier as string
-    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEdit key={identifier} identifier={identifier} onSuccess={(slug) => navigate(`/blogs/${slug}`)} /></Suspense>
+    return <Suspense fallback={<LoadingState type="card" rows={5} />}><BlogEdit key={identifier} identifier={identifier} onSuccess={(slug) => void navigate(`/blogs/${slug}`)} /></Suspense>
   }
 
   const quickManagementCards = (

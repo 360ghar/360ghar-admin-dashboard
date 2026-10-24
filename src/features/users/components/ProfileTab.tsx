@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { UseFormReturn } from 'react-hook-form'
-import type { UserProfileFormValues } from '@/features/users/validations'
+import type { UserProfileFormInput, UserProfileFormValues } from '@/features/users/validations'
 import { FormRootError } from '@/components/ui/form-root-error'
 
 interface ProfileTabProps {
-  profileForm: UseFormReturn<UserProfileFormValues>
+  profileForm: UseFormReturn<UserProfileFormInput, unknown, UserProfileFormValues>
   /** Shown read-only: email changes go through the sign-in provider, not the profile save. */
   email?: string | null
   onSubmit: (e: React.FormEvent) => void

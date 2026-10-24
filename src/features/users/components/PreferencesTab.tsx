@@ -6,10 +6,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { UseFormReturn } from 'react-hook-form'
-import type { UserPreferencesFormValues } from '@/features/users/validations'
+import type { UserPreferencesFormInput, UserPreferencesFormValues } from '@/features/users/validations'
 import { FormRootError } from '@/components/ui/form-root-error'
 interface PreferencesTabProps {
-  preferencesForm: UseFormReturn<UserPreferencesFormValues>
+  preferencesForm: UseFormReturn<UserPreferencesFormInput, unknown, UserPreferencesFormValues>
   selectedPropertyTypes: string[]
   selectedLocations: string[]
   isPurpose: (value: string) => boolean

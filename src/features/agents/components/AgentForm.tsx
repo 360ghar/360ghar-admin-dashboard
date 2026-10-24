@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UserRound } from 'lucide-react'
 import { useCreateAgentMutation, useGetAgentQuery, useUpdateAgentMutation } from '@/features/agents/api/agentsApi'
@@ -28,7 +29,7 @@ const AgentForm = ({ id }: { id?: number }) => {
   const [update, updateState] = useUpdateAgentMutation()
   const { toast } = useToast()
   const navigate = useNavigate()
-  const form = useForm<AgentFormValues>({
+  const form = useForm<z.input<typeof agentFormSchema>, unknown, AgentFormValues>({
     resolver: zodResolver(agentFormSchema),
     defaultValues: {
       name: '',
@@ -95,7 +96,7 @@ const AgentForm = ({ id }: { id?: number }) => {
         }).unwrap()
         toast({ title: 'Created', description: 'Agent created' })
       }
-      navigate('/agents')
+      void navigate('/agents')
     } catch (e: unknown) {
       applyServerValidation(e, form.setError, {
         knownFields: [
@@ -118,7 +119,7 @@ const AgentForm = ({ id }: { id?: number }) => {
       <EmptyState
         title="Invalid agent id"
         description="The URL does not contain a valid agent identifier."
-        action={{ label: 'Back to agents', onClick: () => navigate('/agents'), variant: 'outline' }}
+        action={{ label: 'Back to agents', onClick: () => void navigate('/agents'), variant: 'outline' }}
       />
     )
   }
@@ -142,7 +143,7 @@ const AgentForm = ({ id }: { id?: number }) => {
       <EmptyState
         title="Agent not found"
         description="This agent may have been removed."
-        action={{ label: 'Back to agents', onClick: () => navigate('/agents'), variant: 'outline' }}
+        action={{ label: 'Back to agents', onClick: () => void navigate('/agents'), variant: 'outline' }}
       />
     )
   }
@@ -305,7 +306,7 @@ const AgentForm = ({ id }: { id?: number }) => {
                 </>
               )}
               <div className="md:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => navigate('/agents')}>
+                <Button type="button" variant="outline" onClick={() => void navigate('/agents')}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createState.isLoading || updateState.isLoading}>

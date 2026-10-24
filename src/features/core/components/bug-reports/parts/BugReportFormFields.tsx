@@ -11,7 +11,7 @@ import type { BugReportFormData } from '@/features/core/validations'
 interface BugReportFormFieldsProps {
   form: UseFormReturn<BugReportFormData>
   attachments: File[]
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
   removeAttachment: (index: number) => void
 }

@@ -23,12 +23,12 @@ const PropertiesPage = ({ mode }: Props) => {
   const { role } = useUserRole()
 
   if (mode === 'create') {
-    return <PropertyForm onSuccess={(id) => navigate(`/properties/${id}`)} />
+    return <PropertyForm onSuccess={(id) => void navigate(`/properties/${id}`)} />
   }
   if (mode === 'edit') {
     const id = parseRouteId(params.id)
     if (id == null) return <Navigate to="/properties" replace />
-    return <PropertyForm key={id} id={id} onSuccess={(pid) => navigate(`/properties/${pid}`)} />
+    return <PropertyForm key={id} id={id} onSuccess={(pid) => void navigate(`/properties/${pid}`)} />
   }
   if (mode === 'view') {
     const id = parseRouteId(params.id)

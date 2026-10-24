@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -44,8 +44,9 @@ const PropertyForm = ({ id, onSuccess }: { id?: number; onSuccess?: (id: number)
     { skip: ownerMode !== 'search' }
   )
   const amenities = useGetAmenitiesQuery()
+  // z.preprocess widens the schema input to unknown; the fields hold PropertyFormValues.
   const form = useForm<PropertyFormValues>({
-    resolver: zodResolver(propertyFormSchema),
+    resolver: zodResolver(propertyFormSchema) as Resolver<PropertyFormValues>,
     defaultValues: {
       title: '', description: '', property_type: 'apartment',
       purpose: 'rent', status: 'available', base_price: undefined,

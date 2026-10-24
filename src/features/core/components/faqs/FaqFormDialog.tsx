@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -37,7 +38,7 @@ const FaqFormDialog: React.FC<FaqFormDialogProps> = ({ open, onOpenChange, editi
   const [createFaq] = useCreateFaqMutation()
   const [updateFaq] = useUpdateFaqMutation()
 
-  const form = useForm<FaqFormValues>({ resolver: zodResolver(faqSchema), defaultValues: formData })
+  const form = useForm<z.input<typeof faqSchema>, unknown, FaqFormValues>({ resolver: zodResolver(faqSchema), defaultValues: formData })
 
   useEffect(() => {
     if (open) form.reset(formData)

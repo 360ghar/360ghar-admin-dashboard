@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form } from '@/components/ui/form'
@@ -27,7 +28,7 @@ const BlogEditor = ({ onSuccess }: { onSuccess?: (slug: string) => void }) => {
   const { data: categoriesData, error: categoriesError, refetch: refetchCategories } = useListAllBlogCategoriesQuery()
   const { data: tagsData, error: tagsError, refetch: refetchTags } = useListAllBlogTagsQuery()
 
-  const form = useForm<BlogPostForm>({
+  const form = useForm<z.input<typeof blogPostSchema>, unknown, BlogPostForm>({
     resolver: zodResolver(blogPostSchema),
     defaultValues: {
       title: '',

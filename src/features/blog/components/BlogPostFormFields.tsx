@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import type { UseFormReturn } from 'react-hook-form'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -6,9 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import RichTextEditor from '@/components/ui/rich-text-editor'
 import MultiSelect from '@/components/ui/multi-select'
 import ImageUpload from '@/components/common/media/ImageUpload'
-import type { BlogPostForm } from '@/lib/blogValidation'
+import type { BlogPostFormInput, BlogPostForm } from '@/lib/blogValidation'
 
-export const BlogPostContentForm: React.FC<{ form: ReturnType<typeof useForm<BlogPostForm>>; disabled?: boolean }> = ({ form, disabled = false }) => (
+
+type BlogPostFormHandle = UseFormReturn<BlogPostFormInput, unknown, BlogPostForm>
+export const BlogPostContentForm: React.FC<{ form: BlogPostFormHandle; disabled?: boolean }> = ({ form, disabled = false }) => (
   <>
     <div className="md:col-span-2"><FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="Finding Your Dream Home in Mumbai" {...field} /></FormControl><FormMessage /></FormItem>)} /></div>
     <div className="md:col-span-2"><FormField control={form.control} name="content" render={({ field }) => (<FormItem><FormLabel>Content (HTML or Markdown)</FormLabel><FormControl><div className="overflow-hidden rounded-cohere-md border border-cohere-card-border bg-card/40 backdrop-blur-md"><RichTextEditor value={field.value} onChange={field.onChange} disabled={disabled} /></div></FormControl><FormMessage /></FormItem>)} /></div>
@@ -16,7 +18,7 @@ export const BlogPostContentForm: React.FC<{ form: ReturnType<typeof useForm<Blo
   </>
 )
 
-export const BlogPostMetaForm: React.FC<{ form: ReturnType<typeof useForm<BlogPostForm>>; images: string[]; setImages: React.Dispatch<React.SetStateAction<string[]>>; categoryOptions: { value: string; label: string }[]; tagOptions: { value: string; label: string }[]; onImageUploadingChange?: (uploading: boolean) => void; disabled?: boolean }> = ({ form, images, setImages, categoryOptions, tagOptions, onImageUploadingChange, disabled = false }) => (
+export const BlogPostMetaForm: React.FC<{ form: BlogPostFormHandle; images: string[]; setImages: React.Dispatch<React.SetStateAction<string[]>>; categoryOptions: { value: string; label: string }[]; tagOptions: { value: string; label: string }[]; onImageUploadingChange?: (uploading: boolean) => void; disabled?: boolean }> = ({ form, images, setImages, categoryOptions, tagOptions, onImageUploadingChange, disabled = false }) => (
   <>
     <div className="md:col-span-2">
       <FormLabel>Cover Image</FormLabel>
