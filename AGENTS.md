@@ -21,11 +21,11 @@ This is the **360Ghar Admin + Agent Portal**: a React-based admin dashboard for 
 - `npm run typecheck` – project-wide TypeScript type checking.
 - `npm run typecheck:tests` – type-check the Vitest suite (`tsconfig.test.json`).
 - `npm run test` – run the unit test suite once (Vitest + Testing Library, jsdom). `npm run test:watch` – watch mode.
-- Tests live in `src/**/__tests__/` and ARE covered by `typecheck:tests` + eslint. Config: `vitest.config.ts` + `vitest.setup.ts` (jest-dom + a jest→vi shim).
+- Tests live in `src/**/__tests__/` and are covered by `typecheck:tests` + eslint. Vitest also runs `src/features/pm/validations.test.ts`; `typecheck:tests` does not type-check it (eslint does). Config: `vitest.config.ts` + `vitest.setup.ts` (jest-dom + a jest→vi shim).
 - `npm run api:sync` – copy `../360ghar-backend/docs/openapi.json` to `openapi/openapi.json` (override with `BACKEND_DIR=...`).
 - `npm run api:types` – regenerate `src/lib/api/schema.gen.ts` (never hand-edit it; ESLint ignores it).
 - `cp .env.example .env` – copy environment variables.
-- CI (`.github/workflows/ci.yml`) runs typecheck, test typecheck, lint, tests and the production build on every push/PR; the pre-commit hook runs the same gates. The production build injects a CSP meta tag (`script-src 'self'`) — keep bootstrap/theme scripts in `public/` instead of inline `<script>` blocks.
+- CI (`.github/workflows/ci.yml`) runs typecheck, test typecheck, lint, tests and the production build on every pull request and on pushes to `main`. The pre-commit hook runs typecheck, test typecheck, lint and tests (not the build). The production build injects a CSP meta tag (`script-src 'self'`) — keep bootstrap/theme scripts in `public/` instead of inline `<script>` blocks.
 - `npm run lint` / `npm run lint:fix` – run ESLint / apply auto-fixes.
 - `npx getdesign@latest add cohere` – regenerate the legacy Cohere spec (repo `DESIGN.md` is now the project's own "Command Center" design doc)
 
@@ -43,11 +43,11 @@ This is the **360Ghar Admin + Agent Portal**: a React-based admin dashboard for 
 
 ## Authentication Flow
 - Supabase-native authentication (phone/password) with SDK-managed session lifecycle.
-- Role-based access control (admin/agent roles) determined by `user.agent_id` field. Admin users have access to all features; agents are restricted to their assigned properties/users.
+- Role-based access control uses the explicit `user.role` from the API (`admin`/`agent`). `user.agent_id` only links the user to an agent record and scopes data; do not use it for authorization. Admin users have access to all features; agents are restricted to their assigned properties/users.
 - Protected routes via `PrivateRoute` component; role-specific routes via `RoleBasedRoute` component.
 - Access token is sourced from the active Supabase session for API requests with 401/403 handling.
 - `fetchUserProfileWithToken` is centralized in `src/lib/auth.ts` (do not copy-paste).
-- Browser storage is scoped per account (`scopedStorageKey`) and versioned. Sign-out (`clearCredentials`, see `src/store/index.ts`) removes the profile hint, the PM owner selection and every saved list filter; the RTK Query cache is reset. A 401 refreshes the Supabase session once and retries; a retried 401 signs out. A GET 503 waits for `Retry-After` before it retries.
+- Browser storage is scoped per account (`scopedStorageKey`) and versioned. Sign-out (`clearCredentials`, see `src/store/index.ts`) removes the profile hint, the PM owner selection and every saved list filter; the RTK Query cache is reset. On a 401, the request retries with the current token if the token changed in flight; if the same token failed, it forces one Supabase refresh and retries (at most two retries). It signs out only when the final 401 used the current active token and a non-anonymous session exists. A GET 503 waits for `Retry-After` before it retries.
 - Auth state is managed through a Redux slice; the cached user profile is persisted in localStorage.
 
 ## Project Tree
@@ -107,7 +107,7 @@ src/
 - Toast notifications use a custom hook pattern.
 
 ## Type & API Conventions
-- **No duplicate types.** Each type is defined once. PM types are prefixed with `Pm` (e.g., `PmPropertyCreate`) and live in `pmApi.ts` until extracted.
+- **No duplicate types.** Each type is defined once. PM types are prefixed with `Pm` (e.g., `PmPropertyCreate`) and live in `src/types/pm.ts` as aliases of the generated components.
 - **Types in `src/types/<domain>.ts`.** Use `src/types/api.ts` for core domain types, feature-specific types in their respective API or types files.
 - **Zod schemas in `validations.ts`.** Each feature that has forms should have a `validations.ts` file exporting named schemas and inferred types. Do not define `z.object()` inline in components.
 - **All API modules must be imported in `src/store/index.ts`.** Missing imports cause hooks to fail at runtime.
@@ -115,7 +115,7 @@ src/
 - **Add `providesTags`** to every query endpoint and `invalidatesTags` to every mutation that changes cached data.
 - **No legacy endpoints.** Removed duplicate and deprecated endpoints. Use the modern equivalents.
 - **Generated types:** core domain types in `src/types/api.ts` (User, Property, Visit, Booking, Agent, etc.) are aliases of the generated components in `src/lib/api/schema.gen.ts`. Only UI-only shapes (filters, view models) and the unauthenticated `/health` root are hand-written. List query types come from `QueryOf<path>`, so an undeclared query key fails the type check. PM-specific types in `src/types/pm.ts` are aliases of the generated components (e.g., `PmProperty`, `PmPropertyCreate`, `Lease`); no hand-written wire types. Define types in `src/types/` (one file per domain). Orphaned types are removed from deleted modules.
-- **Wire rules:** errors are read only from `{ error: { code, message, details } }` (`@/lib/errors`); lists are `CursorPage` and a read that needs every row uses `fetchAllPages` (`@/store/fetchAllPages`); `limit` is at most 100; a PATCH-style write sends only changed keys and `null` to clear a field.
+- **Wire rules:** errors are read only from `{ error: { code, message, details } }` (`@/lib/errors`); lists are `CursorPage` and a read that needs every row uses `fetchAllPages` (`@/store/fetchAllPages`); `limit` is at most 100; a PATCH-style write sends only changed keys; send `null` to clear a field only where the endpoint schema permits null (for example, PM rejects null for `management_status`, `payment_due_day` and `grace_period_days`, so omit those keys instead).
 - **Zod pattern:** follow `src/lib/blogValidation.ts` (named schema exports + inferred type exports). Form components import from validation files, not inline `z.object()`.
 - **RTK Query:** base API in `src/store/api.ts` with automatic auth and `refetchOnReconnect: true`; feature API slices extend it using `api.injectEndpoints()`. Use RTK Query for all API interactions (no direct fetch/axios calls except in `lib/auth.ts`). Use Redux slices only for complex client state. Use optimistic updates (`onQueryStarted`) for status changes in PM mutations. Notification state integrates with server-side `notificationsApi` via RTK Query. All API responses are type-safe through TypeScript generics. RTK Query handles data fetching, automatic caching, and tag-based invalidation.
 
@@ -163,13 +163,12 @@ src/
 - Exposed config must be prefixed with `VITE_` (e.g., `VITE_API_BASE_URL`).
 - Environment variables:
   ```env
-  VITE_API_BASE_URL=http://localhost:3600/api/v1   # Production/preview builds only
+  VITE_API_BASE_URL=https://api.360ghar.com/api/v1   # Required for production/preview builds
   VITE_SUPABASE_URL=                 # Required for direct Supabase auth/session handling
   VITE_SUPABASE_PUBLISHABLE_KEY=     # Required publishable key
   DEV_API_PROXY_TARGET=              # Dev-only: Vite proxy target (default https://api.360ghar.com)
   ```
   In dev, `API_BASE_URL` is the same-origin `/api/v1` and Vite proxies `/api`, `/health`, `/config` to `DEV_API_PROXY_TARGET` (see `vite.config.ts`) — no CORS and no dependency on the dev port. Production builds use the absolute `VITE_API_BASE_URL`.
-- Ensure the backend API and CORS are configured to allow the Vite dev origin.
 - Keep auth/session flows Supabase-native (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`); backend `/api/v1/auth/*` endpoints are deprecated/removed.
-- The backend API must be running and CORS configured to allow the dev server origin.
+- The backend API must be reachable at `DEV_API_PROXY_TARGET` in dev. Backend CORS applies only to deployed origins that call `VITE_API_BASE_URL` directly.
 - The application includes comprehensive error handling and loading states.
