@@ -17,7 +17,7 @@ const FORMULA_TRIGGERS = new Set(['=', '+', '-', '@', '\t', '\r'])
  * Escape one CSV cell. Every value is quoted; embedded quotes are doubled.
  */
 const escapeCsv = (v: unknown) => {
-  const s = v === null || v === undefined ? '' : String(v)
+  const s = v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v as string | number | boolean | bigint)
   const neutralised = FORMULA_TRIGGERS.has(s.charAt(0)) ? `'${s}` : s
   return `"${neutralised.replaceAll('"', '""')}"`
 }

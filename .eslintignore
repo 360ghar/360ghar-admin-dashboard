@@ -1,8 +1,0 @@
-node_modules
-dist
-*.config.js
-*.config.cjs
-*.config.ts
-*.tsbuildinfo
-vite.config.js
-vite.config.ts

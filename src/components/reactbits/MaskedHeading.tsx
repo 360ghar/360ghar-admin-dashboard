@@ -279,7 +279,7 @@ const MaskedHeading: React.FC<MaskedHeadingProps> = ({
     return () => tweenRef.current?.kill();
   }, [reveal, trigger, duration, stagger, words]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const TagAny = tag as any;
 
   return (

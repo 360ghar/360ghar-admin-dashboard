@@ -5,8 +5,8 @@ import { downloadCsv, csvFilename } from '@/lib/csv'
 const readBlob = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error)
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'))
     reader.readAsText(blob)
   })
 
